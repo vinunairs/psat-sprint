@@ -88,12 +88,12 @@
 
     async function loadProfile() {
       if (!user) return;
-      const { data } = await sb.from("profiles").select("first_name, test_kind, test_date").eq("user_id", user.id).maybeSingle();
-      if (data) app.applyProfile({ name: data.first_name || "", kind: data.test_kind, date: data.test_date || null });
+      const { data } = await sb.from("profiles").select("first_name, test_kind, test_date, target_score").eq("user_id", user.id).maybeSingle();
+      if (data) app.applyProfile({ name: data.first_name || "", kind: data.test_kind, date: data.test_date || null, target: data.target_score ?? null });
     }
     app.onSettings(async (st) => {
       if (!user) return;
-      await sb.from("profiles").upsert({ user_id: user.id, first_name: st.name || "", test_kind: st.kind === "sat" ? "sat" : "psat", test_date: st.date || null }, { onConflict: "user_id" });
+      await sb.from("profiles").upsert({ user_id: user.id, first_name: st.name || "", test_kind: st.kind === "sat" ? "sat" : "psat", test_date: st.date || null, target_score: st.target || null }, { onConflict: "user_id" });
     });
 
     app.onSave(() => schedulePush());
@@ -156,7 +156,7 @@
       const msg = el("p", { class: "err", role: "alert" });
       const submit = el("button", { class: "btn primary", type: "submit" }, up ? "Create account" : "Sign in");
       const fields = [];
-      let first, kind, date, grade, code;
+      let first, kind, date, grade, code, target;
       if (up) {
         const st = app.state.settings || {};
         first = el("input", { type: "text", id: "acFirst", autocomplete: "given-name", maxlength: "40", required: true, value: app.state.owner ? "" : st.name || "" });
@@ -164,11 +164,12 @@
         kind.value = app.state.owner ? "psat" : st.kind || "psat";
         date = el("input", { type: "date", id: "acDate", value: app.state.owner ? "2026-10-07" : st.date || "2026-10-07" });
         grade = el("select", { id: "acGrade" }, ["", "8", "9", "10", "11", "12"].map((g) => el("option", { value: g, text: g ? "Grade " + g : "Choose…" })));
+        target = el("input", { type: "number", id: "acTarget", min: "320", max: "1600", step: "10", inputmode: "numeric", placeholder: "e.g. 1300" });
         code = el("input", { type: "text", id: "acCode", autocomplete: "off", maxlength: "20", placeholder: "e.g. SPRINT-XXXXX", style: "text-transform:uppercase" });
         fields.push(
           el("label", { class: "f", for: "acFirst" }, "Student's first name", first),
           el("div", { class: "fields" }, el("label", { class: "f", for: "acKind" }, "Test", kind), el("label", { class: "f", for: "acDate" }, "Test date", date)),
-          el("label", { class: "f", for: "acGrade" }, "Grade", grade));
+          el("div", { class: "fields" }, el("label", { class: "f", for: "acGrade" }, "Grade", grade), el("label", { class: "f", for: "acTarget" }, "Target score (optional)", target)));
       }
       fields.push(el("label", { class: "f", for: "acEmail" }, up ? "Student's email" : "Email", email), el("label", { class: "f", for: "acPw" }, "Password", pw));
       if (up) fields.push(el("label", { class: "f", for: "acCode" }, "Invite code", code));
@@ -192,7 +193,7 @@
         if (up && !code.value.trim()) { msg.textContent = "Enter the invite code."; return; }
         submit.disabled = true;
         if (up) {
-          const meta = { first_name: first.value.trim(), test_kind: kind.value, test_date: date.value || "", grade: grade.value, invite_code: code.value.trim().toUpperCase() };
+          const meta = { first_name: first.value.trim(), test_kind: kind.value, test_date: date.value || "", grade: grade.value, target_score: target.value ? String(Math.round(+target.value / 10) * 10) : "", invite_code: code.value.trim().toUpperCase() };
           const { data, error } = await sb.auth.signUp({ email: em, password: p, options: { emailRedirectTo: SITE, data: meta } });
           submit.disabled = false;
           if (error) { msg.textContent = friendly(error); return; }

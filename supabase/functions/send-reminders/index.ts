@@ -44,10 +44,17 @@ function localParts(tz: string, d = new Date()) {
   }
   return { date, hour };
 }
+function weekdayIn(tz: string, d = new Date()) {
+  try { return new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" }).format(d); } catch { return ""; }
+}
+function mondayOf(date: string) {
+  const t = Date.parse(date + "T00:00:00Z"), wd = (new Date(t).getUTCDay() + 6) % 7;
+  return new Date(t - wd * 864e5).toISOString().slice(0, 10);
+}
 const dayDiff = (a: string, b: string) => Math.round((Date.parse(b + "T00:00:00Z") - Date.parse(a + "T00:00:00Z")) / 864e5);
 
 // deno-lint-ignore no-explicit-any
-function compose(p: any, today: string, test = false) {
+function compose(p: any, today: string, test = false, weekday = "") {
   const name = (p?.settings?.name || "").trim();
   const hi = name ? ", " + name : "";
   const testDate = p?.settings?.date || "2026-10-07";
@@ -73,8 +80,27 @@ function compose(p: any, today: string, test = false) {
   else if (left < 0) { title = `Keep your skills sharp${hi}`; body = `10 quick questions on ${weak} keep your progress going.`; }
   else if (streak > 0) { title = `Keep your ${streak}-day streak${hi}!`; body = `${left} days to the ${kind}. 10 questions on ${weak} tonight will do it.`; }
   else { title = `${left} days to the ${kind}${hi}`; body = `Tonight: 10 questions on ${weak}.` + (mistakes ? ` ${mistakes} missed question${mistakes === 1 ? " is" : "s are"} waiting in your Mistake notebook.` : ""); }
+  // Long-range plan: use this week's goals, and send a check-in on Sundays.
+  let checkin = false;
+  const wsNow = p?.weekStatus;
+  if (left > 9) {
+    const until = left > 60 ? `${Math.round(left / 7)} weeks` : `${left} days`;
+    const stale = !wsNow || wsNow.ws !== mondayOf(today);
+    const focus = wsNow && wsNow.focus && wsNow.focus.length ? wsNow.focus.join(" and ") : weak;
+    if (weekday === "Sun") {
+      checkin = true;
+      title = `Weekly check-in${hi}`;
+      body = stale ? "No practice logged this week yet. New goals start tomorrow, so make it a strong week."
+        : `This week: ${wsNow.q} questions, ${wsNow.done} of ${wsNow.total} goals done.` + (wsNow.done < wsNow.total ? " Tonight's a good chance to finish one more." : " Every goal met. Great week!");
+    } else if (stale) {
+      title = `${until} to the ${kind}${hi}`; body = "New week, new goals. Open PSAT Sprint to see this week's focus.";
+    } else {
+      title = streak > 0 ? `Keep your ${streak}-day streak${hi}!` : `${until} to the ${kind}${hi}`;
+      body = `This week: ${wsNow.q} of ${wsNow.qTarget} questions. Focus: ${focus}.`;
+    }
+  }
   if (test) { title = `Reminders are on${hi}`; body = `Here's what a reminder looks like: ${body}`; }
-  return { title, body, practiced, left };
+  return { title, body, practiced, left, checkin };
 }
 
 // deno-lint-ignore no-explicit-any
@@ -108,7 +134,7 @@ Deno.serve(async (req) => {
     const { data: prog } = await admin.from("progress").select("data").eq("user_id", u.user.id).maybeSingle();
     const results = [];
     for (const s of subs) {
-      const c = compose(prog?.data || {}, localParts(s.tz).date, true);
+      const c = compose(prog?.data || {}, localParts(s.tz).date, true, weekdayIn(s.tz));
       results.push(await sendTo(s, { title: c.title, body: c.body, url: SITE, tag: "psat-test" }));
     }
     return json({ ok: true, results });
@@ -127,12 +153,12 @@ Deno.serve(async (req) => {
         const { data: prog } = await admin.from("progress").select("data").eq("user_id", s.user_id).maybeSingle();
         progressCache.set(s.user_id, prog?.data || {});
       }
-      const c = compose(progressCache.get(s.user_id), date);
+      const c = compose(progressCache.get(s.user_id), date, false, weekdayIn(s.tz));
       const testMorning = hour === 6 && c.left === 0; // good-luck message on test day, 6 a.m.
       const evening = hour === s.remind_hour && c.left > 0; // daily reminder until the test
       if (!testMorning && !evening) continue;
       await admin.from("push_subscriptions").update({ last_sent_on: date }).eq("id", s.id);
-      if (evening && c.practiced) { skipped++; continue; } // already practiced today
+      if (evening && c.practiced && !c.checkin) { skipped++; continue; } // already practiced today (Sunday check-ins still go out)
       if ((await sendTo(s, { title: c.title, body: c.body, url: SITE + "?from=reminder", tag: "psat-daily" })) === "sent") sent++;
     }
     return json({ ok: true, sent, skipped });

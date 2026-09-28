@@ -97,6 +97,15 @@ p{margin:0}
 .pday details[open] summary::after{content:" \2212"}
 .pday details .tasks{margin-top:10px}
 
+/* Weekly goals */
+.goals{display:grid;gap:12px}
+.goal{display:grid;grid-template-columns:30px 1fr minmax(90px,auto);gap:12px;align-items:center}
+.goal .bubble{cursor:default}
+.goal.done .bubble{background:var(--good);border-color:var(--good);color:var(--surface)}
+.goal.done .gl{color:var(--graphite)}
+.goal.done .track i{background:var(--good)}
+@media (max-width:520px){.goal{grid-template-columns:30px 1fr}.goal>span:last-child{grid-column:2;text-align:left!important}}
+
 /* Choosers */
 .skills{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
 .skill{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;border:1.5px solid var(--line);background:var(--surface);border-radius:12px;padding:12px 14px;cursor:pointer}

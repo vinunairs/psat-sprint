@@ -61,7 +61,9 @@
     { id: "fixer", s: "×5", name: "Mistake Fixer", how: "Fix 5 questions from the Mistake notebook" },
     { id: "cover", s: "8/8", name: "Full Coverage", how: "Practice all 8 skill domains" },
     { id: "century", s: "100", name: "Century", how: "Answer 100 questions" },
-    { id: "keeper", s: "✓✓✓", name: "Plan Keeper", how: "Complete every task on 3 plan days" }
+    { id: "keeper", s: "✓✓✓", name: "Plan Keeper", how: "Complete every task on 3 plan days" },
+    { id: "weekwon", s: "W", name: "Week Won", how: "Meet every weekly goal" },
+    { id: "goal", s: "★", name: "Goal Reached", how: "Hit your target score on a test" }
   ];
   const LEVELS = ["Warm-Up", "Test Taker", "Module Master", "Adaptive Ace", "Score Climber", "Top Percentile", "Legend"];
   const XP_PER_LEVEL = 250;
@@ -74,7 +76,8 @@
       stats: {}, sub: {}, answered: 0, tests: [], mistakes: [], fixed: 0, badges: {},
       seenBank: {}, recentKeys: [], mock: null, lastMock: null,
       prefs: { sel: [], count: 10, diff: "auto", timed: true },
-      settings: { kind: "psat", date: "2026-10-07", name: "" },
+      activity: {}, weeks: {}, planStart: null,
+      settings: { kind: "psat", date: "2026-10-07", name: "", target: null },
       rewards: [
         { id: "r1", xp: 500, label: "Choose Friday dinner", claimed: false },
         { id: "r2", xp: 1000, label: "Pick the family movie night", claimed: false },
@@ -92,6 +95,7 @@
   let S = load();
   let storageOK = true;
   function save() {
+    try { planBookkeeping(); } catch (e) { }
     S.updatedAt = Date.now();
     try { localStorage.setItem(KEY, JSON.stringify(S)); storageOK = true; }
     catch (e) { if (storageOK) toast("This browser isn't saving progress. Use Back up progress to keep a copy."); storageOK = false; }
@@ -193,6 +197,7 @@
     if (!fromMock) { const st = S.stats[q.d] || (S.stats[q.d] = { att: 0, cor: 0 }); st.att++; if (ok) st.cor++; }
     if (q.sk) { const sb = S.sub[q.sk + "|" + q.d] || (S.sub[q.sk + "|" + q.d] = { att: 0, cor: 0 }); sb.att++; if (ok) sb.cor++; }
     S.answered++; if (S.answered >= 100) award("century");
+    logActivity(q.d, ok);
     const i = S.mistakes.findIndex((m) => m.key === q.key);
     if (ok && i > -1) { S.mistakes.splice(i, 1); S.fixed++; if (S.fixed >= 5) award("fixer"); }
     if (!ok && i === -1) {
@@ -214,12 +219,13 @@
     const hi = document.getElementById("hello"); if (hi) hi.textContent = greeting();
     document.title = who() ? "PSAT Sprint · " + who() : "PSAT Sprint";
     $("#testLabel").textContent = fmt.name + " · " + fmtDay(S.settings.date).long;
-    $("#daysLeft").textContent = n > 0 ? n : n === 0 ? "0" : "✓";
+    const weeks = n > 60 ? Math.round(n / 7) : null;
+    $("#daysLeft").textContent = weeks ? weeks : n > 0 ? n : n === 0 ? "0" : "✓";
     const lab = $("#daysLabel"); lab.textContent = "";
-    lab.append(n > 1 ? "days" : n === 1 ? "day" : n === 0 ? "today" : "done", el("em", { text: n > 0 ? "to test day" : n === 0 ? "test day, good luck" : "test complete" }));
+    lab.append(weeks ? "weeks" : n > 1 ? "days" : n === 1 ? "day" : n === 0 ? "today" : "done", el("em", { text: n > 0 ? "to test day" : n === 0 ? "test day, good luck" : "test complete" }));
     const s = liveStreak(); $("#hStreak").textContent = s + (s === 1 ? " day" : " days");
     const t = S.tests.filter((x) => x.total).pop();
-    $("#hScore").textContent = t && t.total ? t.total + (t.source === "app" ? " est." : "") : "—";
+    $("#hScore").textContent = (t && t.total ? t.total + (t.source === "app" ? " est." : "") : "—") + (S.settings.target ? " / goal " + S.settings.target : "");
     const l = level(); $("#hLevel").textContent = "Level " + l + " · " + levelName(l);
     $("#hXpBar").style.width = ((S.xp % XP_PER_LEVEL) / XP_PER_LEVEL) * 100 + "%";
     $("#hXp").textContent = S.xp + " XP · " + (XP_PER_LEVEL - (S.xp % XP_PER_LEVEL)) + " to next level";
@@ -256,18 +262,109 @@
     }
     save(); render();
   }
+  /* ================= Long-range plan ================= */
+  const SPRINT_DAYS = 9; // switch to the day-by-day plan when the test is this close
+  const PHASES = {
+    foundations: { name: "Foundations", what: "Diagnostic mock, then practice all 8 skills" },
+    build: { name: "Build", what: "Focus on the weakest skills, one mock section a week" },
+    ready: { name: "Test-ready", what: "A full mock every week, timed practice" },
+    sprint: { name: "Final sprint", what: "Day-by-day plan with two dress rehearsals" }
+  };
+  function addDays(str, n) { const d = parseYmd(str); d.setDate(d.getDate() + n); return ymd(d); }
+  function weekStart(str) { const d = parseYmd(str); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return ymd(d); }
+  const dayOf = () => S.activity[today()] || (S.activity[today()] = { q: 0, c: 0, dom: {}, mock: 0 });
+  function logActivity(d, ok) { const a = dayOf(); a.q++; if (ok) a.c++; const x = a.dom[d] || (a.dom[d] = [0, 0]); x[0]++; if (ok) x[1]++; }
+  function logMock(sections) { dayOf().mock += sections; }
+  function weekTotals(ws) {
+    const t = { q: 0, c: 0, dom: {}, mock: 0, days: 0 };
+    for (let i = 0; i < 7; i++) {
+      const a = S.activity[addDays(ws, i)]; if (!a) continue;
+      if (a.q || a.mock) t.days++;
+      t.q += a.q || 0; t.c += a.c || 0; t.mock += a.mock || 0;
+      for (const [d, [n, c]] of Object.entries(a.dom || {})) { const x = t.dom[d] || (t.dom[d] = [0, 0]); x[0] += n; x[1] += c; }
+    }
+    return t;
+  }
+  function planMode() { const n = daysLeft(); if (n < 0) return "after"; if (n <= SPRINT_DAYS) return "sprint"; return n > 90 ? "monthly" : "weekly"; }
+  function phaseAt(dateStr) {
+    const left = Math.round((parseYmd(S.settings.date) - parseYmd(dateStr)) / 864e5);
+    const since = Math.round((parseYmd(dateStr) - parseYmd(S.planStart || today())) / 864e5);
+    if (left <= SPRINT_DAYS) return "sprint";
+    if (left <= 35) return "ready";
+    if (since < 28 && left > 56) return "foundations";
+    return "build";
+  }
+  function makeWeekGoals(ws) {
+    const ph = phaseAt(weekStart(today()) === ws ? today() : ws);
+    const hasData = S.tests.length > 0 || S.answered >= 20;
+    const goals = [];
+    if (!hasData) {
+      goals.push({ id: "mock", type: "mock", target: 2, label: "Take a full diagnostic mock test (here or in Bluebook)" });
+      goals.push({ id: "q", type: "q", target: 40, label: "Answer 40 practice questions" });
+      goals.push({ id: "cover", type: "cover", min: 1, target: 8, label: "Try all 8 skills at least once" });
+      return { phase: "foundations", diagnostic: true, goals };
+    }
+    const qT = ph === "foundations" ? 60 : ph === "build" ? 80 : 100, per = ph === "ready" ? 25 : 20;
+    goals.push({ id: "q", type: "q", target: qT, label: "Answer " + qT + " practice questions" });
+    if (ph === "foundations") goals.push({ id: "cover", type: "cover", min: 5, target: 8, label: "Practice all 8 skills (5+ questions each)" });
+    const focus = focusList().filter((d) => mastery(d.id) == null || mastery(d.id) < 0.9).slice(0, ph === "ready" ? 1 : 2);
+    for (const d of focus) {
+      const m = mastery(d.id);
+      const acc = Math.min(90, Math.max(60, Math.round(((m ?? 0.55) * 100) / 5) * 5 + 10));
+      goals.push({ id: "dom-" + d.id, type: "dom", d: d.id, target: per, label: per + " questions on " + d.name });
+      goals.push({ id: "acc-" + d.id, type: "acc", d: d.id, target: acc, label: acc + "% accuracy on " + d.name });
+    }
+    goals.push(ph === "ready" ? { id: "mock", type: "mock", target: 2, label: "Take a full mock test (here or in Bluebook)" } : { id: "mock", type: "mock", target: 1, label: "Take one mock test section" });
+    const nb = ph === "ready" ? 5 : 10;
+    goals.push({ id: "nb", type: "notebook", target: nb, label: "Get the Mistake notebook down to " + nb + " or fewer" });
+    return { phase: ph, goals };
+  }
+  function currentWeek() {
+    const ws = weekStart(today());
+    if (!S.weeks[ws]) S.weeks[ws] = makeWeekGoals(ws);
+    return { ws, w: S.weeks[ws] };
+  }
+  // Returns [done, target, note]
+  function goalProgress(g, tot) {
+    if (g.type === "q") return [tot.q, g.target];
+    if (g.type === "mock") return [tot.mock, g.target, tot.mock + " of " + g.target + " sections"];
+    if (g.type === "cover") return [DOMAINS.filter((d) => ((tot.dom[d.id] || [0])[0]) >= g.min).length, g.target, "skills"];
+    if (g.type === "dom") return [(tot.dom[g.d] || [0])[0], g.target];
+    if (g.type === "acc") {
+      const x = tot.dom[g.d];
+      if (!x || x[0] < 10) return [0, 1, (x ? x[0] : 0) + " of 10 answers needed"];
+      const a = Math.round((x[1] / x[0]) * 100);
+      return [a >= g.target ? 1 : a / g.target, 1, a + "% this week"];
+    }
+    if (g.type === "notebook") { const n = S.mistakes.length; return [n <= g.target ? 1 : g.target / n, 1, n + " in the notebook"]; }
+    return [0, 1];
+  }
+  const goalDone = (g, tot) => { const [a, b] = goalProgress(g, tot); return a >= b; };
+  function planBookkeeping() {
+    if (!S.planStart) S.planStart = today();
+    const cut = addDays(today(), -400);
+    for (const k of Object.keys(S.activity)) if (k < cut) delete S.activity[k];
+    for (const k of Object.keys(S.weeks)) if (k < cut) delete S.weeks[k];
+    const m = planMode();
+    if (m === "sprint" || m === "after") { S.weekStatus = null; return; }
+    const { ws, w } = currentWeek(), tot = weekTotals(ws);
+    if (!w.won && w.goals.every((g) => goalDone(g, tot))) { w.won = true; S.xp += 100; toast("+100 XP · " + withName("week won") + "! Every goal is done.", true); award("weekwon"); }
+    const qg = w.goals.find((g) => g.type === "q");
+    S.weekStatus = { ws, q: tot.q, qTarget: qg ? qg.target : 0, focus: w.goals.filter((g) => g.type === "dom").map((g) => DOM[g.d].name), done: w.goals.filter((g) => goalDone(g, tot)).length, total: w.goals.length, phase: w.phase };
+  }
+  function checkGoalScore(total) { if (total && S.settings.target && total >= S.settings.target) award("goal"); }
+  function latestTotal() { const t = S.tests.filter((x) => x.total).pop(); return t ? t : null; }
+
   function renderToday() {
     const p = $("#p-today"); p.textContent = "";
-    const t = today();
-    const PLAN = plan();
-    const cur = PLAN.find((d) => d.date === t) || (t < PLAN[0].date ? PLAN[0] : null);
+    const t = today(), mode = planMode();
     const signedIn = !!(window.__psync && window.__psync.user);
     if (!signedIn && !S.owner && !S.prefs.welcomeDone && !S.updatedAt) {
-      const acct = (mode) => document.dispatchEvent(new CustomEvent("psapp-account", { detail: mode }));
+      const acct = (m) => document.dispatchEvent(new CustomEvent("psapp-account", { detail: m }));
       p.append(el("div", { class: "card mission" },
         el("div", { class: "eyebrow", text: "Welcome" }),
         el("h2", { text: "PSAT and SAT practice that adapts to you" }),
-        el("p", { class: "lede", text: "Fresh practice questions every time, full-length adaptive mock tests, a skill matrix that shows what to work on, and rewards for keeping at it. Create a free student account to save progress across your phone and computer and get daily reminders." }),
+        el("p", { class: "lede", text: "Fresh practice questions every time, full-length adaptive mock tests, a skill matrix that shows what to work on, and a plan that fits your test date, from months out to the final week. Create a free student account to save progress across your phone and computer and get reminders." }),
         el("div", { class: "row" },
           el("button", { class: "btn primary", onclick: () => acct("up") }, "Create a student account"),
           el("button", { class: "btn", onclick: () => acct("in") }, "Sign in"),
@@ -277,35 +374,106 @@
     if (S.mock && S.mock.phase !== "done") {
       p.append(el("div", { class: "card mission" }, el("div", { class: "eyebrow", text: "Mock test in progress" }), el("h2", { text: FORMATS[S.mock.kind].name + " mock" }), el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => show("mock") }, "Resume the mock test"))));
     }
-    if (cur) {
-      const f = fmtDay(cur.date), done = cur.tasks.filter((_, i) => S.tasks[cur.date + "#" + i]).length, top = focusList()[0];
-      p.append(el("div", { class: "card mission" },
-        el("div", { class: "row between" }, el("div", {}, el("div", { class: "eyebrow", text: cur.date === t ? possessive() + (who() ? "mission today" : "Today's mission") : possessive() + (who() ? "first mission" : "First mission") }), el("h2", { text: cur.title })), el("span", { class: "date", text: f.dow + " " + f.md + " · " + done + "/" + cur.tasks.length + " done" })),
-        taskList(cur),
-        el("div", { class: "row" },
-          el("button", { class: "btn primary", onclick: () => { S.prefs.sel = [top.id]; save(); show("practice"); startPractice([top.id], 10, "auto"); } }, "Practice: " + top.name),
-          el("button", { class: "btn", onclick: () => show("mock") }, "Take a mock test"))));
-    } else if (t > PLAN[PLAN.length - 1].date) {
-      p.append(el("div", { class: "card mission" }, el("h2", { text: "Test's done. Nice work." }), el("p", { class: "muted", text: "Scores usually arrive a few weeks after test day. Keep practicing here for the SAT: change the test date and type with the Test date button at the bottom of the page." })));
-    }
+    if (mode === "sprint") renderSprint(p, t);
+    else if (mode === "after") renderAfter(p);
+    else renderLongPlan(p, mode);
     p.append(el("div", { class: "card row between", style: "padding:14px 18px" },
-      el("span", {}, el("strong", { text: "Daily reminder on your phone" }), el("span", { class: "muted", text: " · a nudge each evening with the skill to work on" })),
+      el("span", {}, el("strong", { text: "Reminders on your phone" }), el("span", { class: "muted", text: mode === "sprint" ? " · a nudge each evening with the skill to work on" : " · an evening nudge with this week's goals, plus a Sunday check-in" })),
       el("button", { class: "btn small", onclick: () => { const b = document.getElementById("remindBtn"); if (b) b.click(); } }, "Set up reminders")));
-    const pw = el("div", { class: "plan" });
-    PLAN.forEach((day) => {
-      const f = fmtDay(day.date), isT = day.date === t, dots = el("div", { class: "dots", "aria-hidden": "true" });
-      day.tasks.forEach((_, i) => dots.append(el("i", { class: S.tasks[day.date + "#" + i] ? "on" : "" })));
-      pw.append(el("div", { class: "pday" + (isT ? " today" : "") }, el("div", { class: "d" }, el("b", { text: f.md }), f.dow + (isT ? " · today" : "")), el("details", { open: isT }, el("summary", { text: day.title }), taskList(day)), dots));
-    });
-    p.append(el("div", {}, el("div", { class: "row between", style: "margin-bottom:12px" }, el("h3", { text: "The 10-day plan" }), el("span", { class: "muted", style: "font-size:13px", text: "Each task is worth 15 XP" })), pw));
     p.append(el("div", { class: "card" }, el("h3", { text: "How the digital PSAT and SAT work" }),
       el("div", { class: "grid2", style: "margin-top:12px" },
         info("Reading and Writing", "54 questions in 64 minutes, split into two 32-minute modules. Short passages with one question each. About 71 seconds per question."),
         info("Math", "44 questions in 70 minutes, split into two 35-minute modules. Calculator allowed throughout. About a quarter of questions need a typed-in answer. About 95 seconds per question."),
         info("Adaptive", "How you do on Module 1 decides whether Module 2 is the easier or the harder set. Only the harder set unlocks the top scores."),
         info("Scoring", "PSAT sections score 160–760 (total 320–1520). SAT sections score 200–800 (total 400–1600). Wrong answers cost nothing, so never leave a blank.")),
-      el("p", { class: "muted", style: "font-size:13px;margin-top:14px" }, "Official practice: ", el("a", { href: "https://bluebook.collegeboard.org/", target: "_blank", rel: "noopener" }, "Bluebook app"), " · ", el("a", { href: "https://satsuitequestionbank.collegeboard.org/", target: "_blank", rel: "noopener" }, "SAT Suite Question Bank"), " · ", el("a", { href: "https://www.khanacademy.org/test-prep/dpsat-practice-test-01-22", target: "_blank", rel: "noopener" }, "Khan Academy PSAT practice"))));
+      el("p", { class: "muted", style: "font-size:13px;margin-top:14px" }, "Official practice: ", el("a", { href: "https://bluebook.collegeboard.org/", target: "_blank", rel: "noopener" }, "Bluebook app"), " · ", el("a", { href: "https://satsuitequestionbank.collegeboard.org/", target: "_blank", rel: "noopener" }, "SAT Suite Question Bank"), " · ", el("a", { href: "https://www.khanacademy.org/digital-sat", target: "_blank", rel: "noopener" }, "Khan Academy SAT prep"))));
     function info(h, b) { return el("div", {}, el("div", { class: "eyebrow", text: h }), el("p", { style: "margin-top:.3em", text: b })); }
+  }
+
+  function goalLine(p) {
+    const tg = S.settings.target, lt = latestTotal(), fmt = FORMATS[S.settings.kind];
+    if (!tg) return el("p", { class: "muted", style: "font-size:14px" }, "No target score yet. ", el("button", { class: "btn small ghost", onclick: () => $("#settingsBtn").click() }, "Set a target score"));
+    if (!lt) return el("p", { style: "font-size:14px" }, el("strong", { text: "Target " + tg }), el("span", { class: "muted", text: " · take a mock test to see how far you are from it" }));
+    const gap = tg - lt.total;
+    return el("p", { style: "font-size:14px" }, el("strong", { text: "Target " + tg }), el("span", { class: "muted", text: " · latest " + lt.total + (lt.source === "app" ? " (estimated)" : "") + " · " }), gap > 0 ? el("strong", { text: gap + " to go" }) : el("strong", { style: "color:var(--good)", text: "target reached" }));
+  }
+
+  function renderLongPlan(p, mode) {
+    const { ws, w } = currentWeek(), tot = weekTotals(ws), n = daysLeft(), fmt = FORMATS[S.settings.kind];
+    const top = w.goals.find((g) => g.type === "dom");
+    const focusId = top ? top.d : focusList()[0].id;
+    const done = w.goals.filter((g) => goalDone(g, tot)).length;
+    const list = el("div", { class: "goals" });
+    w.goals.forEach((g) => {
+      const [a, b, note] = goalProgress(g, tot), ok = a >= b, pct = Math.max(0, Math.min(1, a / b));
+      list.append(el("div", { class: "goal" + (ok ? " done" : "") },
+        el("span", { class: "bubble", "aria-hidden": "true", "aria-pressed": String(ok) }, ok ? "✓" : ""),
+        el("span", {}, el("span", { class: "gl", text: g.label }), el("div", { class: "track", style: "margin-top:6px;height:7px" }, el("i", { style: "width:" + Math.round(pct * 100) + "%" }))),
+        el("span", { class: "num muted", style: "font-size:13px;text-align:right", text: note || Math.min(a, b) + " / " + b })));
+    });
+    p.append(el("div", { class: "card mission" },
+      el("div", { class: "row between" }, el("div", {}, el("div", { class: "eyebrow", text: possessive() + (who() ? "goals this week" : "This week's goals") }), el("h2", { text: w.diagnostic ? "Find your starting point" : PHASES[w.phase].name + " week" })),
+        el("span", { class: "date", text: fmtDay(ws).md + " – " + fmtDay(addDays(ws, 6)).md + " · " + done + "/" + w.goals.length + " done" + (w.won ? " · won" : "") })),
+      goalLine(),
+      list,
+      el("div", { class: "row" },
+        el("button", { class: "btn primary", onclick: () => { S.prefs.sel = [focusId]; save(); show("practice"); startPractice([focusId], 10, "auto"); } }, "15 minutes today: " + DOM[focusId].name),
+        el("button", { class: "btn", onclick: () => show("mock") }, "Take a mock test")),
+      el("p", { class: "muted", style: "font-size:13px", text: "New goals every Monday, picked from your Skill matrix. Meet them all for +100 XP." })));
+    // last week
+    const lw = addDays(ws, -7), lt = weekTotals(lw), lwGoals = S.weeks[lw];
+    if (lt.q || lt.mock) {
+      const bits = [lt.q + " questions", lt.q ? Math.round((lt.c / lt.q) * 100) + "% correct" : null, lt.mock ? lt.mock + " mock section" + (lt.mock === 1 ? "" : "s") : null, lt.days + " day" + (lt.days === 1 ? "" : "s") + " practiced"].filter(Boolean);
+      const met = lwGoals ? lwGoals.goals.filter((g) => goalDone(g, lt)).length : null;
+      p.append(el("div", { class: "card", style: "display:grid;gap:6px" }, el("div", { class: "eyebrow", text: "Last week's check-in" }), el("p", { style: "font-size:15px", text: bits.join(" · ") + (lwGoals ? " · " + met + " of " + lwGoals.goals.length + " goals met" : "") })));
+    }
+    // roadmap
+    const rows = el("div", { class: "plan" });
+    if (mode === "monthly") {
+      const end = parseYmd(S.settings.date), cur = new Date(parseYmd(today()).getFullYear(), parseYmd(today()).getMonth(), 1);
+      for (let m = new Date(cur); m <= end; m.setMonth(m.getMonth() + 1)) {
+        const first = ymd(m), probe = first < today() ? today() : first, ph = phaseAt(probe), isCur = m.getTime() === cur.getTime();
+        rows.append(el("div", { class: "pday" + (isCur ? " today" : "") }, el("div", { class: "d" }, el("b", { text: m.toLocaleDateString("en-US", { month: "short" }) }), String(m.getFullYear()) + (isCur ? " · now" : "")),
+          el("div", {}, el("strong", { text: PHASES[ph].name }), el("div", { class: "muted", style: "font-size:13px", text: PHASES[ph].what })), el("span")));
+      }
+    } else {
+      for (let k = weekStart(today()); k <= S.settings.date; k = addDays(k, 7)) {
+        const probe = k < today() ? today() : k, ph = phaseAt(probe), isCur = k === ws;
+        rows.append(el("div", { class: "pday" + (isCur ? " today" : "") }, el("div", { class: "d" }, el("b", { text: fmtDay(k).md }), "week" + (isCur ? " · now" : "")),
+          el("div", {}, el("strong", { text: PHASES[ph].name }), el("div", { class: "muted", style: "font-size:13px", text: PHASES[ph].what })), el("span")));
+      }
+    }
+    p.append(el("div", {}, el("div", { class: "row between", style: "margin-bottom:12px" }, el("h3", { text: "Road to " + fmt.name + " · " + fmtDay(S.settings.date).md + ", " + parseYmd(S.settings.date).getFullYear() }), el("span", { class: "muted", style: "font-size:13px", text: n + " days · " + (mode === "monthly" ? "month by month" : "week by week") + " · final " + (SPRINT_DAYS + 1) + " days are day by day" })), rows));
+  }
+
+  function renderAfter(p) {
+    const fmt = FORMATS[S.settings.kind];
+    p.append(el("div", { class: "card mission" }, el("div", { class: "eyebrow", text: fmt.name + " · " + fmtDay(S.settings.date).md }),
+      el("h2", { text: withName("Test's done. Nice work") + "." }),
+      el("p", { class: "lede", text: "Scores usually arrive a few weeks after test day. When you know your next test (the SAT, or next year's PSAT), set its date and a target score and your plan starts again: monthly phases when it's far away, weekly goals as it gets closer, and a day-by-day sprint at the end." }),
+      el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => $("#settingsBtn").click() }, "Set my next test"), el("button", { class: "btn", onclick: () => show("practice") }, "Keep practicing"))));
+  }
+
+  function renderSprint(p, t) {
+    const PLAN = plan();
+    const cur = PLAN.find((d) => d.date === t) || (t < PLAN[0].date ? PLAN[0] : null);
+    if (cur) {
+      const f = fmtDay(cur.date), done = cur.tasks.filter((_, i) => S.tasks[cur.date + "#" + i]).length, top = focusList()[0];
+      p.append(el("div", { class: "card mission" },
+        el("div", { class: "row between" }, el("div", {}, el("div", { class: "eyebrow", text: cur.date === t ? possessive() + (who() ? "mission today" : "Today's mission") : possessive() + (who() ? "first mission" : "First mission") }), el("h2", { text: cur.title })), el("span", { class: "date", text: f.dow + " " + f.md + " · " + done + "/" + cur.tasks.length + " done" })),
+        S.settings.target ? goalLine() : null,
+        taskList(cur),
+        el("div", { class: "row" },
+          el("button", { class: "btn primary", onclick: () => { S.prefs.sel = [top.id]; save(); show("practice"); startPractice([top.id], 10, "auto"); } }, "Practice: " + top.name),
+          el("button", { class: "btn", onclick: () => show("mock") }, "Take a mock test"))));
+    }
+    const pw = el("div", { class: "plan" });
+    PLAN.forEach((day) => {
+      const f = fmtDay(day.date), isT = day.date === t, dots = el("div", { class: "dots", "aria-hidden": "true" });
+      day.tasks.forEach((_, i) => dots.append(el("i", { class: S.tasks[day.date + "#" + i] ? "on" : "" })));
+      pw.append(el("div", { class: "pday" + (isT ? " today" : "") }, el("div", { class: "d" }, el("b", { text: f.md }), f.dow + (isT ? " · today" : "")), el("details", { open: isT }, el("summary", { text: day.title }), taskList(day)), dots));
+    });
+    p.append(el("div", {}, el("div", { class: "row between", style: "margin-bottom:12px" }, el("h3", { text: "Final sprint: day by day" }), el("span", { class: "muted", style: "font-size:13px", text: "Each task is worth 15 XP" })), pw));
   }
 
   /* ================= Shared question rendering ================= */
@@ -587,6 +755,7 @@
     if (rec.rw && rec.math) rec.total = rec.rw + rec.math;
     S.tests.push(rec);
     M.phase = "done"; M.result = res; M.showResults = true; delete M.used; S.lastMock = M; S.mock = null;
+    logMock(M.parts.length); checkGoalScore(rec.total);
     addXP(M.parts.length === 2 ? 200 : 100, withName("mock test finished", " · great job, ")); award("mock1"); if (M.parts.length === 2) award("mockfull"); bumpStreak();
     save(); reviewFilter = "all"; renderMock();
   }
@@ -772,6 +941,7 @@
     } else tiles.append(el("div", { class: "tile", style: "grid-column:1/-1" }, el("strong", { text: "No test yet" }), el("span", { class: "muted", text: "Log a Bluebook test or take a mock test here to fill in scores." })));
     const ans = DOMAINS.reduce((s, d) => s + (S.stats[d.id]?.att || 0), 0), cor = DOMAINS.reduce((s, d) => s + (S.stats[d.id]?.cor || 0), 0);
     tiles.append(tile("Practice accuracy", ans ? pct(cor / ans) : "—", ans + " answered"));
+    if (S.settings.target) { const lt = latestTotal(); const gap = lt ? S.settings.target - lt.total : null; tiles.append(tile("Target score", S.settings.target, lt ? (gap > 0 ? gap + " points to go" : "reached") : "take a test to compare", lt && gap <= 0 ? "up" : "")); }
     p.append(tiles);
     const fl = focusList().filter((d) => mastery(d.id) != null && mastery(d.id) < 0.8).slice(0, 3);
     p.append(el("div", { class: "card" }, el("h3", { text: "Focus next" }), fl.length ? el("div", { class: "row", style: "margin-top:12px" }, fl.map((d, i) => el("button", { class: "btn small", onclick: () => { S.prefs.sel = [d.id]; save(); show("practice"); startPractice([d.id], 10, "auto"); } }, (i + 1) + ". " + d.name + " · " + pct(mastery(d.id))))) : el("p", { class: "muted", style: "margin-top:.4em", text: "Take a test or practice a few sets and the weakest skills will show up here." })));
@@ -827,6 +997,7 @@
       for (const d of DOMAINS) { const v = Math.round(+$("#m-" + d.id).value); if (!(v >= 0)) { err.textContent = "Missed counts must be 0 or more."; return; } dom[d.id] = { c: Math.max(0, d.n - v), t: d.n }; }
       S.tests.push({ id: uid(), source: "bluebook", kind, name: nameIn.value.trim() || "Bluebook test", date: $("#tDate").value || today(), rw, math, total: rw + math, dom });
       S.tests.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+      logMock(2); checkGoalScore(rw + math);
       addXP(100, "Bluebook test logged"); award("baseline"); if (S.tests.filter((t) => t.source !== "app").length >= 2) award("rehearsal"); bumpStreak(); save(); show("matrix");
     });
     p.append(f);
@@ -879,9 +1050,10 @@
     const kind = el("select", { id: "setKind" }, el("option", { value: "psat", text: "PSAT/NMSQT" }), el("option", { value: "sat", text: "SAT" })); kind.value = S.settings.kind;
     const date = el("input", { type: "date", id: "setDate", value: S.settings.date });
     const nm = el("input", { type: "text", id: "setName", value: S.settings.name || "", maxlength: "30", autocomplete: "off" });
+    const tg = el("input", { type: "number", id: "setTarget", min: "320", max: "1600", step: "10", inputmode: "numeric", placeholder: "e.g. 1300", value: S.settings.target || "" });
     const f = el("form", { class: "panelpop", role: "dialog", "aria-label": "Settings" }, el("header", {}, el("strong", { text: "Settings" }), el("button", { type: "button", class: "btn small ghost", onclick: () => (host.textContent = "") }, "Close")),
-      el("label", { class: "f", for: "setName" }, "Student's first name", nm), el("label", { class: "f" }, "Test", kind), el("label", { class: "f" }, "Test date", date), el("button", { class: "btn primary", type: "submit" }, "Save"));
-    f.addEventListener("submit", (e) => { e.preventDefault(); if (date.value) S.settings.date = date.value; S.settings.kind = kind.value; S.settings.name = nm.value.trim(); save(); for (const fn of settingsHooks) { try { fn(S.settings); } catch (x) { } } host.textContent = ""; render(); toast("Settings saved"); });
+      el("label", { class: "f", for: "setName" }, "Student's first name", nm), el("label", { class: "f" }, "Test", kind), el("label", { class: "f" }, "Test date", date), el("label", { class: "f", for: "setTarget" }, "Target score (optional)", tg), el("button", { class: "btn primary", type: "submit" }, "Save"));
+    f.addEventListener("submit", (e) => { e.preventDefault(); if (date.value) S.settings.date = date.value; S.settings.kind = kind.value; S.settings.name = nm.value.trim(); { const v = Math.round(+tg.value / 10) * 10; S.settings.target = v >= 320 && v <= 1600 ? v : null; } save(); for (const fn of settingsHooks) { try { fn(S.settings); } catch (x) { } } host.textContent = ""; render(); toast("Settings saved"); });
     host.append(f);
   });
   function confirmPop(msg, yes, fn) {
@@ -910,6 +1082,7 @@
       if (p.name != null && p.name !== S.settings.name) { S.settings.name = p.name; changed = true; }
       if (p.kind && p.kind !== S.settings.kind) { S.settings.kind = p.kind; changed = true; }
       if (p.date && p.date !== S.settings.date) { S.settings.date = p.date; changed = true; }
+      if (p.target !== undefined && p.target !== S.settings.target) { S.settings.target = p.target; changed = true; }
       if (changed) { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } render(); }
     },
     // Remove this device's copy (the account keeps its copy in the cloud).
