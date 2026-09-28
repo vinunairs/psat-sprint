@@ -75,7 +75,7 @@
       v: 2, updatedAt: 0, xp: 0, streak: { count: 0, last: null }, tasks: {}, daysDone: {},
       stats: {}, sub: {}, answered: 0, tests: [], mistakes: [], fixed: 0, badges: {},
       seenBank: {}, recentKeys: [], mock: null, lastMock: null,
-      prefs: { sel: [], count: 10, diff: "auto", timed: true },
+      prefs: { sel: [], count: 10, diff: "auto", timed: true }, samples: { practice: 0, mock: 0 },
       activity: {}, weeks: {}, planStart: null,
       settings: { kind: "psat", date: "2026-10-07", name: "", target: null },
       rewards: [
@@ -85,9 +85,18 @@
       ]
     };
   }
-  function load() {
+  const GKEY = "psat-sprint-guest";
+  function hasSession() {
+    try { for (let i = 0; i < localStorage.length; i++) if (/^sb-.+-auth-token$/.test(localStorage.key(i) || "")) return true; } catch (e) { }
+    return false;
+  }
+  // Signed-out visitors use a separate guest copy; a student's saved progress is only loaded after sign-in.
+  let GUEST = !hasSession();
+  let HOLD = false; // true while this device holds another student's copy and the right one is loading
+  const storeKey = () => (GUEST ? GKEY : KEY);
+  function load(key) {
     try {
-      const raw = localStorage.getItem(KEY);
+      const raw = localStorage.getItem(key || storeKey());
       if (raw) { const s = Object.assign(blank(), JSON.parse(raw)); s.prefs = Object.assign(blank().prefs, s.prefs); s.settings = Object.assign(blank().settings, s.settings); return s; }
     } catch (e) { /* storage unavailable */ }
     return blank();
@@ -97,7 +106,7 @@
   function save() {
     try { planBookkeeping(); } catch (e) { }
     S.updatedAt = Date.now();
-    try { localStorage.setItem(KEY, JSON.stringify(S)); storageOK = true; }
+    try { localStorage.setItem(storeKey(), JSON.stringify(S)); storageOK = true; }
     catch (e) { if (storageOK) toast("This browser isn't saving progress. Use Back up progress to keep a copy."); storageOK = false; }
     notifySaved();
   }
@@ -137,12 +146,13 @@
 
   function toast(msg, gold) { const t = el("div", { class: "toast" + (gold ? " gold" : ""), text: msg }); $("#toasts").append(t); setTimeout(() => t.remove(), 2600); }
   function addXP(n, why) {
+    if (GUEST) return;
     const before = level(); S.xp = Math.max(0, S.xp + n);
     if (n > 0 && why) toast("+" + n + " XP · " + why);
     const after = level(); if (after > before) toast(withName("Level up") + "! Level " + after + " · " + levelName(after), true);
     for (const r of S.rewards) if (!r.claimed && !r.notified && S.xp >= r.xp) { r.notified = true; toast("Reward unlocked: " + r.label, true); }
   }
-  function award(id) { if (S.badges[id]) return; S.badges[id] = today(); const b = BADGES.find((x) => x.id === id); if (b) toast((who() ? who() + " earned a badge: " : "Badge earned: ") + b.name, true); }
+  function award(id) { if (GUEST || S.badges[id]) return; S.badges[id] = today(); const b = BADGES.find((x) => x.id === id); if (b) toast((who() ? who() + " earned a badge: " : "Badge earned: ") + b.name, true); }
   function bumpStreak() {
     const t = today(); if (S.streak.last === t) return;
     S.streak.count = S.streak.last === yesterday() ? S.streak.count + 1 : 1; S.streak.last = t;
@@ -215,6 +225,7 @@
 
   /* ================= Header & tabs ================= */
   function renderHeader() {
+    if (GUEST) { document.title = "PSAT Sprint"; const hi = document.getElementById("hello"); if (hi) hi.textContent = ""; return; }
     const n = daysLeft(), fmt = FORMATS[S.settings.kind];
     const hi = document.getElementById("hello"); if (hi) hi.textContent = greeting();
     document.title = who() ? "PSAT Sprint · " + who() : "PSAT Sprint";
@@ -233,6 +244,7 @@
   let TAB = "today";
   document.querySelectorAll("nav.tabs button").forEach((b) => b.addEventListener("click", () => show(b.dataset.tab)));
   function show(t) {
+    if (GUEST && !["today", "practice", "mock"].includes(t)) t = "today";
     TAB = t;
     document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === t)));
     document.querySelectorAll("section.panel").forEach((p) => (p.hidden = p.id !== "p-" + t));
@@ -240,7 +252,22 @@
     try { sessionStorage.setItem(KEY + "-tab", t); } catch (e) { }
     window.scrollTo({ top: 0 });
   }
-  function render() { renderHeader(); ({ today: renderToday, practice: renderPractice, mock: renderMock, matrix: renderMatrix, log: renderLog, rewards: renderRewards })[TAB](); }
+  function render() {
+    document.body.classList.toggle("guest", GUEST);
+    document.body.classList.toggle("holding", HOLD && !GUEST);
+    if (HOLD && !GUEST) {
+      document.title = "PSAT Sprint";
+      const hi = document.getElementById("hello"); if (hi) hi.textContent = "";
+      document.querySelectorAll("section.panel").forEach((x) => (x.hidden = x.id !== "p-today"));
+      const p = $("#p-today"); p.textContent = "";
+      p.append(el("div", { class: "card mission" }, el("h2", { text: "Loading your progress…" }), el("p", { class: "muted", text: "This takes a moment on a device someone else used." })));
+      return;
+    }
+    const tb = document.querySelector('nav.tabs button[data-tab="today"]'); if (tb) tb.textContent = GUEST ? "Home" : "Today";
+    const pb = document.querySelector('nav.tabs button[data-tab="practice"]'); if (pb) pb.textContent = GUEST ? "Sample practice" : "Practice";
+    const mb = document.querySelector('nav.tabs button[data-tab="mock"]'); if (mb) mb.textContent = GUEST ? "Sample mock" : "Mock test";
+    const fn = document.getElementById("footNote"); if (fn) fn.textContent = GUEST ? "Create a free student account to save progress and unlock the full site." : "Progress saves on this device first, then to your account.";
+    renderHeader(); ({ today: renderToday, practice: renderPractice, mock: renderMock, matrix: renderMatrix, log: renderLog, rewards: renderRewards })[TAB](); }
 
   /* ================= Today ================= */
   function taskList(day) {
@@ -356,21 +383,9 @@
   function latestTotal() { const t = S.tests.filter((x) => x.total).pop(); return t ? t : null; }
 
   function renderToday() {
+    if (GUEST) return renderLanding();
     const p = $("#p-today"); p.textContent = "";
     const t = today(), mode = planMode();
-    const signedIn = !!(window.__psync && window.__psync.user);
-    if (!signedIn && !S.owner && !S.prefs.welcomeDone && !S.updatedAt) {
-      const acct = (m) => document.dispatchEvent(new CustomEvent("psapp-account", { detail: m }));
-      p.append(el("div", { class: "card mission" },
-        el("div", { class: "eyebrow", text: "Welcome" }),
-        el("h2", { text: "PSAT and SAT practice that adapts to you" }),
-        el("p", { class: "lede", text: "Fresh practice questions every time, full-length adaptive mock tests, a skill matrix that shows what to work on, and a plan that fits your test date, from months out to the final week. Create a free student account to save progress across your phone and computer and get reminders." }),
-        el("div", { class: "row" },
-          el("button", { class: "btn primary", onclick: () => acct("up") }, "Create a student account"),
-          el("button", { class: "btn", onclick: () => acct("in") }, "Sign in"),
-          el("button", { class: "btn ghost", onclick: () => { S.prefs.welcomeDone = true; save(); render(); } }, "Try it first")),
-        el("p", { class: "muted", style: "font-size:13px", text: "You'll need an invite code from the person who shared this site." })));
-    }
     if (S.mock && S.mock.phase !== "done") {
       p.append(el("div", { class: "card mission" }, el("div", { class: "eyebrow", text: "Mock test in progress" }), el("h2", { text: FORMATS[S.mock.kind].name + " mock" }), el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => show("mock") }, "Resume the mock test"))));
     }
@@ -388,6 +403,77 @@
         info("Scoring", "PSAT sections score 160–760 (total 320–1520). SAT sections score 200–800 (total 400–1600). Wrong answers cost nothing, so never leave a blank.")),
       el("p", { class: "muted", style: "font-size:13px;margin-top:14px" }, "Official practice: ", el("a", { href: "https://bluebook.collegeboard.org/", target: "_blank", rel: "noopener" }, "Bluebook app"), " · ", el("a", { href: "https://satsuitequestionbank.collegeboard.org/", target: "_blank", rel: "noopener" }, "SAT Suite Question Bank"), " · ", el("a", { href: "https://www.khanacademy.org/digital-sat", target: "_blank", rel: "noopener" }, "Khan Academy SAT prep"))));
     function info(h, b) { return el("div", {}, el("div", { class: "eyebrow", text: h }), el("p", { style: "margin-top:.3em", text: b })); }
+  }
+
+  /* ================= Public home page (signed out) ================= */
+  const acct = (m) => document.dispatchEvent(new CustomEvent("psapp-account", { detail: m }));
+  const SAMPLE_LIMIT = 2;
+  function renderLanding() {
+    const p = $("#p-today"); p.textContent = "";
+    const link = (href, text) => el("a", { href, target: "_blank", rel: "noopener" }, text);
+    p.append(el("div", { class: "card mission hero" },
+      el("div", { class: "eyebrow", text: "Free practice for the digital PSAT and SAT" }),
+      el("h2", { class: "hero-h", text: "Practice smarter, one skill at a time" }),
+      el("p", { class: "lede", text: "PSAT Sprint gives students fresh practice questions every time, full-length mock tests in the real adaptive format, a skill matrix that shows exactly what to work on, and a study plan built around their own test date." }),
+      el("div", { class: "row" },
+        el("button", { class: "btn primary", onclick: () => acct("up") }, "Create a student account"),
+        el("button", { class: "btn", onclick: () => acct("in") }, "Sign in"),
+        el("button", { class: "btn ghost", onclick: () => show("practice") }, "Try a sample")),
+      el("p", { class: "muted", style: "font-size:13px", text: "Accounts are free and need an invite code from the person who shared this site." })));
+
+    const feat = (h, b) => el("div", { class: "feat" }, el("strong", { text: h }), el("p", { class: "muted", text: b }));
+    p.append(el("div", {}, el("h3", { style: "margin-bottom:12px", text: "What students get with an account" }), el("div", { class: "feats" },
+      feat("Fresh questions, every time", "Math questions are generated with new numbers on every try, including graphs and charts. Reading and writing questions don't repeat until the bank runs out."),
+      feat("Real-format mock tests", "Timed PSAT or SAT mocks with two modules per section. Module 2 gets harder or easier based on Module 1, just like the real test."),
+      feat("A skill matrix", "Accuracy across all 8 College Board skill areas from mocks, practice, and Bluebook scores, with the weakest skills flagged."),
+      feat("A plan that fits the test date", "Monthly phases when the test is far away, weekly goals as it gets closer, and a day-by-day sprint in the final stretch."),
+      feat("Mistake notebook", "Every missed question comes back until it's answered correctly, with a clear explanation."),
+      feat("Reminders and rewards", "Optional phone reminders, streaks, badges, and rewards a parent can set."))));
+
+    p.append(el("div", { class: "card" }, el("h3", { text: "How the digital PSAT and SAT work" }),
+      el("div", { class: "grid2", style: "margin-top:12px" },
+        info("Reading and Writing", "54 questions in 64 minutes, split into two 32-minute modules. Short passages with one question each."),
+        info("Math", "44 questions in 70 minutes, split into two 35-minute modules. A calculator (Desmos) is built in, and about a quarter of the questions need a typed-in answer."),
+        info("Adaptive", "How you do on Module 1 decides whether Module 2 is the easier or harder set. Only the harder set unlocks the top scores."),
+        info("Scoring", "PSAT: 320–1520. SAT: 400–1600. There's no penalty for wrong answers, so never leave a question blank."))));
+
+    const steps = [
+      ["Create a College Board account", el("span", {}, "It's free at ", link("https://www.collegeboard.org/", "collegeboard.org"), ". Use the same account for Bluebook and for your scores.")],
+      ["Install Bluebook", el("span", {}, "Download it from ", link("https://bluebook.collegeboard.org/students/download-bluebook", "College Board's Bluebook page"), " on a Windows or Mac laptop, an iPad, or a school-managed Chromebook (phones aren't supported). On a school-managed device, your school's IT team may install it for you.")],
+      ["Download a full-length practice test", el("span", {}, "In Bluebook, sign in, choose your test (PSAT/NMSQT or SAT), and download a practice test. It works like the real thing, including the adaptive modules and Desmos.")],
+      ["Take it timed, in one sitting", el("span", {}, "Then open your score report in My Practice to see every question, which ones you missed, and the skill area of each.")],
+      ["Before test day", el("span", {}, "Your school or test center explains device setup. Update Bluebook and run its exam readiness check a few days before the test.")]
+    ];
+    p.append(el("div", { class: "card" }, el("h3", { text: "Set up Bluebook, the official test app" }),
+      el("p", { class: "muted", style: "margin:.3em 0 12px", text: "The real PSAT and SAT are taken in Bluebook, so practice there too." }),
+      el("ol", { class: "steps" }, steps.map(([h, b]) => el("li", {}, el("strong", { text: h }), b)))));
+
+    const res = [
+      ["Bluebook practice tests", "https://satsuite.collegeboard.org/practice/practice-tests/bluebook", "Official full-length adaptive practice tests from College Board."],
+      ["Official Digital SAT Prep on Khan Academy", "https://www.khanacademy.org/digital-sat", "Free lessons and practice by skill, built with College Board."],
+      ["Khan Academy PSAT practice tests", "https://www.khanacademy.org/test-prep/dpsat-practice-test-01-22", "Official PSAT practice questions you can work through online."],
+      ["SAT Suite Question Bank", "https://satsuitequestionbank.collegeboard.org/", "Thousands of official questions, filterable by skill and difficulty."],
+      ["PSAT/NMSQT from College Board", "https://satsuite.collegeboard.org/psat-nmsqt", "Test dates, what's on the test, and score information."],
+      ["National Merit Scholarship Program", "https://www.nationalmerit.org/", "How junior-year PSAT/NMSQT scores lead to National Merit recognition."],
+      ["Desmos graphing calculator", "https://www.desmos.com/calculator", "The same calculator built into Bluebook. Practice with it before test day."]
+    ];
+    p.append(el("div", { class: "card" }, el("h3", { text: "Free official resources" }),
+      el("div", { class: "reslist" }, res.map(([t, href, d]) => el("div", { class: "res" }, link(href, t + " ↗"), el("span", { class: "muted", text: d }))))));
+
+    const left = (k) => Math.max(0, SAMPLE_LIMIT - (S.samples[k] || 0));
+    p.append(el("div", { class: "card mission" }, el("h3", { text: "Try it without an account" }),
+      el("p", { class: "muted", text: "Get a feel for the site with " + left("practice") + " short practice set" + (left("practice") === 1 ? "" : "s") + " (5 questions each) and " + left("mock") + " sample mock test" + (left("mock") === 1 ? "" : "s") + " (10 questions, timed). Full-length mocks, the study plan, and progress tracking come with a free account." }),
+      el("div", { class: "row" },
+        el("button", { class: "btn", disabled: !left("practice"), onclick: () => show("practice") }, "Sample practice set"),
+        el("button", { class: "btn", disabled: !left("mock"), onclick: () => show("mock") }, "Sample mock test"),
+        el("button", { class: "btn primary", onclick: () => acct("up") }, "Create a student account"))));
+    function info(h, b) { return el("div", {}, el("div", { class: "eyebrow", text: h }), el("p", { style: "margin-top:.3em", text: b })); }
+  }
+  function guestGate(p, what) {
+    p.append(el("div", { class: "card mission" }, el("div", { class: "eyebrow", text: "Samples used" }),
+      el("h2", { text: "Ready for the full site?" }),
+      el("p", { class: "lede", text: "You've used the free " + what + ". Create a free student account to get unlimited practice, full-length mock tests, a study plan for your test date, and progress that follows you to every device." }),
+      el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => acct("up") }, "Create a student account"), el("button", { class: "btn", onclick: () => acct("in") }, "Sign in"))));
   }
 
   function goalLine(p) {
@@ -568,6 +654,10 @@
   /* ================= Practice ================= */
   let P = null, pTick = null;
   function startPractice(doms, count, diff, notebook) {
+    if (GUEST) {
+      if ((S.samples.practice || 0) >= SAMPLE_LIMIT) { renderPractice(); return; }
+      S.samples.practice = (S.samples.practice || 0) + 1; count = 5; notebook = false; diff = "auto";
+    }
     let qs = [];
     const used = new Set();
     if (notebook) qs = S.mistakes.slice(0, 15).map((m) => Object.assign({}, m, { uid: uid() }));
@@ -597,9 +687,10 @@
     practiceSetup(p);
   }
   function practiceSetup(p) {
+    if (GUEST && (S.samples.practice || 0) >= SAMPLE_LIMIT) return guestGate(p, "sample practice sets");
     const pr = S.prefs, top3 = focusList().slice(0, 3).map((d) => d.id);
     if (!pr.sel.length) pr.sel = [top3[0]];
-    p.append(el("div", {}, el("h2", { text: "Practice by skill" }), el("p", { class: "muted lede", text: "Pick the skills to work on (for example, the weak areas from your Bluebook score report). Every question is new: math is generated with fresh numbers each time, and reading questions don't repeat until the bank runs out. You see the answer and explanation right after each question." })));
+    p.append(el("div", {}, el("h2", { text: GUEST ? "Sample practice set" : "Practice by skill" }), el("p", { class: "muted lede", text: (GUEST ? "Try 5 questions on any skill, with the answer and a full explanation after each one. " : "") + "Pick the skills to work on (for example, the weak areas from your Bluebook score report). Every question is new: math is generated with fresh numbers each time, and reading questions don't repeat until the bank runs out. You see the answer and explanation right after each question." })));
     const grid = (sec) => {
       const g = el("div", { class: "skills" });
       DOMAINS.filter((d) => d.sec === sec).forEach((d) => {
@@ -620,6 +711,13 @@
     p.append(el("div", { style: "display:grid;gap:8px" }, el("div", { class: "eyebrow", text: "Math" }), grid("math")));
     const seg = (label, key, opts) => el("div", { class: "opts-row" }, el("div", { class: "eyebrow", text: label }),
       el("div", { class: "seg", role: "group", "aria-label": label }, opts.map(([v, t]) => el("button", { "aria-pressed": String(pr[key] === v), onclick: () => { pr[key] = v; save(); renderPractice(); } }, t))));
+    if (GUEST) {
+      const left = Math.max(0, SAMPLE_LIMIT - (S.samples.practice || 0));
+      p.append(el("div", { class: "row" },
+        el("button", { class: "btn primary", disabled: !pr.sel.length, onclick: () => startPractice(pr.sel, 5, "auto") }, pr.sel.length ? "Start a 5-question sample" : "Pick at least one skill"),
+        el("span", { class: "muted", style: "font-size:13px", text: left + " sample set" + (left === 1 ? "" : "s") + " left on this device" })));
+      return;
+    }
     p.append(el("div", { class: "row", style: "gap:22px;align-items:end" },
       seg("Questions", "count", [[5, "5"], [10, "10"], [20, "20"], [30, "30"]]),
       seg("Difficulty", "diff", [["auto", "Match my level"], ["easier", "Easier"], ["harder", "Harder"]]),
@@ -698,11 +796,21 @@
     }
     return { sec, route, qs, ans: qs.map(() => null), flag: qs.map(() => false), strikes: qs.map(() => []), deadline: null, left: MOD[sec].min * 60 };
   }
-  function startMock(kind, parts, timed) {
+  const SAMPLE_MOCK = { rw: { n: 10, min: 12 }, math: { n: 10, min: 16 } };
+  function startMock(kind, parts, timed, sample) {
+    if (GUEST) {
+      if ((S.samples.mock || 0) >= SAMPLE_LIMIT) { renderMock(); return; }
+      S.samples.mock = (S.samples.mock || 0) + 1; sample = true; parts = parts.slice(0, 1); timed = true;
+    }
     const used = new Set();
-    const M = { id: uid(), kind, parts, timed, pi: 0, mi: 0, modules: [], phase: "module", cur: 0, started: Date.now(), used: [] };
+    const M = { id: uid(), kind, parts, timed, pi: 0, mi: 0, modules: [], phase: "module", cur: 0, started: Date.now(), used: [], sample: !!sample };
     const m = buildModule(kind, parts[0], "std", used);
-    if (timed) m.deadline = Date.now() + MOD[parts[0]].min * 60000;
+    if (sample) {
+      const cfg = SAMPLE_MOCK[parts[0]], keep = new Set(rng.shuffle(m.qs.map((_, i) => i)).slice(0, cfg.n));
+      const idx = m.qs.map((_, i) => i).filter((i) => keep.has(i));
+      m.qs = idx.map((i) => m.qs[i]); m.ans = m.qs.map(() => null); m.flag = m.qs.map(() => false); m.strikes = m.qs.map(() => []);
+      m.deadline = Date.now() + cfg.min * 60000;
+    } else if (timed) m.deadline = Date.now() + MOD[parts[0]].min * 60000;
     M.modules.push(m); M.used = [...used];
     S.mock = M; save(); renderMock();
   }
@@ -710,6 +818,7 @@
   function submitModule() {
     const M = S.mock, m = curMod();
     m.submitted = true;
+    if (M.sample) { finishMock(); return; }
     if (M.mi === 0) {
       const acc = m.qs.filter((q, i) => isRight(q, m.ans[i])).length / m.qs.length;
       const route = acc >= 0.6 ? "hard" : "easy";
@@ -737,6 +846,14 @@
   }
   function finishMock() {
     const M = S.mock; clearInterval(mTick);
+    if (M.sample) {
+      const res = { kind: M.kind, parts: {}, dom: {}, date: today(), sample: true };
+      const m = M.modules[0]; let c = 0;
+      m.qs.forEach((q, i) => { const ok = isRight(q, m.ans[i]); if (ok) c++; const dd = res.dom[q.d] || (res.dom[q.d] = { c: 0, t: 0 }); dd.t++; if (ok) dd.c++; });
+      res.parts[m.sec] = { c, t: m.qs.length };
+      M.phase = "done"; M.result = res; M.showResults = true; delete M.used; S.lastMock = M; S.mock = null;
+      save(); reviewFilter = "all"; renderMock(); return;
+    }
     const res = { kind: M.kind, parts: {}, dom: {}, date: today() };
     for (const sec of M.parts) {
       const mods = M.modules.filter((m) => m.sec === sec);
@@ -782,7 +899,23 @@
     if (S.lastMock && S.lastMock.showResults) { mockResults(p); return; }
     mockSetup(p);
   }
+  function guestMockSetup(p) {
+    if ((S.samples.mock || 0) >= SAMPLE_LIMIT) return guestGate(p, "sample mock tests");
+    const left = SAMPLE_LIMIT - (S.samples.mock || 0), pick = { kind: "psat" };
+    p.append(el("div", {}, el("h2", { text: "Sample mock test" }), el("p", { class: "muted lede", text: "A short, timed taste of the real digital format: 10 questions, answers revealed at the end, with a full explanation for each. Accounts get complete two-module adaptive mocks." })));
+    const kindSeg = el("div", { class: "seg", role: "group", "aria-label": "Test format" });
+    const paint = () => { kindSeg.textContent = ""; [["psat", "PSAT/NMSQT"], ["sat", "SAT"]].forEach(([v, t]) => kindSeg.append(el("button", { "aria-pressed": String(pick.kind === v), onclick: () => { pick.kind = v; paint(); } }, t))); };
+    paint();
+    p.append(el("div", { class: "opts-row" }, el("div", { class: "eyebrow", text: "Format" }), kindSeg));
+    const card = (title, desc, sec) => el("button", { class: "mode", onclick: () => startMock(pick.kind, [sec], true, true) }, el("b", { text: title }), el("span", { text: desc }));
+    p.append(el("div", { class: "mode-cards" },
+      card("Reading and Writing sample", "10 questions in 12 minutes.", "rw"),
+      card("Math sample", "10 questions in 16 minutes, including graphs and typed-in answers.", "math")));
+    p.append(el("p", { class: "muted", style: "font-size:13px", text: left + " sample mock" + (left === 1 ? "" : "s") + " left on this device." }));
+    if (S.lastMock && S.lastMock.result) p.append(el("div", { class: "row" }, el("button", { class: "btn", onclick: () => { S.lastMock.showResults = true; renderMock(); } }, "Review your last sample")));
+  }
   function mockSetup(p) {
+    if (GUEST) return guestMockSetup(p);
     const fmt = S.settings.kind;
     p.append(el("div", {}, el("h2", { text: "Mock test" }), el("p", { class: "muted lede", text: "A full-length practice test in the real digital format: two timed modules per section, and Module 2 adapts to how you did on Module 1. Answers are revealed only at the end. Every mock uses new questions, and the results feed the Skill matrix automatically." })));
     const pick = { kind: fmt, timed: true };
@@ -810,7 +943,7 @@
   function mockToolbar(M, m) {
     const secName = MOD[m.sec].name, mn = M.mi + 1;
     return el("div", { class: "testbar" },
-      el("div", {}, el("div", { class: "eyebrow", text: FORMATS[M.kind].name + " mock" }), el("strong", { text: "Section " + (M.pi + 1) + ", Module " + mn + ": " + secName })),
+      el("div", {}, el("div", { class: "eyebrow", text: FORMATS[M.kind].name + " mock" }), el("strong", { text: M.sample ? "Sample mock: " + secName : "Section " + (M.pi + 1) + ", Module " + mn + ": " + secName })),
       m.deadline ? el("button", { class: "btn small ghost", onclick: () => { M.hideTimer = !M.hideTimer; save(); tickMock(); }, "aria-label": "Show or hide timer" }, el("span", { class: "t num", id: "mtimer", text: "" })) : el("span", { class: "muted", text: "Untimed" }),
       el("div", { class: "row", style: "gap:6px" },
         m.sec === "math" ? el("button", { class: "btn small", onclick: () => openTool("calc") }, "Calculator") : null,
@@ -858,7 +991,7 @@
       el("p", { class: "muted", text: (unans ? unans + " unanswered" : "Every question answered") + (flagged ? " · " + flagged + " flagged for review" : "") + ". Pick a question to go back, or submit the module when you're ready." + (unans ? " Guess on the blanks first: wrong answers cost nothing." : "") }),
       navGrid(m, -1),
       el("div", { class: "row" }, el("button", { class: "btn", onclick: () => { M.phase = "module"; M.cur = m.qs.length - 1; save(); renderMock(); } }, "Back to questions"),
-        el("button", { class: "btn primary", onclick: submitModule }, M.mi === 0 ? "Submit Module 1" : "Submit Module 2"))));
+        el("button", { class: "btn primary", onclick: submitModule }, M.sample ? "Submit and see results" : M.mi === 0 ? "Submit Module 1" : "Submit Module 2"))));
     tickMock();
   }
   function mockBreak(p) {
@@ -872,11 +1005,19 @@
     const rw = R.parts.rw, ma = R.parts.math;
     p.append(el("div", { class: "row between" }, el("div", {}, el("div", { class: "eyebrow", text: "Mock test results · " + fmtDay(R.date).md }), el("h2", { text: possessive() + fmt.name + " mock" })), el("button", { class: "btn", onclick: () => { M.showResults = false; save(); renderMock(); } }, "New mock test")));
     const tiles = el("div", { class: "tiles" });
+    if (R.sample) {
+      const x = rw || ma;
+      tiles.append(tile("Sample result", x.c + "/" + x.t, "questions correct"));
+      p.append(tiles);
+      if (GUEST) p.append(el("div", { class: "card mission" }, el("h3", { text: "Want the full-length version?" }),
+        el("p", { text: "With a free account you get complete adaptive mock tests (both modules, real timing, an estimated score), unlimited practice, and a study plan for your test date." }),
+        el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => acct("up") }, "Create a student account"), el("button", { class: "btn", onclick: () => acct("in") }, "Sign in"))));
+    }
     if (rw && ma) tiles.append(tile("Estimated total", rw.score + ma.score, "of " + fmt.hi * 2));
-    if (rw) tiles.append(tile("Reading and Writing", rw.score, rw.c + "/" + rw.t + " correct · " + (rw.route === "hard" ? "harder" : "easier") + " Module 2"));
-    if (ma) tiles.append(tile("Math", ma.score, ma.c + "/" + ma.t + " correct · " + (ma.route === "hard" ? "harder" : "easier") + " Module 2"));
-    p.append(tiles);
-    p.append(el("p", { class: "muted", style: "font-size:13px", text: "Estimated scores based on questions correct and which Module 2 you reached. Use them to track the trend." }));
+    if (rw && !R.sample) tiles.append(tile("Reading and Writing", rw.score, rw.c + "/" + rw.t + " correct · " + (rw.route === "hard" ? "harder" : "easier") + " Module 2"));
+    if (ma && !R.sample) tiles.append(tile("Math", ma.score, ma.c + "/" + ma.t + " correct · " + (ma.route === "hard" ? "harder" : "easier") + " Module 2"));
+    if (!R.sample) p.append(tiles);
+    if (!R.sample) p.append(el("p", { class: "muted", style: "font-size:13px", text: "Estimated scores based on questions correct and which Module 2 you reached. Use them to track the trend." }));
     const tb = el("tbody");
     DOMAINS.filter((d) => R.dom[d.id]).forEach((d) => { const x = R.dom[d.id], a = x.c / x.t, [c, l] = status(a); tb.append(el("tr", {}, el("td", { text: d.name }), el("td", { class: "num", text: x.c + "/" + x.t }), el("td", {}, mbar(a, c)), el("td", {}, el("span", { class: "chip " + c, text: l })))); });
     p.append(el("div", { class: "card", style: "padding:6px 8px" }, el("div", { class: "tablewrap" }, el("table", { class: "mx" }, el("thead", {}, el("tr", {}, ["Skill", "Correct", "Accuracy", "Status"].map((h) => el("th", { text: h })))), tb))));
@@ -1064,6 +1205,7 @@
 
   /* ================= Boot ================= */
   try { const t = sessionStorage.getItem(KEY + "-tab"); if (t && document.getElementById("p-" + t)) TAB = t; } catch (e) { }
+  if (GUEST && !["today", "practice", "mock"].includes(TAB)) TAB = "today";
   if (S.mock && S.mock.phase !== "done") TAB = "mock";
   show(TAB);
   window.__psat = { get state() { return S; }, calc };
@@ -1071,13 +1213,26 @@
     get state() { return S; },
     blank,
     // Replace progress with a newer copy (from the cloud) without triggering another upload.
-    replace(next) { S = Object.assign(blank(), next); S.prefs = Object.assign(blank().prefs, S.prefs); S.settings = Object.assign(blank().settings, S.settings); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } render(); },
+    replace(next) { if (GUEST) return; HOLD = false; S = Object.assign(blank(), next); S.prefs = Object.assign(blank().prefs, S.prefs); S.settings = Object.assign(blank().settings, S.settings); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } render(); },
+    get guest() { return GUEST; },
+    // Switch between the public site (signed out) and a student's own progress (signed in).
+    setGuest(g) {
+      g = !!g; if (g === GUEST) return;
+      GUEST = g; HOLD = false; P = null; clearInterval(pTick); clearInterval(mTick); tool = null;
+      const pop = document.getElementById("pop"); if (pop) pop.textContent = "";
+      S = load(storeKey());
+      TAB = !GUEST && S.mock && S.mock.phase !== "done" ? "mock" : "today";
+      show(TAB);
+    },
     onSave(fn) { saveHooks.push(fn); },
     onSettings(fn) { settingsHooks.push(fn); },
     // Record which account this device's progress belongs to (does not count as a change).
-    setOwner(id) { S.owner = id; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } },
+    // Hide another student's copy until the signed-in student's progress arrives.
+    expect(uid) { if (!GUEST && uid && S.owner && S.owner !== uid) { HOLD = true; render(); } },
+    setOwner(id) { if (GUEST) return; HOLD = false; S.owner = id; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } },
     // Apply the signed-in student's profile (name, test, date) without counting as a change.
     applyProfile(p) {
+      if (GUEST) return;
       let changed = false;
       if (p.name != null && p.name !== S.settings.name) { S.settings.name = p.name; changed = true; }
       if (p.kind && p.kind !== S.settings.kind) { S.settings.kind = p.kind; changed = true; }
@@ -1086,9 +1241,9 @@
       if (changed) { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } render(); }
     },
     // Remove this device's copy (the account keeps its copy in the cloud).
-    reset() { P = null; S = blank(); try { localStorage.removeItem(KEY); } catch (e) { } render(); },
+    reset() { try { localStorage.removeItem(KEY); } catch (e) { } if (!GUEST) { P = null; S = blank(); render(); } },
     save, render, toast,
-    get busy() { return !!(S.mock && S.mock.phase !== "done") || !!(P && !P.finished); }
+    get busy() { return !GUEST && (!!(S.mock && S.mock.phase !== "done") || !!(P && !P.finished)); }
   };
   document.dispatchEvent(new Event("psapp-ready"));
 })();

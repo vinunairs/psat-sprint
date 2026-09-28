@@ -51,8 +51,15 @@
       if (app.busy && !first) return; // never swap data under an in-progress test or practice set
       status = "syncing"; paint();
       const { data, error } = await sb.from("progress").select("data, client_updated_ms").eq("user_id", user.id).maybeSingle();
-      if (error) { status = navigator.onLine ? "error" : "offline"; paint(); return; }
       const local = app.state, localMs = local.updatedAt || 0;
+      if (error) {
+        // Offline with another student's copy on this device: set it aside and start this student fresh here.
+        if (local.owner && local.owner !== user.id) {
+          try { localStorage.setItem(BACKUP_KEY + "-" + local.owner, JSON.stringify(local)); } catch (e) { }
+          app.replace(Object.assign(app.blank(), { owner: user.id }));
+        }
+        status = navigator.onLine ? "error" : "offline"; paint(); return;
+      }
       const done = () => { app.setOwner(user.id); status = "synced"; lastSynced = new Date(); paint(); };
       const keepCopy = (label) => { try { localStorage.setItem(BACKUP_KEY + (label ? "-" + label : ""), JSON.stringify(local)); } catch (e) { } };
 
@@ -104,10 +111,18 @@
       const was = user && user.id;
       user = session ? session.user : null;
       if (event === "PASSWORD_RECOVERY") setTimeout(showReset, 0);
-      if (user && user.id !== was) setTimeout(async () => { await pull(true); await loadProfile(); }, 0);
-      if (!user) status = "off";
+      if (user) {
+        setTimeout(async () => {
+          app.setGuest(false); // load this device's student copy, then reconcile with the account
+          app.expect(user.id);
+          if (user && user.id !== was) { await pull(true); await loadProfile(); }
+        }, 0);
+      } else {
+        status = "off";
+        setTimeout(() => app.setGuest(true), 0); // back to the public site; the student's copy stays put
+      }
       paint();
-      if (document.querySelector("#pop .acct")) setTimeout(openAccount, 0);
+      if (user && document.querySelector("#pop .acct") && event !== "SIGNED_IN") setTimeout(openAccount, 0);
     });
 
     /* ---------- Account panel ---------- */
@@ -145,7 +160,7 @@
             el("button", { class: "btn", onclick: () => openReminders() }, "Reminders")),
           el("div", { class: "row" },
             el("button", { class: "btn ghost", onclick: async () => { await pushNow(); await sb.auth.signOut(); app.toast("Signed out. Your progress stays on this device."); host().textContent = ""; } }, "Sign out"),
-            el("button", { class: "btn ghost", onclick: async () => { await pushNow(); await sb.auth.signOut(); app.reset(); app.toast("Signed out and removed from this device. Your progress is safe in your account."); host().textContent = ""; } }, "Sign out and clear this device")),
+            el("button", { class: "btn ghost", onclick: async () => { await pushNow(); app.reset(); await sb.auth.signOut(); app.toast("Signed out and removed from this device. Your progress is safe in your account."); host().textContent = ""; } }, "Sign out and clear this device")),
           el("p", { class: "muted", style: "font-size:12px", text: "On a shared or school computer, use “Sign out and clear this device.”" })));
         return;
       }

@@ -34,6 +34,12 @@ Rules for future changes, so logged progress is never lost:
 
 **Back up progress** in the footer downloads a JSON copy; **Restore from backup** loads it.
 
+## Public site vs. signed in
+
+- Signed out: an intro page (what the site does, test format, Bluebook setup steps, Khan Academy and College Board links), plus 2 short sample practice sets (5 questions) and 2 sample mocks (10 timed questions) per device. Visitors' sample activity is kept separately (`psat-sprint-guest`) and never mixes with a student's progress.
+- Signed in: the full app. A student's progress (`psat-sprint-v2`) loads only after sign-in and is hidden again on sign-out.
+- Note: the question files are public in this repository, so the sample limits are a courtesy gate, not a security boundary. Student data is protected by Supabase row-level security.
+
 ## Student accounts
 
 - Sign-up asks for the student's first name, test (PSAT/SAT), test date, grade, email, password, and an **invite code** (stored in `public.app_secrets`, name `invite_code`; a database trigger rejects sign-ups without it and creates the student's row in `public.profiles`).

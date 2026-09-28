@@ -259,3 +259,31 @@ footer.foot{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);di
   .rwd .acts{grid-column:1/-1}
   .ref div{grid-template-columns:1fr}
 }
+
+/* Public site (signed out) and loading states */
+.guest-only{display:none}
+body.guest .guest-only{display:flex}
+body.guest p.guest-only{display:block}
+body.guest .status, body.guest #hello, body.guest #testLabel, body.guest .count, body.guest .app-only{display:none!important}
+body.guest nav.tabs button[data-tab="matrix"], body.guest nav.tabs button[data-tab="log"], body.guest nav.tabs button[data-tab="rewards"]{display:none}
+body.holding .status, body.holding #testLabel, body.holding .count, body.holding nav.tabs{visibility:hidden}
+.guest-actions{justify-content:flex-end;align-self:center}
+.tagline{margin:4px 0 0;color:var(--graphite);font-size:15px}
+.hero{gap:16px}
+.hero-h{font-size:clamp(30px,5vw,46px);font-weight:800;font-stretch:72%;line-height:1.04;letter-spacing:-.01em}
+.feats{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:12px}
+.feat{display:grid;gap:4px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.feat strong{font-stretch:88%}
+.feat p{font-size:14px;line-height:1.45}
+ol.steps{margin:0;padding-left:22px;display:grid;gap:12px}
+ol.steps li{padding-left:4px}
+ol.steps li strong{display:block;font-stretch:88%}
+ol.steps li span{color:var(--graphite);font-size:14px}
+.reslist{display:grid;gap:10px;margin-top:12px}
+.res{display:grid;gap:2px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.res:last-child{border-bottom:0;padding-bottom:0}
+.res a{font-weight:700;text-decoration:none}
+.res a:hover{text-decoration:underline}
+.res span{font-size:14px}
+.disclaimer{flex-basis:100%;font-size:12px;color:var(--graphite);margin:0}
+@media (max-width:640px){.guest-actions{justify-content:flex-start}}
