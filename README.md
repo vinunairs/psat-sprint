@@ -17,9 +17,9 @@ A PSAT/NMSQT and SAT prep site with fresh questions every time, timed adaptive m
 
 | Source | File | How it stays fresh |
 |---|---|---|
-| Math (all 4 domains) | `js/mathgen.js` | ~30 templates; random numbers every time, answers computed in code |
-| Grammar, transitions, data tables | `js/rwgen.js` | Assembled from sentence banks each time |
-| Words in context, purpose, main idea, inference, synthesis, paired texts | `js/rwbank.js` | Hand-written bank; items don't repeat until all have been seen |
+| Math (all 4 domains) | `js/mathgen.js`, `js/mathgen2.js` | ~40 templates, including drawn scatterplots, bar charts and graphs; random numbers every time, answers computed in code |
+| Grammar (incl. harder "; however," items), transitions, data tables | `js/rwgen.js` | Assembled from sentence banks each time |
+| Words in context, purpose, main idea, inference, evidence, synthesis, paired texts | `js/rwbank.js`, `js/rwbank2.js` | 159 hand-written items; don't repeat until all have been seen |
 
 Questions are original, written in the style of the digital PSAT/SAT. They are not College Board questions.
 

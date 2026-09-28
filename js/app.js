@@ -160,10 +160,10 @@
     } else {
       const r = rng.f();
       if (domain === "cs") q = fromBank("cs", lv, used);
-      else if (domain === "ii") q = (r < 0.35 || !bankHasUnseen("ii", used)) && r < 0.8 ? RW.generate("ii", rng, avoid) : fromBank("ii", lv, used);
-      else if (domain === "eoi") q = r < 0.6 || !bankHasUnseen("eoi", used) ? RW.generate("eoi", rng, avoid) : fromBank("eoi", lv, used);
-      else q = r < 0.2 && bankHasUnseen("sec", used) ? fromBank("sec", lv, used) : RW.generate("sec", rng, avoid);
-      if (!q) q = RW.generate(domain, rng, avoid) || fromBank(domain, lv, new Set());
+      else if (domain === "ii") q = (r < (lv === 3 ? 0.2 : 0.35) || !bankHasUnseen("ii", used)) && r < 0.8 ? RW.generate("ii", rng, avoid, lv) : fromBank("ii", lv, used);
+      else if (domain === "eoi") q = r < (lv === 3 ? 0.35 : 0.6) || !bankHasUnseen("eoi", used) ? RW.generate("eoi", rng, avoid, lv) : fromBank("eoi", lv, used);
+      else q = r < 0.2 && bankHasUnseen("sec", used) ? fromBank("sec", lv, used) : RW.generate("sec", rng, avoid, lv);
+      if (!q) q = RW.generate(domain, rng, avoid, lv) || fromBank(domain, lv, new Set());
     }
     q = Object.assign({}, q, { uid: uid(), d: q.d || domain });
     if (!q.type) q.type = "mc";
@@ -183,7 +183,7 @@
     const i = S.mistakes.findIndex((m) => m.key === q.key);
     if (ok && i > -1) { S.mistakes.splice(i, 1); S.fixed++; if (S.fixed >= 5) award("fixer"); }
     if (!ok && i === -1) {
-      const slim = { key: q.key, d: q.d, sk: q.sk, p: q.p, q: q.q, o: q.o, a: q.a, type: q.type, spr: q.spr, e: q.e, t: q.t, table: q.table, id: q.id, src: q.src, added: today() };
+      const slim = { key: q.key, d: q.d, sk: q.sk, p: q.p, q: q.q, o: q.o, a: q.a, type: q.type, spr: q.spr, e: q.e, t: q.t, table: q.table, chart: q.chart, id: q.id, src: q.src, added: today() };
       S.mistakes.unshift(slim); if (S.mistakes.length > 80) S.mistakes.length = 80;
     }
   }
@@ -282,9 +282,55 @@
     if (parts !== "prompt") {
       if (q.p) frag.append(el("div", { class: "passage", text: q.p }));
       if (q.table) frag.append(dataTable(q.table));
+      if (q.chart) frag.append(chartView(q.chart));
     }
     if (parts !== "passage") frag.append(el("div", { class: "prompt", text: q.q }));
     return frag;
+  }
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const MINUS_SIGN = "\u2212";
+  const tickTxt = (v) => (v < 0 ? MINUS_SIGN + Math.abs(+v.toFixed(2)) : String(+v.toFixed(2)));
+  function chartView(c) {
+    const W = 400, H = 310, L = 54, R = 16, T = 14, B = 50, pw = W - L - R, ph = H - T - B;
+    const y0 = c.y.min, y1 = c.y.max, sy = (v) => T + ph - ((v - y0) / (y1 - y0)) * ph;
+    let out = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc((c.type === "bar" ? "Bar graph of " : "Graph of ") + c.y.label + " versus " + c.x.label)}" style="width:100%;max-width:440px;height:auto;display:block">`;
+    out += `<defs><clipPath id="clipPlot"><rect x="${L}" y="${T}" width="${pw}" height="${ph}"/></clipPath></defs>`;
+    out += `<rect x="${L}" y="${T}" width="${pw}" height="${ph}" fill="var(--surface)" stroke="var(--line)"/>`;
+    const yTicks = []; for (let v = y0; v <= y1 + 1e-9; v += c.y.step) yTicks.push(+v.toFixed(6));
+    const yEvery = yTicks.length > 13 ? 2 : 1;
+    yTicks.forEach((v, i) => {
+      out += `<line x1="${L}" x2="${L + pw}" y1="${sy(v)}" y2="${sy(v)}" stroke="var(--line)" stroke-width="${v === 0 && c.type === "graph" ? 0 : 1}"/>`;
+      if (i % yEvery === 0) out += `<text x="${L - 7}" y="${sy(v) + 4}" text-anchor="end" font-size="11" fill="var(--graphite)" font-family="var(--mono)">${tickTxt(v)}</text>`;
+    });
+    if (c.type === "bar") {
+      const n = c.bars.length, bw = pw / n;
+      c.bars.forEach(([lab, val], i) => {
+        const x = L + i * bw;
+        out += `<rect x="${x + bw * 0.18}" y="${sy(val)}" width="${bw * 0.64}" height="${sy(y0) - sy(val)}" fill="var(--ink)" opacity="0.85"/>`;
+        out += `<text x="${x + bw / 2}" y="${T + ph + 16}" text-anchor="middle" font-size="12" fill="var(--ink)" font-family="var(--mono)">${esc(lab)}</text>`;
+      });
+    } else {
+      const x0 = c.x.min, x1 = c.x.max, sx = (v) => L + ((v - x0) / (x1 - x0)) * pw;
+      const xTicks = []; for (let v = x0; v <= x1 + 1e-9; v += c.x.step) xTicks.push(+v.toFixed(6));
+      const xEvery = xTicks.length > 13 ? 2 : 1;
+      xTicks.forEach((v, i) => {
+        out += `<line x1="${sx(v)}" x2="${sx(v)}" y1="${T}" y2="${T + ph}" stroke="var(--line)" stroke-width="${v === 0 && c.type === "graph" ? 0 : 1}"/>`;
+        if (i % xEvery === 0) out += `<text x="${sx(v)}" y="${T + ph + 16}" text-anchor="middle" font-size="11" fill="var(--graphite)" font-family="var(--mono)">${tickTxt(v)}</text>`;
+      });
+      if (c.type === "graph") {
+        if (x0 < 0 && x1 > 0) out += `<line x1="${sx(0)}" x2="${sx(0)}" y1="${T}" y2="${T + ph}" stroke="var(--ink)" stroke-width="1.5"/>`;
+        if (y0 < 0 && y1 > 0) out += `<line x1="${L}" x2="${L + pw}" y1="${sy(0)}" y2="${sy(0)}" stroke="var(--ink)" stroke-width="1.5"/>`;
+      }
+      out += `<g clip-path="url(#clipPlot)">`;
+      (c.lines || []).forEach(({ m, b }) => { out += `<line x1="${sx(x0)}" y1="${sy(m * x0 + b)}" x2="${sx(x1)}" y2="${sy(m * x1 + b)}" stroke="var(--pencil)" stroke-width="2.5"/>`; });
+      (c.curves || []).forEach((pts) => { out += `<polyline fill="none" stroke="var(--pencil)" stroke-width="2.5" points="${pts.map(([x, y]) => sx(x).toFixed(1) + "," + sy(y).toFixed(1)).join(" ")}"/>`; });
+      out += `</g>`;
+      (c.points || []).forEach(([x, y]) => { out += `<circle cx="${sx(x)}" cy="${sy(y)}" r="4.5" fill="var(--ink)" stroke="var(--surface)" stroke-width="1.5"/>`; });
+    }
+    out += `<text x="${L + pw / 2}" y="${H - 10}" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ink)">${esc(c.x.label)}</text>`;
+    out += `<text transform="translate(14 ${T + ph / 2}) rotate(-90)" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ink)">${esc(c.y.label)}</text>`;
+    out += `</svg>`;
+    const box = el("div", { class: "chartbox" }); box.innerHTML = out; return box;
   }
   function dataTable(t) {
     return el("div", { class: "tscroll" }, el("table", { class: "dtable" }, el("thead", {}, el("tr", {}, t.head.map((h) => el("th", { text: String(h) })))), el("tbody", {}, t.rows.map((r) => el("tr", {}, r.map((c, i) => el(i === 0 ? "th" : "td", { text: String(c) })))))));
@@ -582,7 +628,7 @@
       onPick: (v) => { m.ans[i] = v === "" ? null : v; save(); if (q.type !== "spr") renderMock(); },
       onStrike: (k) => { const s = new Set(m.strikes[i]); s.has(k) ? s.delete(k) : s.add(k); m.strikes[i] = [...s]; save(); renderMock(); }
     });
-    const hasLeft = !!(q.p || q.table);
+    const hasLeft = !!(q.p || q.table || q.chart);
     const split = el("div", { class: "split" + (hasLeft ? "" : " single") });
     if (hasLeft) split.append(el("div", { style: "display:grid;gap:12px" }, stem(q, "passage")));
     split.append(el("div", { style: "display:grid;gap:16px" }, head, stem(q, "prompt"), ans));

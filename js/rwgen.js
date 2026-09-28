@@ -210,6 +210,20 @@
       t: "Before looking at the choices, name the relationship between the sentences: contrast, result, addition, example, or similarity.", key: `tr:${s1.slice(0, 24)}` };
   }
 
+  /* ---------- Conjunctive adverbs between two sentences (harder) ---------- */
+  function sec_conjadv(r) {
+    const [rel, s1, s2] = r.pick(TPAIRS);
+    const adv = r.pick(TRANS[rel]).replace(",", "");
+    const advLow = adv[0].toLowerCase() + adv.slice(1);
+    const [aHead, aLast] = lastWord(s1.replace(/\.$/, ""));
+    const [bFirst, bRest] = firstWord(s2);
+    const right = `${aLast}; ${advLow}, ${bFirst}`;
+    const { o, a } = mc(r, right, [`${aLast}, ${advLow}, ${bFirst}`, `${aLast}; ${advLow} ${bFirst}`, `${aLast}, ${advLow} ${bFirst}`], String);
+    return { d: "sec", sk: "Boundaries", lv: 3, p: `${aHead} ${BLANK} ${bRest}`, q: SEC_Q, o, a,
+      e: `Both sides are complete sentences, and "${advLow}" is not a joining word like "and" or "but." So the sentences need a semicolon (or period) before "${advLow}," and "${advLow}" needs a comma after it.`,
+      t: "However, therefore, moreover, and for example can't join sentences on their own: use \"; however,\" between two complete sentences.", key: `cadv:${s1.slice(0, 24)}:${adv}` };
+  }
+
   /* ---------- Quantitative evidence ---------- */
   const TIMELINE = [
     { intro: "A student surveyed classmates about their average daily screen time.", measure: "average daily screen time", unit: "hours", cats: ["Grade 9", "Grade 10", "Grade 11", "Grade 12"], period: "grade", base: [4, 6] },
@@ -254,19 +268,21 @@
   }
   function cap(s) { return s[0].toUpperCase() + s.slice(1); }
 
-  const GENS = { sec: [sec_boundary, sec_boundary, sec_extra, sec_agree, sec_poss], eoi: [eoi_trans], ii: [ii_quant] };
+  const GENS = { sec: [sec_boundary, sec_boundary, sec_extra, sec_agree, sec_poss, sec_conjadv], eoi: [eoi_trans], ii: [ii_quant] };
+  const GENS_BY_LEVEL = { sec: { 1: [sec_poss, sec_boundary, sec_agree], 3: [sec_conjadv, sec_conjadv, sec_extra, sec_agree] } };
   function build(fn, r) {
     for (let i = 0; i < 30; i++) { try { const q = fn(r); q.gen = fn.name; return q; } catch (e) { if (!e || !e.retry) throw e; } }
     return null;
   }
-  function generate(domain, rng, avoid) {
-    const list = GENS[domain];
+  function generate(domain, rng, avoid, lv) {
+    const byLv = GENS_BY_LEVEL[domain];
+    const list = (byLv && byLv[lv]) || GENS[domain];
     if (!list) return null;
     let last = null;
     for (let t = 0; t < 25; t++) { const q = build(rng.pick(list), rng); if (!q) continue; last = q; if (!avoid || !avoid.has(q.key)) return q; }
     return last;
   }
 
-  root.RWGen = { generate, build, fns: { sec_boundary, sec_extra, sec_agree, sec_poss, eoi_trans, ii_quant }, counts: { PAIRS: PAIRS.length, APPOS: APPOS.length, AGREE: AGREE.length, TPAIRS: TPAIRS.length } };
+  root.RWGen = { generate, build, fns: { sec_boundary, sec_extra, sec_agree, sec_poss, sec_conjadv, eoi_trans, ii_quant }, counts: { PAIRS: PAIRS.length, APPOS: APPOS.length, AGREE: AGREE.length, TPAIRS: TPAIRS.length } };
   if (typeof module !== "undefined") module.exports = root.RWGen;
 })(typeof window !== "undefined" ? window : globalThis);
