@@ -64,7 +64,9 @@
     { id: "century", s: "100", name: "Century", how: "Answer 100 questions" },
     { id: "keeper", s: "✓✓✓", name: "Plan Keeper", how: "Complete every task on 3 plan days" },
     { id: "weekwon", s: "W", name: "Week Won", how: "Meet every weekly goal" },
-    { id: "goal", s: "★", name: "Goal Reached", how: "Hit your target score on a test" }
+    { id: "goal", s: "★", name: "Goal Reached", how: "Hit your target score on a test" },
+    { id: "champ", s: "🏆", name: "League Champ", how: "Win a weekly friends league" },
+    { id: "duel", s: "⚔", name: "Duel Winner", how: "Win a head-to-head challenge" }
   ];
   const LEVELS = ["Warm-Up", "Test Taker", "Module Master", "Adaptive Ace", "Score Climber", "Top Percentile", "Legend"];
   const XP_PER_LEVEL = 250;
@@ -106,7 +108,7 @@
       stats: {}, sub: {}, answered: 0, tests: [], mistakes: [], fixed: 0, badges: {},
       seenBank: {}, recentKeys: [], mock: null, lastMock: null,
       prefs: { sel: [], count: 10, diff: "auto", timed: true }, samples: { practice: 0, mock: 0 },
-      activity: {}, weeks: {}, planStart: null, strat: {}, deck: {},
+      activity: {}, weeks: {}, planStart: null, strat: {}, deck: {}, leagueWins: {}, duels: {},
       settings: { kind: "psat", date: "2026-10-07", name: "", target: null },
       rewards: [
         { id: "r1", xp: 500, label: "Choose Friday dinner", claimed: false },
@@ -283,7 +285,7 @@
     $("#hXp").textContent = S.xp + " XP · " + (XP_PER_LEVEL - (S.xp % XP_PER_LEVEL)) + " to next level";
   }
   let TAB = "today";
-  const RENDERERS_OK = (t) => ["today", "practice", "mock", "review", "matrix", "log", "rewards"].includes(t);
+  const RENDERERS_OK = (t) => ["today", "practice", "mock", "review", "matrix", "log", "rewards", "friends"].includes(t);
   document.querySelectorAll("nav.tabs button").forEach((b) => b.addEventListener("click", () => show(b.dataset.tab)));
   function show(t) {
     if (GUEST && !["today", "practice", "mock"].includes(t)) t = "today";
@@ -321,7 +323,7 @@
     const mb = document.querySelector('nav.tabs button[data-tab="mock"]'); if (mb) mb.textContent = GUEST ? "Sample mock" : "Mock test";
     const fn = document.getElementById("footNote"); if (fn) fn.textContent = GUEST ? "Create a free student account to save progress and unlock the full site." : "Progress saves on this device first, then to your account.";
     if (!RENDERERS_OK(TAB)) { TAB = "today"; document.querySelectorAll("section.panel").forEach((x) => (x.hidden = x.id !== "p-today")); }
-    renderHeader(); ({ today: renderToday, practice: renderPractice, mock: renderMock, review: renderReview, matrix: renderMatrix, log: renderLog, rewards: renderRewards })[TAB](); }
+    renderHeader(); ({ today: renderToday, practice: renderPractice, mock: renderMock, review: renderReview, matrix: renderMatrix, log: renderLog, rewards: renderRewards, friends: renderFriends })[TAB](); }
 
   /* ================= Today ================= */
   function taskList(day) {
@@ -951,7 +953,7 @@
   }
   // While a question is on screen, phones get a compact focus layout (see body.inq in the CSS).
   function setInq() {
-    const q = (TAB === "practice" && P && !P.finished) || (TAB === "mock" && S.mock && (S.mock.phase === "module" || S.mock.phase === "check"));
+    const q = (TAB === "practice" && P && !P.finished) || (TAB === "mock" && S.mock && (S.mock.phase === "module" || S.mock.phase === "check")) || (TAB === "friends" && CH && !CH.done);
     document.body.classList.toggle("inq", !!q && !ADMIN);
   }
   function renderPractice() {
@@ -1617,6 +1619,213 @@
         el("button", { class: "btn small ghost", onclick: () => setInstall({ snooze: Date.now() + 7 * 864e5 }) }, "Remind me next week")));
   }
 
+  /* ================= Friends: weekly league, head-to-head challenges, cheers ================= */
+  // SOC.api is provided by sync.js after sign-in. The server checks every call (friends only, first names only).
+  let SOC = null; // { api, friends, board, challenges, code, err, loading }
+  let CH = null;  // active challenge run
+  const CHEERS = { fire: ["🔥", "Keep it up!"], clap: ["👏", "Nice work!"], strong: ["💪", "You've got this!"], target: ["🎯", "Challenge me!"] };
+  const TOPICS = { math: ["Math", ["alg", "alg", "alg", "adv", "adv", "adv", "psda", "psda", "geo", "geo"]], rw: ["Reading & Writing", ["cs", "cs", "cs", "ii", "ii", "ii", "sec", "sec", "eoi", "eoi"]], mixed: ["Mixed", ["alg", "adv", "psda", "geo", "alg", "cs", "ii", "sec", "eoi", "cs"]] };
+  const weekPts = (act, ws) => { let pts = 0, q = 0, c = 0; for (let i = 0; i < 7; i++) { const a = (act || {})[addDays(ws, i)]; if (a) { pts += 10 * (a.c || 0) + 100 * (a.mock || 0); q += a.q || 0; c += a.c || 0; } } return { pts, q, c }; };
+  const liveStreak2 = (st) => (st && (st.last === today() || st.last === addDays(today(), -1)) ? st.count || 0 : 0);
+  const fmtMs = (ms) => { const sec = Math.round((ms || 0) / 1000); return Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0"); };
+  function socialBadge() {
+    const b = document.querySelector('nav.tabs button[data-tab="friends"]'); if (!b) return;
+    const n = SOC ? (SOC.friends || []).filter((f) => f.status === "incoming").length + (SOC.challenges || []).filter((c) => c.mine_to_play).length : 0;
+    b.textContent = n ? "Friends (" + n + ")" : "Friends";
+  }
+  async function socialLoad(full) {
+    if (!SOC) return;
+    SOC.loading = true; SOC.err = null;
+    try {
+      const api = SOC.api;
+      const [friends, challenges, cheers] = await Promise.all([api.friendsList(), api.challengesList(), api.myCheers()]);
+      SOC.friends = friends || []; SOC.challenges = challenges || [];
+      (cheers || []).slice(-3).forEach((c) => { const k = CHEERS[c.kind] || ["👋", ""]; toast(c.from_name + " sent you " + k[0] + " " + k[1], true); });
+      if (full || TAB === "friends") { SOC.code = SOC.code || (await api.myCode()); SOC.board = (await api.board()) || []; leagueBookkeeping(); duelBookkeeping(); }
+    } catch (e) { SOC.err = (e && e.message) || "Couldn't reach the server."; }
+    SOC.loading = false; socialBadge();
+    if (TAB === "friends" && !CH) renderFriends();
+  }
+  // Last week's league winner gets a one-time bonus.
+  function leagueBookkeeping() {
+    const board = SOC.board || []; if (board.length < 2) return;
+    const lw = addDays(weekStart(today()), -7); if (S.leagueWins[lw] != null) return;
+    const scores = board.map((r) => ({ me: r.is_me, pts: weekPts(r.activity, lw).pts }));
+    const top = Math.max(...scores.map((x) => x.pts)), mine = scores.find((x) => x.me);
+    if (!mine || top <= 0) return;
+    S.leagueWins[lw] = mine.pts === top;
+    if (mine.pts === top) { addXP(150, "League champion"); award("champ"); toast("🏆 You won last week's friends league! +150 XP", true); }
+    save();
+  }
+  // Credit a challenge win once, whether you sent it or played it.
+  function duelBookkeeping() {
+    let changed = false;
+    for (const c of SOC.challenges || []) {
+      if (!c.played_at || S.duels[c.id]) continue;
+      const iAmFrom = !c.mine_to_play && c.from_correct != null && c.to_user && !isToMe(c);
+      const r = duelResult(c); S.duels[c.id] = r; changed = true;
+      if (r === "win") { addXP(50, "Challenge won"); award("duel"); toast("⚔ You beat " + (isToMe(c) ? c.from_name : c.to_name) + " in a challenge! +50 XP", true); }
+      void iAmFrom;
+    }
+    if (changed) save();
+  }
+  function isToMe(c) { const me = (SOC.board || []).find((r) => r.is_me); return me ? c.to_user === me.user_id : false; }
+  function duelResult(c) {
+    const mineC = isToMe(c) ? c.to_correct : c.from_correct, theirC = isToMe(c) ? c.from_correct : c.to_correct;
+    const mineT = isToMe(c) ? c.to_ms : c.from_ms, theirT = isToMe(c) ? c.from_ms : c.to_ms;
+    if (mineC !== theirC) return mineC > theirC ? "win" : "loss";
+    if (Math.abs(mineT - theirT) >= 1000) return mineT < theirT ? "win" : "loss";
+    return "tie";
+  }
+  function renderFriends() {
+    const p = $("#p-friends"); p.textContent = "";
+    if (CH) return renderChallengeRun(p);
+    p.append(el("div", {}, el("h2", { text: "Friends" }), el("p", { class: "muted lede", text: "Compete with friends who also use Test Prep Hub: a weekly league, head-to-head challenges, and quick cheers. Friends see your first name, points, streak, latest score and skills. Nothing else, and no messages." })));
+    if (!SOC) { p.append(el("div", { class: "card" }, el("p", { class: "muted", text: "Sign in to use Friends." }))); return; }
+    if (!SOC.board && !SOC.loading) { socialLoad(true); }
+    if (SOC.err) p.append(el("div", { class: "card" }, el("p", { class: "err", text: SOC.err }), el("button", { class: "btn small", onclick: () => socialLoad(true) }, "Try again")));
+    // Your code + add a friend
+    const codeIn = el("input", { type: "text", placeholder: "Friend code", maxlength: "12", autocomplete: "off", "aria-label": "Friend's code", style: "text-transform:uppercase" });
+    const msg = el("p", { class: "muted", role: "status", style: "font-size:13px" });
+    const addBtn = el("button", { class: "btn primary", onclick: async () => {
+      const v = codeIn.value.trim(); if (!v) return; addBtn.disabled = true;
+      try {
+        const r = await SOC.api.addFriend(v);
+        const said = { requested: "Request sent. You'll be friends once they accept.", accepted: "You're now friends!", already: "You're already friends.", pending: "Your request is still waiting for them to accept.", self: "That's your own code.", not_found: "No one has that code. Check it and try again." }[r] || r;
+        toast(said, r === "accepted" || r === "requested"); codeIn.value = ""; await socialLoad(true);
+      } catch (e) { msg.textContent = "Couldn't add: " + (e.message || e); }
+      addBtn.disabled = false;
+    } }, "Add friend");
+    const code = SOC.code;
+    p.append(el("div", { class: "card", style: "display:grid;gap:10px" },
+      el("div", { class: "row between" }, el("div", {}, el("div", { class: "eyebrow", text: "Your friend code" }), el("strong", { class: "num fcode", text: code || "…" })),
+        code ? el("button", { class: "btn small", onclick: () => copyText("Add me on Test Prep Hub! My friend code is " + code + ". Open the Friends tab and enter it.", "Friend code copied") }, "Copy to share") : null),
+      el("div", { class: "row", style: "gap:8px;flex-wrap:nowrap" }, codeIn, addBtn), msg));
+    // Requests
+    const inc = (SOC.friends || []).filter((f) => f.status === "incoming"), out = (SOC.friends || []).filter((f) => f.status === "outgoing");
+    if (inc.length || out.length) p.append(el("div", { class: "card", style: "display:grid;gap:8px" }, el("h3", { text: "Friend requests" }),
+      inc.map((f) => el("div", { class: "inv-row" }, el("span", {}, el("strong", { text: f.first_name }), " wants to be friends"), el("div", { class: "row", style: "gap:6px" },
+        el("button", { class: "btn small primary", onclick: async () => { await SOC.api.respond(f.user_id, true); toast("You and " + f.first_name + " are now friends", true); socialLoad(true); } }, "Accept"),
+        el("button", { class: "btn small ghost", onclick: async () => { await SOC.api.respond(f.user_id, false); socialLoad(true); } }, "Decline")))),
+      out.map((f) => el("div", { class: "inv-row" }, el("span", { class: "muted" }, "Waiting for ", el("strong", { text: f.first_name }), " to accept"), el("button", { class: "btn small ghost", onclick: async () => { await SOC.api.remove(f.user_id); socialLoad(true); } }, "Cancel")))));
+    // Challenges to play / results
+    const chs = SOC.challenges || [];
+    const toPlay = chs.filter((c) => c.mine_to_play), rest = chs.filter((c) => !c.mine_to_play).slice(0, 8);
+    if (toPlay.length) p.append(el("div", { class: "card install", style: "display:grid;gap:8px" }, el("h3", { text: "Your turn" }),
+      toPlay.map((c) => el("div", { class: "inv-row" }, el("span", {}, el("strong", { text: c.from_name }), " challenged you: " + c.n + " " + c.topic + " questions"), el("button", { class: "btn small primary", onclick: () => startChallengeRun({ mode: "play", c }) }, "Play now")))));
+    // League
+    const board = SOC.board || [], ws = weekStart(today());
+    const friendsOnly = board.filter((r) => !r.is_me);
+    if (board.length) {
+      const rows = board.map((r) => Object.assign({ r }, weekPts(r.activity, ws))).sort((a, b) => b.pts - a.pts || b.q - a.q);
+      const lw = addDays(ws, -7), lrows = board.map((r) => ({ r, pts: weekPts(r.activity, lw).pts })).sort((a, b) => b.pts - a.pts);
+      const champ = lrows.length > 1 && lrows[0].pts > 0 ? lrows[0] : null;
+      p.append(el("div", { class: "card", style: "display:grid;gap:10px" },
+        el("div", { class: "row between" }, el("h3", { text: "This week's league" }), el("span", { class: "muted", style: "font-size:13px", text: fmtDay(ws).md + " – " + fmtDay(addDays(ws, 6)).md })),
+        el("p", { class: "muted", style: "font-size:13px", text: "10 points per correct answer, 100 per mock test section. Resets every Monday; the winner gets +150 XP and the League Champ badge." }),
+        el("ol", { class: "league" }, rows.map((x, i) => el("li", { class: x.r.is_me ? "me" : "" },
+          el("span", { class: "lg-rank", text: i === 0 && x.pts > 0 ? "🏆" : String(i + 1) }),
+          el("span", { class: "lg-name" }, el("strong", { text: x.r.is_me ? "You" : x.r.first_name }), el("small", { class: "muted", text: x.q + " questions" + (x.q ? " · " + Math.round((x.c / x.q) * 100) + "% right" : "") + " · 🔥 " + liveStreak2(x.r.streak) })),
+          el("strong", { class: "num lg-pts", text: String(x.pts) })))),
+        champ ? el("p", { class: "muted", style: "font-size:13px", text: "Last week's champion: " + (champ.r.is_me ? "you" : champ.r.first_name) + " (" + champ.pts + " points)" }) : null,
+        !friendsOnly.length ? el("p", { style: "font-size:14px", text: "Add a friend to start competing." }) : null));
+    }
+    // Friend cards
+    friendsOnly.forEach((r) => {
+      const st = r.stats || {}, skills = DOMAINS.map((d) => ({ d, x: st[d.id] })).filter((o) => o.x && o.x.att >= 5).map((o) => ({ n: o.d.name, a: o.x.cor / o.x.att })).sort((a, b) => b.a - a.a);
+      const lt = r.latest, left = r.test_date ? Math.round((parseYmd(r.test_date) - parseYmd(today())) / 864e5) : null;
+      p.append(el("div", { class: "card friend", style: "display:grid;gap:10px" },
+        el("div", { class: "row between" }, el("h3", { text: r.first_name }), el("span", { class: "muted", style: "font-size:13px", text: (FORMATS[r.test_kind] || FORMATS.psat).name + (left != null && left >= 0 ? " in " + left + " days" : "") })),
+        el("div", { class: "adm-stats" },
+          fstat("Latest score", lt && lt.total ? String(lt.total) : "—", lt && lt.total ? (isEst(lt) ? "estimated" : lt.source === "official" ? "official" : "Bluebook") : "no test yet"),
+          fstat("Streak", String(liveStreak2(r.streak)), "days"),
+          fstat("Level", String(Math.floor((r.xp || 0) / XP_PER_LEVEL) + 1), (r.xp || 0) + " XP"),
+          fstat("Answered", String(r.answered || 0), "questions")),
+        skills.length ? el("p", { style: "font-size:14px" }, el("strong", { text: "Strongest: " }), skills[0].n + " " + Math.round(skills[0].a * 100) + "%", skills.length > 1 ? el("span", {}, " · ", el("strong", { text: "Working on: " }), skills[skills.length - 1].n + " " + Math.round(skills[skills.length - 1].a * 100) + "%") : null) : null,
+        el("div", { class: "row", style: "gap:6px;flex-wrap:wrap" },
+          el("button", { class: "btn primary small", onclick: () => pickTopic(r) }, "⚔ Challenge"),
+          Object.entries(CHEERS).map(([k, [e2, label]]) => el("button", { class: "btn small ghost cheer", title: label, "aria-label": "Send " + label, onclick: async (ev) => {
+            try { const ok = await SOC.api.cheer(r.user_id, k); toast(ok ? "Sent " + e2 + " to " + r.first_name : "You already sent that one today", ok); ev.target.disabled = true; } catch (x) { toast("Couldn't send: " + (x.message || x)); }
+          } }, e2))),
+        el("details", { class: "fb-steps" }, el("summary", { text: "More" }), el("button", { class: "btn small ghost", style: "margin-top:8px", onclick: () => confirmPop("Remove " + r.first_name + " from your friends? You'll both disappear from each other's league.", "Remove", async () => { await SOC.api.remove(r.user_id); socialLoad(true); }) }, "Remove friend"))));
+    });
+    // Challenge history
+    if (rest.length) p.append(el("div", { class: "card", style: "display:grid;gap:8px" }, el("h3", { text: "Challenges" }),
+      rest.map((c) => {
+        const mineFrom = !isToMe(c), other = mineFrom ? c.to_name : c.from_name;
+        let status;
+        if (!c.played_at) status = new Date(c.expires_at) < new Date() ? ["none", "Expired"] : ["warn", "Waiting for " + other];
+        else { const r2 = duelResult(c), mc2 = mineFrom ? c.from_correct : c.to_correct, tc = mineFrom ? c.to_correct : c.from_correct; status = [r2 === "win" ? "good" : r2 === "loss" ? "bad" : "none", (r2 === "win" ? "Won " : r2 === "loss" ? "Lost " : "Tied ") + mc2 + "–" + tc]; }
+        return el("div", { class: "inv-row" }, el("span", {}, (mineFrom ? "You vs " : "") + (mineFrom ? "" : other + " vs you"), mineFrom ? el("strong", { text: other }) : null, el("small", { class: "muted", text: " · " + c.topic + " · " + fmtDay(c.created_at.slice(0, 10)).md })), el("span", { class: "chip " + status[0], text: status[1] }));
+      })));
+    function fstat(h, v, sub) { return el("div", { class: "adm-stat" }, el("span", { class: "eyebrow", text: h }), el("strong", { class: "num", text: v }), el("span", { class: "muted", style: "font-size:12px", text: sub })); }
+  }
+  function copyText(msg, ok) {
+    try { if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(msg).then(() => toast(ok, true), () => prompt("Copy this:", msg)); return; } } catch (e) { }
+    prompt("Copy this:", msg);
+  }
+  function pickTopic(friend) {
+    const host = $("#pop"); host.textContent = ""; tool = null;
+    host.append(el("div", { class: "panelpop", role: "dialog", "aria-label": "New challenge" },
+      el("header", {}, el("strong", { text: "Challenge " + friend.first_name }), el("button", { class: "btn small ghost", onclick: () => (host.textContent = "") }, "Close")),
+      el("p", { class: "muted", style: "font-size:14px", text: "You answer 10 questions first; " + friend.first_name + " then gets the exact same 10. Most correct wins; if it's a tie, the faster time wins." }),
+      Object.entries(TOPICS).map(([k, [label]]) => el("button", { class: "btn", onclick: () => { host.textContent = ""; startChallengeRun({ mode: "create", friend, topic: k }); } }, label))));
+  }
+  function startChallengeRun(o) {
+    let qs;
+    if (o.mode === "create") {
+      const used = new Set(); qs = [];
+      for (const d of rng.shuffle(TOPICS[o.topic][1])) { const q = nextQuestion(d, 2, used, 0); used.add(q.key); q.type = "mc"; qs.push(q); }
+    } else qs = (o.c.questions || []).map((q) => Object.assign({}, q, { uid: uid(), type: "mc" }));
+    CH = { mode: o.mode, friend: o.friend, c: o.c, topic: o.mode === "create" ? TOPICS[o.topic][0] : o.c.topic, qs, i: 0, picks: [], t0: Date.now(), done: false };
+    show("friends"); window.scrollTo({ top: 0 });
+  }
+  function renderChallengeRun(p) {
+    const vs = CH.mode === "create" ? CH.friend.first_name : CH.c.from_name;
+    if (!CH.done) {
+      const q = CH.qs[CH.i];
+      const card = el("div", { class: "card", style: "display:grid;gap:14px" },
+        el("div", { class: "row between" }, el("div", {}, el("div", { class: "eyebrow", text: "⚔ Challenge vs " + vs + " · " + CH.topic }), el("strong", { class: "num", text: "Question " + (CH.i + 1) + " of " + CH.qs.length })),
+          el("button", { class: "btn small ghost", onclick: () => confirmPop("Quit this challenge? " + (CH.mode === "create" ? "Nothing will be sent." : "You can play it later."), "Quit", () => { CH = null; renderFriends(); setInq(); }) }, "Quit")),
+        stem(q),
+        answerArea(q, { picked: CH.picks[CH.i], onPick: (k) => { CH.picks[CH.i] = k; renderFriends(); } }),
+        el("div", { class: "row" }, el("button", { class: "btn primary", disabled: CH.picks[CH.i] == null, onclick: () => { if (CH.i + 1 < CH.qs.length) { CH.i++; renderFriends(); window.scrollTo({ top: 0 }); } else finishChallengeRun(); } }, CH.i + 1 < CH.qs.length ? "Next" : "Finish")));
+      p.append(card); setInq(); return;
+    }
+    const R2 = CH.result;
+    p.append(el("div", { class: "card mission", style: "display:grid;gap:10px" },
+      el("div", { class: "eyebrow", text: "⚔ Challenge vs " + vs }),
+      el("h2", { text: R2.headline }),
+      el("p", { class: "lede", text: R2.detail }),
+      el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => { CH = null; socialLoad(true); renderFriends(); setInq(); } }, "Back to Friends"))));
+    const misses = CH.qs.map((q, k) => ({ q, k })).filter((x) => !isRight(x.q, CH.picks[x.k]));
+    if (misses.length) p.append(el("div", {}, el("h3", { text: "Review your misses" }), misses.map((x) => el("div", { class: "card", style: "display:grid;gap:10px;margin-top:12px" }, stem(x.q), answerArea(x.q, { picked: CH.picks[x.k], reveal: true, onPick: () => { } }), explainBox(x.q, CH.picks[x.k])))));
+    setInq();
+  }
+  async function finishChallengeRun() {
+    const ms = Date.now() - CH.t0;
+    let correct = 0;
+    CH.qs.forEach((q, k) => { const ok = isRight(q, CH.picks[k]); if (ok) correct++; record(q, ok); });
+    addXP(10 * correct + 20, "challenge"); bumpStreak(); save();
+    CH.done = true; CH.result = { headline: "Sending…", detail: "" }; renderFriends();
+    const slim = (q) => ({ key: q.key, d: q.d, sk: q.sk, gen: q.gen, p: q.p, q: q.q, o: q.o, a: q.a, e: q.e, t: q.t, table: q.table, chart: q.chart, id: q.id, src: q.src });
+    try {
+      if (CH.mode === "create") {
+        await SOC.api.createChallenge(CH.friend.user_id, CH.topic, CH.qs.map(slim), correct, ms);
+        CH.result = { headline: correct + " of " + CH.qs.length + " in " + fmtMs(ms), detail: "Challenge sent to " + CH.friend.first_name + ". They'll get the same questions; you'll see who won on the Friends tab." };
+      } else {
+        await SOC.api.submitChallenge(CH.c.id, correct, ms);
+        const c = Object.assign({}, CH.c, { played_at: new Date().toISOString(), to_correct: correct, to_ms: ms });
+        const list = await SOC.api.challengesList(); const fresh = (list || []).find((x) => x.id === CH.c.id) || c;
+        const r = duelResult(fresh); S.duels[CH.c.id] = r;
+        if (r === "win") { addXP(50, "Challenge won"); award("duel"); }
+        save();
+        CH.result = { headline: r === "win" ? "You won! +50 XP" : r === "loss" ? CH.c.from_name + " won this one" : "It's a tie!", detail: "You: " + correct + "/" + CH.qs.length + " in " + fmtMs(ms) + " · " + CH.c.from_name + ": " + fresh.from_correct + "/" + CH.qs.length + " in " + fmtMs(fresh.from_ms) + "." };
+      }
+    } catch (e) { CH.result = { headline: correct + " of " + CH.qs.length, detail: "Couldn't reach the server: " + (e.message || e) + ". Your practice still counts." }; }
+    renderFriends();
+  }
+
   /* ================= Admin: read-only dashboard of every student ================= */
   // ADMIN is set by sync.js only when the server confirms this account is the site admin.
   // The data comes from a server function that refuses any other account.
@@ -1773,7 +1982,7 @@
     // Switch between the public site (signed out) and a student's own progress (signed in).
     setGuest(g) {
       g = !!g; if (g === GUEST) return;
-      GUEST = g; HOLD = false; P = null; ADMIN = null; clearInterval(pTick); clearInterval(mTick); tool = null;
+      GUEST = g; HOLD = false; P = null; ADMIN = null; SOC = null; CH = null; clearInterval(pTick); clearInterval(mTick); tool = null;
       const pop = document.getElementById("pop"); if (pop) pop.textContent = "";
       S = load(storeKey());
       TAB = !GUEST && S.mock && S.mock.phase !== "done" ? "mock" : "today";
@@ -1783,6 +1992,7 @@
     // Called by sync.js after the server confirms admin status (load = fetches the dashboard rows), or with null.
     setAdmin(load, api) { const was = !!ADMIN; ADMIN = load && !GUEST ? { load, api: api || null, rows: null } : null; if (ADMIN) { show("admin"); adminLoad(); } else if (was) show("today"); },
     get admin() { return !!ADMIN; },
+    setSocial(api) { SOC = api && !GUEST ? { api } : null; CH = null; socialBadge(); if (SOC) socialLoad(TAB === "friends"); },
     onSettings(fn) { settingsHooks.push(fn); },
     // Record which account this device's progress belongs to (does not count as a change).
     // Hide another student's copy until the signed-in student's progress arrives.

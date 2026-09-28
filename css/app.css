@@ -265,7 +265,7 @@ footer.foot{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);di
 body.guest .guest-only{display:flex}
 body.guest p.guest-only{display:block}
 body.guest .status, body.guest #hello, body.guest #testLabel, body.guest .count, body.guest .app-only{display:none!important}
-body.guest nav.tabs button[data-tab="review"], body.guest nav.tabs button[data-tab="matrix"], body.guest nav.tabs button[data-tab="log"], body.guest nav.tabs button[data-tab="rewards"]{display:none}
+body.guest nav.tabs button[data-tab="friends"], body.guest nav.tabs button[data-tab="review"], body.guest nav.tabs button[data-tab="matrix"], body.guest nav.tabs button[data-tab="log"], body.guest nav.tabs button[data-tab="rewards"]{display:none}
 body.holding .status, body.holding #testLabel, body.holding .count, body.holding nav.tabs{visibility:hidden}
 .guest-actions{justify-content:flex-end;align-self:center}
 .tagline{margin:4px 0 0;color:var(--graphite);font-size:15px}
@@ -451,3 +451,12 @@ section.panel > *, .card, .split > *{min-width:0}
 .card.install{display:grid;gap:10px;border:2px solid var(--pencil);background:var(--pencil-soft)}
 .card.install h3{margin-top:2px}
 .card.install .btn.primary{justify-self:start}
+/* Friends */
+.fcode{font-size:24px;letter-spacing:.08em}
+.league{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.league li{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px}
+.league li.me{border:2px solid var(--ink)}
+.lg-rank{font-weight:800;text-align:center;font-size:18px}
+.lg-name{display:grid}
+.lg-pts{font-size:20px}
+.btn.cheer{font-size:18px;min-width:44px;padding-inline:10px}

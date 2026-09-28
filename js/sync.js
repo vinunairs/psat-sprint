@@ -98,12 +98,30 @@
       if (!user || !app.setAdmin || typeof sb.rpc !== "function") return;
       let data = false, error = null;
       try { ({ data, error } = await sb.rpc("is_admin")); } catch (e) { error = e; }
-      if (error || data !== true) { if (app.admin) app.setAdmin(null); return; }
+      if (error || data !== true) { if (app.admin) app.setAdmin(null); setupSocial(); return; }
       const call = async (fn, args) => { const r = await sb.rpc(fn, args); if (r.error) throw r.error; return r.data; };
       app.setAdmin(async () => (await call("admin_dashboard")) || [], {
         createInvite: (note) => call("admin_create_invite", { p_note: note || null }),
         listInvites: async () => (await call("admin_list_invites")) || [],
         revokeInvite: (code) => call("admin_revoke_invite", { p_code: code })
+      });
+    }
+    // Friends: every call is checked on the server (friends only, first names only).
+    function setupSocial() {
+      if (!user || !app.setSocial || typeof sb.rpc !== "function") return;
+      const call = async (fn, args) => { const r = await sb.rpc(fn, args); if (r.error) throw r.error; return r.data; };
+      app.setSocial({
+        myCode: () => call("my_friend_code"),
+        addFriend: (code) => call("add_friend", { p_code: code }),
+        respond: (id, yes) => call("respond_friend", { p_user: id, p_accept: yes }),
+        remove: (id) => call("remove_friend", { p_user: id }),
+        friendsList: () => call("friends_list"),
+        board: () => call("friends_board"),
+        createChallenge: (to, topic, qs, correct, ms) => call("create_challenge", { p_to: to, p_topic: topic, p_questions: qs, p_correct: correct, p_ms: ms }),
+        submitChallenge: (id, correct, ms) => call("submit_challenge", { p_id: id, p_correct: correct, p_ms: ms }),
+        challengesList: () => call("challenges_list"),
+        cheer: (to, kind) => call("send_cheer", { p_to: to, p_kind: kind }),
+        myCheers: () => call("my_cheers")
       });
     }
     async function loadProfile() {

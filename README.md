@@ -68,3 +68,10 @@ Append items to `js/rwbank.js` with a unique `id`, a domain `d` (`ii`, `cs`, `eo
 
 ## Admin dashboard
 Accounts whose confirmed email is in `public.admins` (currently one) see a read-only Students dashboard instead of the student app: activity, streak, weekly questions and accuracy, latest score, weakest skills, reminders, plus per-student details (14-day activity, skills table, tests, plan). Data comes from the `admin_dashboard()` database function, which refuses any non-admin caller; `is_admin()` only tells the signed-in account whether it is an admin. To add or remove an admin, edit `public.admins` in Supabase.
+
+## Friends
+Friends tab (signed-in students): each student has a friend code (`my_friend_code()`); adding a code sends a request, and nothing is shared until the other student accepts. Friends see first name, league points, streak, level, answered count, latest score and strongest/weakest practice skill (`friends_board()`). No free-text messages.
+- **Weekly league**: 10 points per correct answer + 100 per mock section, Monday–Sunday. Last week's winner gets +150 XP and the League Champ badge.
+- **Head-to-head challenges**: the challenger answers 10 questions (Math, Reading & Writing, or Mixed); the friend gets the exact same questions. Most correct wins; ties go to the faster time. The challenger's score is hidden until the friend has played. Winner +50 XP and the Duel Winner badge. Challenges expire after 7 days.
+- **Cheers**: four fixed reactions (🔥 👏 💪 🎯), one of each per friend per day.
+All reads and writes go through security-definer functions that check friendship server-side; the tables have RLS on with no client policies.
