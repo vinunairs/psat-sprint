@@ -442,3 +442,9 @@ section.panel > *, .card, .split > *{min-width:0}
   body:not([data-tab="today"]) .top{padding-block:10px 8px}
   body:not([data-tab="today"]) .hello{font-size:18px}
 }
+.inv-list{display:grid;gap:8px}
+.inv-row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 0;border-top:1px solid var(--line)}
+.inv-row strong{letter-spacing:.04em}
+.inv-new{display:grid;gap:6px;padding:12px 14px;border:2px solid var(--pencil);background:var(--pencil-soft);border-radius:12px;justify-items:start}
+.inv-new strong{font-size:26px;letter-spacing:.06em}
+@media (max-width:640px){.inv-row .row{width:100%}}

@@ -1603,7 +1603,7 @@
   async function adminLoad() {
     if (!ADMIN) return;
     ADMIN.err = null; ADMIN.loading = true; renderAdmin();
-    try { ADMIN.rows = await ADMIN.load(); ADMIN.at = new Date(); } catch (e) { ADMIN.err = (e && e.message) || "Couldn't load students."; }
+    try { ADMIN.rows = await ADMIN.load(); ADMIN.at = new Date(); if (ADMIN.api) ADMIN.invites = await ADMIN.api.listInvites(); } catch (e) { ADMIN.err = (e && e.message) || "Couldn't load students."; }
     ADMIN.loading = false; if (ADMIN) render();
   }
   function renderAdmin() {
@@ -1637,7 +1637,46 @@
       grid.append(card);
     }
     p.append(grid);
+    if (ADMIN.api) p.append(invitesCard());
     function stat(h, v, sub) { return el("div", { class: "adm-stat" }, el("span", { class: "eyebrow", text: h }), el("strong", { class: "num", text: v }), el("span", { class: "muted", style: "font-size:12px", text: sub })); }
+  }
+  // Single-use invite codes: create, copy, see who used them, revoke unused ones.
+  function invitesCard() {
+    const api = ADMIN.api, now = new Date();
+    const note = el("input", { type: "text", maxlength: "60", placeholder: "Who is it for? (optional)", "aria-label": "Who the code is for" });
+    const out = el("div", {});
+    if (ADMIN.newCode) { const code = ADMIN.newCode; out.append(el("div", { class: "inv-new" }, el("span", { class: "eyebrow", text: "New code, works once" }), el("strong", { class: "num", text: code }), el("button", { class: "btn small primary", onclick: () => copyInvite(code) }, "Copy invite message"))); }
+    const list = el("div", { class: "inv-list" });
+    const stateOf = (c) => (c.used_at ? ["good", "Used by " + (c.used_email || "a student") + " · " + new Date(c.used_at).toLocaleDateString()] : c.revoked ? ["none", "Revoked"] : new Date(c.expires_at) < now ? ["none", "Expired"] : ["warn", "Unused · expires " + new Date(c.expires_at).toLocaleDateString()]);
+    (ADMIN.invites || []).forEach((c) => {
+      const [cls, txt] = stateOf(c), open = !c.used_at && !c.revoked && new Date(c.expires_at) >= now;
+      list.append(el("div", { class: "inv-row" },
+        el("div", {}, el("strong", { class: "num", text: c.code }), c.note ? el("span", { class: "muted", text: " · " + c.note }) : null, el("div", {}, el("span", { class: "chip " + cls, text: txt }))),
+        open ? el("div", { class: "row", style: "gap:6px" },
+          el("button", { class: "btn small", onclick: () => copyInvite(c.code) }, "Copy"),
+          el("button", { class: "btn small ghost", onclick: async () => { try { await api.revokeInvite(c.code); toast("Code revoked"); adminLoad(); } catch (e) { toast("Couldn't revoke: " + (e.message || e)); } } }, "Revoke")) : null));
+    });
+    const make = el("button", { class: "btn primary", onclick: async () => {
+      make.disabled = true;
+      try {
+        ADMIN.newCode = await api.createInvite(note.value.trim());
+        ADMIN.invites = await api.listInvites();
+        renderAdmin(); return;
+      } catch (e) { toast("Couldn't create a code: " + (e.message || e)); }
+      make.disabled = false;
+    } }, "Create invite code");
+    return el("div", { class: "card", style: "display:grid;gap:12px" },
+      el("h3", { text: "Invite codes" }),
+      el("p", { class: "muted", style: "font-size:14px", text: "Each code creates exactly one student account and expires after 30 days, so a shared code can't be reused." }),
+      el("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, note, make), out,
+      (ADMIN.invites || []).length ? list : el("p", { class: "muted", style: "font-size:14px", text: "No codes yet." }));
+  }
+  function copyInvite(code) {
+    const url = location.origin + location.pathname.replace(/index\.html$/, "");
+    const msg = "You're invited to Test Prep Hub for PSAT/SAT practice.\n1. Open " + url + "\n2. Tap \"Create a student account\"\n3. Use this one-time invite code: " + code + "\nIt works once and expires in 30 days.";
+    const done = () => toast("Invite copied. Paste it into a text or email.", true);
+    try { if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(msg).then(done, () => prompt("Copy this invite:", msg)); return; } } catch (e) { }
+    prompt("Copy this invite:", msg);
   }
   function adminDetail(x) {
     const box = el("div", { class: "adm-detail" });
@@ -1696,7 +1735,7 @@
     },
     onSave(fn) { saveHooks.push(fn); },
     // Called by sync.js after the server confirms admin status (load = fetches the dashboard rows), or with null.
-    setAdmin(load) { const was = !!ADMIN; ADMIN = load && !GUEST ? { load, rows: null } : null; if (ADMIN) { show("admin"); adminLoad(); } else if (was) show("today"); },
+    setAdmin(load, api) { const was = !!ADMIN; ADMIN = load && !GUEST ? { load, api: api || null, rows: null } : null; if (ADMIN) { show("admin"); adminLoad(); } else if (was) show("today"); },
     get admin() { return !!ADMIN; },
     onSettings(fn) { settingsHooks.push(fn); },
     // Record which account this device's progress belongs to (does not count as a change).

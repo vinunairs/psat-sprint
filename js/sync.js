@@ -99,7 +99,12 @@
       let data = false, error = null;
       try { ({ data, error } = await sb.rpc("is_admin")); } catch (e) { error = e; }
       if (error || data !== true) { if (app.admin) app.setAdmin(null); return; }
-      app.setAdmin(async () => { const r = await sb.rpc("admin_dashboard"); if (r.error) throw r.error; return r.data || []; });
+      const call = async (fn, args) => { const r = await sb.rpc(fn, args); if (r.error) throw r.error; return r.data; };
+      app.setAdmin(async () => (await call("admin_dashboard")) || [], {
+        createInvite: (note) => call("admin_create_invite", { p_note: note || null }),
+        listInvites: async () => (await call("admin_list_invites")) || [],
+        revokeInvite: (code) => call("admin_revoke_invite", { p_code: code })
+      });
     }
     async function loadProfile() {
       if (!user) return;
@@ -150,7 +155,7 @@
       if (/password/i.test(m) && /6|short|least/i.test(m)) return "Use a password with at least 6 characters.";
       if (/rate limit|too many/i.test(m)) return "Too many attempts. Wait a few minutes and try again.";
       if (/fetch|network/i.test(m)) return "Can't reach the sync service. Check the internet connection.";
-      if (/database error saving new user|INVITE_CODE/i.test(m)) return "That invite code isn't right. Check the code from the person who shared the site.";
+      if (/database error saving new user|INVITE_CODE/i.test(m)) return "That invite code isn't valid. Codes work once and expire after 30 days; ask the person who shared the site.";
       if (/email.*invalid|invalid.*email/i.test(m)) return "That email address doesn't look right.";
       return m;
     }

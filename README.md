@@ -50,7 +50,7 @@ Rules for future changes, so logged progress is never lost:
 
 ## Student accounts
 
-- Sign-up asks for the student's first name, test (PSAT/SAT), test date, grade, email, password, and an **invite code** (stored in `public.app_secrets`, name `invite_code`; a database trigger rejects sign-ups without it and creates the student's row in `public.profiles`).
+- Sign-up asks for the student's first name, test (PSAT/SAT), test date, grade, email, password, and a **single-use invite code**. Codes live in `public.invite_codes`; each creates one account and expires after 30 days. The admin creates, copies and revokes codes from the dashboard.
 - The greeting, countdown, and 10-day plan follow each student's own profile.
 - Device progress is tagged with its owner. Signing in as a different student never uploads the previous student's progress; that copy is set aside on the device. "Sign out and clear this device" is for shared computers.
 - Reminders: `supabase/functions/send-reminders` (deployed to Supabase), run hourly by `pg_cron`.
