@@ -452,6 +452,7 @@
     if (S.mock && S.mock.phase !== "done") {
       p.append(el("div", { class: "card mission" }, el("div", { class: "eyebrow", text: "Mock test in progress" }), el("h2", { text: FORMATS[S.mock.kind].name + " mock" }), el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => show("mock") }, "Resume the mock test"))));
     }
+    const ic = installCard(); if (ic) p.append(ic);
     scorePrompt(p);
     if (mode === "sprint") renderSprint(p, t);
     else if (mode === "after") renderAfter(p);
@@ -1572,6 +1573,50 @@
       el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => { host.textContent = ""; fn(); } }, yes), el("button", { class: "btn ghost", onclick: () => (host.textContent = "") }, "Cancel"))));
   }
 
+  /* ================= "Add to Home Screen" prompt for phones ================= */
+  const UA = navigator.userAgent || "";
+  const IS_IOS = /iPad|iPhone|iPod/.test(UA) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const IS_ANDROID = /Android/i.test(UA);
+  const IOS_OTHER = IS_IOS && /CriOS|FxiOS|EdgiOS|OPiOS|GSA\//.test(UA); // Chrome, Firefox, Edge, Google app on iPhone
+  const INSTALLED = () => (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+  const IKEY = "tph-install";
+  let deferredInstall = null;
+  window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); deferredInstall = e; if (!GUEST) render(); });
+  window.addEventListener("appinstalled", () => { deferredInstall = null; try { localStorage.setItem(IKEY, JSON.stringify({ done: true })); } catch (e) { } render(); });
+  function installState() { try { return JSON.parse(localStorage.getItem(IKEY) || "{}"); } catch (e) { return {}; } }
+  function setInstall(v) { try { localStorage.setItem(IKEY, JSON.stringify(v)); } catch (e) { } render(); }
+  const SHARE_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" style="vertical-align:-3px"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 11H6a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  function shareIcon() { const s2 = document.createElement("span"); s2.innerHTML = SHARE_SVG; return s2; }
+  function installCard() {
+    if (INSTALLED() || !(IS_IOS || IS_ANDROID)) return null;
+    const st = installState();
+    if (st.done || (st.snooze && Date.now() < st.snooze)) return null;
+    const b = (t) => el("strong", { text: t });
+    let steps, action = null;
+    if (IS_IOS && IOS_OTHER) {
+      steps = [el("span", {}, "Open this page in ", b("Safari"), " (copy the address, or tap the browser menu → Open in Safari)."), el("span", {}, "Then follow the steps shown there to add it to your Home Screen.")];
+    } else if (IS_IOS) {
+      steps = [
+        el("span", {}, "Tap the ", b("Share"), " button ", shareIcon(), " in Safari's toolbar. On newer iPhones, tap ", b("⋯"), " first, then ", b("Share"), "."),
+        el("span", {}, "Scroll down and tap ", b("Add to Home Screen"), "."),
+        el("span", {}, "Tap ", b("Add"), ". Then close Safari and open ", b("Test Prep Hub"), " from its new icon, and sign in once more if asked.")];
+    } else {
+      if (deferredInstall) action = el("button", { class: "btn primary", onclick: async () => { const e = deferredInstall; deferredInstall = null; try { e.prompt(); const r = await e.userChoice; if (r && r.outcome === "accepted") setInstall({ done: true }); else render(); } catch (x) { render(); } } }, "Install the app");
+      steps = [el("span", {}, action ? "Tap Install the app above, then Install." : el("span", {}, "In Chrome, tap the ", b("⋮"), " menu, then ", b("Add to Home screen"), " (or ", b("Install app"), ").")),
+        el("span", {}, "Open ", b("Test Prep Hub"), " from its new icon.")];
+    }
+    return el("div", { class: "card install" },
+      el("div", { style: "display:flex;justify-content:space-between;align-items:flex-start;gap:10px" },
+        el("div", { style: "min-width:0" }, el("div", { class: "eyebrow", text: IS_IOS ? "iPhone and iPad" : "Android" }), el("h3", { text: "Add Test Prep Hub to your Home Screen" })),
+        el("button", { class: "btn small ghost", "aria-label": "Hide for now", onclick: () => setInstall({ snooze: Date.now() + 7 * 864e5 }) }, "✕")),
+      el("p", { class: "muted", style: "font-size:14px", text: "It opens full screen like an app, keeps you signed in, and" + (IS_IOS ? " is required on iPhone for" : " makes it easy to get") + " daily study reminders. It takes 20 seconds:" }),
+      action,
+      el("ol", { class: "phsteps" }, steps.map((x) => el("li", {}, x))),
+      el("div", { class: "row", style: "gap:8px" },
+        el("button", { class: "btn small", onclick: () => setInstall({ done: true }) }, "I've added it"),
+        el("button", { class: "btn small ghost", onclick: () => setInstall({ snooze: Date.now() + 7 * 864e5 }) }, "Remind me next week")));
+  }
+
   /* ================= Admin: read-only dashboard of every student ================= */
   // ADMIN is set by sync.js only when the server confirms this account is the site admin.
   // The data comes from a server function that refuses any other account.
@@ -1613,6 +1658,7 @@
     $("#testLabel").textContent = "Read-only view of every student";
     p.append(el("div", { class: "row between" }, el("div", {}, el("h2", { text: "Students" }), el("p", { class: "muted", style: "font-size:14px", text: ADMIN.loading ? "Loading…" : ADMIN.at ? "Updated " + ADMIN.at.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + ". Progress syncs whenever a student uses the app." : "" })),
       el("button", { class: "btn small", onclick: adminLoad, disabled: !!ADMIN.loading }, "Refresh")));
+    { const ic = installCard(); if (ic) p.append(ic); }
     if (ADMIN.err) { p.append(el("div", { class: "card" }, el("p", { class: "err", text: ADMIN.err }))); return; }
     if (!ADMIN.rows) return;
     if (!ADMIN.rows.length) { p.append(el("div", { class: "card" }, el("h3", { text: "No students yet" }), el("p", { class: "muted", text: "Students appear here after they create an account with the invite code." }))); return; }

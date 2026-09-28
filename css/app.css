@@ -448,3 +448,6 @@ section.panel > *, .card, .split > *{min-width:0}
 .inv-new{display:grid;gap:6px;padding:12px 14px;border:2px solid var(--pencil);background:var(--pencil-soft);border-radius:12px;justify-items:start}
 .inv-new strong{font-size:26px;letter-spacing:.06em}
 @media (max-width:640px){.inv-row .row{width:100%}}
+.card.install{display:grid;gap:10px;border:2px solid var(--pencil);background:var(--pencil-soft)}
+.card.install h3{margin-top:2px}
+.card.install .btn.primary{justify-self:start}
