@@ -265,7 +265,7 @@ footer.foot{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);di
 body.guest .guest-only{display:flex}
 body.guest p.guest-only{display:block}
 body.guest .status, body.guest #hello, body.guest #testLabel, body.guest .count, body.guest .app-only{display:none!important}
-body.guest nav.tabs button[data-tab="matrix"], body.guest nav.tabs button[data-tab="log"], body.guest nav.tabs button[data-tab="rewards"]{display:none}
+body.guest nav.tabs button[data-tab="review"], body.guest nav.tabs button[data-tab="matrix"], body.guest nav.tabs button[data-tab="log"], body.guest nav.tabs button[data-tab="rewards"]{display:none}
 body.holding .status, body.holding #testLabel, body.holding .count, body.holding nav.tabs{visibility:hidden}
 .guest-actions{justify-content:flex-end;align-self:center}
 .tagline{margin:4px 0 0;color:var(--graphite);font-size:15px}
@@ -287,3 +287,47 @@ ol.steps li span{color:var(--graphite);font-size:14px}
 .res span{font-size:14px}
 .disclaimer{flex-basis:100%;font-size:12px;color:var(--graphite);margin:0}
 @media (max-width:640px){.guest-actions{justify-content:flex-start}}
+
+/* Feedback: spot it / solve it / trap / remember */
+.fb{gap:10px}
+.fb-row{display:grid;grid-template-columns:92px 1fr;gap:10px;align-items:start}
+.fb-label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--graphite);font-weight:700;padding-top:3px}
+.fb-body{display:grid;gap:6px;font-size:15px}
+.fb-steps summary{cursor:pointer;font-size:13px;color:var(--graphite)}
+.fb-steps ol{margin:6px 0 0;padding-left:20px;display:grid;gap:3px;font-size:14px}
+.fb-remember{display:grid;gap:6px;padding:10px 12px;border-radius:10px;background:var(--pencil-soft);border:1px solid var(--pencil)}
+.fb-remember p{font-weight:600}
+.fb-remember .btn{justify-self:start}
+@media (max-width:520px){.fb-row{grid-template-columns:1fr;gap:2px}}
+.takeaways{display:grid;gap:12px;border:2px solid var(--ink);box-shadow:none}
+.tk-list{display:grid;gap:12px}
+.tk{display:grid;grid-template-columns:30px 1fr;gap:12px;align-items:start}
+.tk-n{width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--paper);display:grid;place-items:center;font-weight:700}
+.tk p{margin-top:3px}
+/* Review tab */
+.flash{display:grid;gap:10px;padding:22px;border:2px dashed var(--line);border-radius:14px;min-height:150px;align-content:start}
+.flash.flipped{border-style:solid;border-color:var(--pencil);background:var(--pencil-soft)}
+.flash-name{font-size:26px;font-weight:800;font-stretch:75%}
+.flash-rule{font-size:17px;font-weight:700}
+.flash-back{display:grid;gap:8px}
+.flash-back ol{margin:0;padding-left:20px;display:grid;gap:4px}
+.sheet-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-top:10px}
+.sheet-item{padding:12px 14px;border:1px solid var(--line);border-radius:10px;display:grid;gap:4px}
+.sheet-foot{margin-top:12px;font-size:14px;padding:10px 12px;background:var(--sunk);border-radius:10px}
+.lib summary{cursor:pointer;font-weight:700;padding:8px 0}
+.lib-list{display:grid;gap:8px;padding-bottom:8px}
+.lib-item{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+@media print{
+  body.print-sheet *{visibility:hidden}
+  body.print-sheet #sheet, body.print-sheet #sheet *{visibility:visible}
+  body.print-sheet #sheet{position:absolute;left:0;top:0;width:100%;border:0;box-shadow:none}
+  body.print-sheet .noprint{display:none}
+}
+
+/* My tests */
+.exlist{display:grid;gap:6px}
+.exrow{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--line);border-radius:10px}
+.exrow.on{border-color:var(--ink);border-width:2px}
+.exrow.past{opacity:.7}
+.panelpop.wide{width:min(560px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto}
+.exform{display:grid;gap:10px;padding:12px;border:1px dashed var(--line);border-radius:10px}

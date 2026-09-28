@@ -23,6 +23,12 @@ A PSAT/NMSQT and SAT prep site with fresh questions every time, timed adaptive m
 
 Questions are original, written in the style of the digital PSAT/SAT. They are not College Board questions.
 
+## Feedback that sticks
+Every question type maps to a strategy card in `js/strategies.js` (the name of the question type, how to spot it, a one-line rule, the steps, a Desmos shortcut where it helps, and the usual trap). After each answer the explanation shows Spot it, Solve it, The trap and Remember. After each set or mock, "3 things to remember" lists the most-missed strategies. The Review tab has spaced-repetition flashcards built from missed strategies, a printable night-before sheet, and the full strategy library. When you add a question generator or bank skill, map it in `BY_GEN` or `BY_SKILL`.
+
+## My tests
+`settings.exams` holds every PSAT or SAT the student plans to take. The next upcoming test is mirrored into `settings.kind/date/target`, so the plan, reminders and profile follow it automatically. When a test day passes, the plan moves on to the next test and Today asks for the official score.
+
 ## Progress and sync
 
 Progress always saves in the browser first (localStorage key `psat-sprint-v2`). When signed in, every change also uploads to Supabase (project `psat-sprint`, table `public.progress`, one row per account, protected by row-level security). On open, the newer copy wins; a replaced device copy is kept under `psat-sprint-v2-before-sync`.

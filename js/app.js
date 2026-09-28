@@ -2,7 +2,7 @@
 (function () {
   "use strict";
   const { makeRng, checkSpr } = window.PSCore;
-  const MG = window.MathGen, RW = window.RWGen, BANK = window.RWBank;
+  const MG = window.MathGen, RW = window.RWGen, BANK = window.RWBank, STRAT = window.Strategies;
 
   /* ================= Reference data ================= */
   const DOMAINS = [
@@ -34,7 +34,7 @@
     { title: "Dress rehearsal", tasks: ["Take Bluebook {TEST} Practice Test 2 in one sitting, starting at the same time as the real test", "Take only the scheduled 10-minute break", "Enter the results in the Log Bluebook test tab"] },
     { title: "Review the rehearsal", tasks: ["Review every miss from Practice Test 2", "Compare the Skill matrix with Test 1 and note what improved", "Practice 20 questions on the lowest skill"] },
     { title: "Reading under the clock", tasks: ["Take an in-app mock: Reading and Writing section only, timed", "Review every miss in the results", "Retry the Mistake notebook"] },
-    { title: "Light review", tasks: ["One 10-question mixed practice set, nothing more", "Charge the device, update Bluebook, and run its exam readiness check", "Pack what the school asks for: device, charger, admission info", "Lights out by 10 pm"] },
+    { title: "Light review", tasks: ["Flip through your strategy cards and read your night-before sheet (Review tab)", "One 10-question mixed practice set, nothing more", "Charge the device, update Bluebook, and run its exam readiness check", "Pack what the school asks for: device, charger, admission info", "Lights out by 10 pm"] },
     { title: "Test day", tasks: ["Eat a real breakfast", "Take care on Module 1: it decides whether Module 2 is the harder set", "Never leave a question blank; wrong answers cost nothing", "Use Desmos and the reference sheet to check math answers"] }
   ];
 
@@ -69,6 +69,32 @@
   const LEVELS = ["Warm-Up", "Test Taker", "Module Master", "Adaptive Ace", "Score Climber", "Top Percentile", "Legend"];
   const XP_PER_LEVEL = 250;
 
+  /* ================= My tests: several PSAT/SAT dates ================= */
+  // settings.exams holds every test the student plans to take. The next upcoming one is the "active" test;
+  // it is mirrored into settings.kind/date/target so the plan, reminders and profile keep working unchanged.
+  const exId = () => Math.random().toString(36).slice(2, 9);
+  const ymdNow = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+  function syncExams(st8) {
+    const st = st8.settings;
+    if (!Array.isArray(st.exams)) st.exams = [];
+    if (!st.exams.length && st.date) st.exams.push({ id: exId(), kind: st.kind || "psat", date: st.date, target: st.target || null });
+    st.exams = st.exams.filter((e) => e && /^\d{4}-\d{2}-\d{2}$/.test(e.date || ""));
+    st.exams.sort((a, b) => a.date.localeCompare(b.date));
+    const t = ymdNow();
+    const act = st.exams.find((e) => e.date >= t) || st.exams[st.exams.length - 1];
+    if (!act) return false;
+    const changed = st.activeExam !== act.id || st.kind !== act.kind || st.date !== act.date || (st.target || null) !== (act.target || null);
+    if (st.activeExam && st.activeExam !== act.id) {
+      // A new test is now the focus: restart the long-range plan from today (past weeks stay in the log).
+      st8.planStart = t;
+      const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+      const ws = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+      for (const k of Object.keys(st8.weeks || {})) if (k >= ws) delete st8.weeks[k];
+    }
+    st.activeExam = act.id; st.kind = act.kind; st.date = act.date; st.target = act.target || null;
+    return changed;
+  }
+
   /* ================= State ================= */
   const KEY = "psat-sprint-v2";
   function blank() {
@@ -77,7 +103,7 @@
       stats: {}, sub: {}, answered: 0, tests: [], mistakes: [], fixed: 0, badges: {},
       seenBank: {}, recentKeys: [], mock: null, lastMock: null,
       prefs: { sel: [], count: 10, diff: "auto", timed: true }, samples: { practice: 0, mock: 0 },
-      activity: {}, weeks: {}, planStart: null,
+      activity: {}, weeks: {}, planStart: null, strat: {}, deck: {},
       settings: { kind: "psat", date: "2026-10-07", name: "", target: null },
       rewards: [
         { id: "r1", xp: 500, label: "Choose Friday dinner", claimed: false },
@@ -98,7 +124,7 @@
   function load(key) {
     try {
       const raw = localStorage.getItem(key || storeKey());
-      if (raw) { const s = Object.assign(blank(), JSON.parse(raw)); s.prefs = Object.assign(blank().prefs, s.prefs); s.settings = Object.assign(blank().settings, s.settings); return s; }
+      if (raw) { const s = Object.assign(blank(), JSON.parse(raw)); s.prefs = Object.assign(blank().prefs, s.prefs); s.settings = Object.assign(blank().settings, s.settings); syncExams(s); return s; }
     } catch (e) { /* storage unavailable */ }
     return blank();
   }
@@ -209,10 +235,15 @@
     if (q.sk) { const sb = S.sub[q.sk + "|" + q.d] || (S.sub[q.sk + "|" + q.d] = { att: 0, cor: 0 }); sb.att++; if (ok) sb.cor++; }
     S.answered++; if (S.answered >= 100) award("century");
     logActivity(q.d, ok);
+    if (!GUEST) {
+      const sid = STRAT.strategyFor(q), st2 = S.strat[sid] || (S.strat[sid] = { att: 0, miss: 0, last: null });
+      st2.att++;
+      if (!ok) { st2.miss++; st2.last = today(); S.deck[sid] = Object.assign(S.deck[sid] || { added: today() }, { box: 0, due: today() }); }
+    }
     const i = S.mistakes.findIndex((m) => m.key === q.key);
     if (ok && i > -1) { S.mistakes.splice(i, 1); S.fixed++; if (S.fixed >= 5) award("fixer"); }
     if (!ok && i === -1) {
-      const slim = { key: q.key, d: q.d, sk: q.sk, p: q.p, q: q.q, o: q.o, a: q.a, type: q.type, spr: q.spr, e: q.e, t: q.t, table: q.table, chart: q.chart, id: q.id, src: q.src, added: today() };
+      const slim = { key: q.key, d: q.d, sk: q.sk, gen: q.gen, p: q.p, q: q.q, o: q.o, a: q.a, type: q.type, spr: q.spr, e: q.e, t: q.t, table: q.table, chart: q.chart, id: q.id, src: q.src, added: today() };
       S.mistakes.unshift(slim); if (S.mistakes.length > 80) S.mistakes.length = 80;
     }
   }
@@ -264,11 +295,12 @@
       p.append(el("div", { class: "card mission" }, el("h2", { text: "Loading your progress…" }), el("p", { class: "muted", text: "This takes a moment on a device someone else used." })));
       return;
     }
+    if (!GUEST && syncExams(S)) { save(); for (const fn of settingsHooks) { try { fn(S.settings); } catch (x) { } } }
     const tb = document.querySelector('nav.tabs button[data-tab="today"]'); if (tb) tb.textContent = GUEST ? "Home" : "Today";
     const pb = document.querySelector('nav.tabs button[data-tab="practice"]'); if (pb) pb.textContent = GUEST ? "Sample practice" : "Practice";
     const mb = document.querySelector('nav.tabs button[data-tab="mock"]'); if (mb) mb.textContent = GUEST ? "Sample mock" : "Mock test";
     const fn = document.getElementById("footNote"); if (fn) fn.textContent = GUEST ? "Create a free student account to save progress and unlock the full site." : "Progress saves on this device first, then to your account.";
-    renderHeader(); ({ today: renderToday, practice: renderPractice, mock: renderMock, matrix: renderMatrix, log: renderLog, rewards: renderRewards })[TAB](); }
+    renderHeader(); ({ today: renderToday, practice: renderPractice, mock: renderMock, review: renderReview, matrix: renderMatrix, log: renderLog, rewards: renderRewards })[TAB](); }
 
   /* ================= Today ================= */
   function taskList(day) {
@@ -390,9 +422,11 @@
     if (S.mock && S.mock.phase !== "done") {
       p.append(el("div", { class: "card mission" }, el("div", { class: "eyebrow", text: "Mock test in progress" }), el("h2", { text: FORMATS[S.mock.kind].name + " mock" }), el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => show("mock") }, "Resume the mock test"))));
     }
+    scorePrompt(p);
     if (mode === "sprint") renderSprint(p, t);
     else if (mode === "after") renderAfter(p);
     else renderLongPlan(p, mode);
+    p.append(myTestsCard());
     p.append(el("div", { class: "card row between", style: "padding:14px 18px" },
       el("span", {}, el("strong", { text: "Reminders on your phone" }), el("span", { class: "muted", text: mode === "sprint" ? " · a nudge each evening with the skill to work on" : " · an evening nudge with this week's goals, plus a Sunday check-in" })),
       el("button", { class: "btn small", onclick: () => { const b = document.getElementById("remindBtn"); if (b) b.click(); } }, "Set up reminders")));
@@ -479,7 +513,7 @@
 
   function goalLine(p) {
     const tg = S.settings.target, lt = latestTotal(), fmt = FORMATS[S.settings.kind];
-    if (!tg) return el("p", { class: "muted", style: "font-size:14px" }, "No target score yet. ", el("button", { class: "btn small ghost", onclick: () => $("#settingsBtn").click() }, "Set a target score"));
+    if (!tg) return el("p", { class: "muted", style: "font-size:14px" }, "No target score yet. ", el("button", { class: "btn small ghost", onclick: () => examsPop() }, "Set a target score"));
     if (!lt) return el("p", { style: "font-size:14px" }, el("strong", { text: "Target " + tg }), el("span", { class: "muted", text: " · take a mock test to see how far you are from it" }));
     const gap = tg - lt.total;
     return el("p", { style: "font-size:14px" }, el("strong", { text: "Target " + tg }), el("span", { class: "muted", text: " · latest " + lt.total + (lt.source === "app" ? " (estimated)" : "") + " · " }), gap > 0 ? el("strong", { text: gap + " to go" }) : el("strong", { style: "color:var(--good)", text: "target reached" }));
@@ -537,8 +571,91 @@
     const fmt = FORMATS[S.settings.kind];
     p.append(el("div", { class: "card mission" }, el("div", { class: "eyebrow", text: fmt.name + " · " + fmtDay(S.settings.date).md }),
       el("h2", { text: withName("Test's done. Nice work") + "." }),
-      el("p", { class: "lede", text: "Scores usually arrive a few weeks after test day. When you know your next test (the SAT, or next year's PSAT), set its date and a target score and your plan starts again: monthly phases when it's far away, weekly goals as it gets closer, and a day-by-day sprint at the end." }),
-      el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => $("#settingsBtn").click() }, "Set my next test"), el("button", { class: "btn", onclick: () => show("practice") }, "Keep practicing"))));
+      el("p", { class: "lede", text: "Scores usually arrive a few weeks after test day. Add your next test (the SAT, or next year's PSAT) with its date and a target score, and your plan starts again: monthly phases when it's far away, weekly goals as it gets closer, and a day-by-day sprint at the end." }),
+      el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => examsPop(true) }, "Add my next test"), el("button", { class: "btn", onclick: () => show("practice") }, "Keep practicing"))));
+  }
+
+  const CB_DATES = { psat: "https://satsuite.collegeboard.org/psat-nmsqt", sat: "https://satsuite.collegeboard.org/sat/dates-deadlines" };
+  const examLabel = (e) => FORMATS[e.kind].name + " · " + fmtDay(e.date).dow + " " + fmtDay(e.date).md + ", " + parseYmd(e.date).getFullYear();
+  function daysTo(dateStr) { const n = new Date(); return Math.round((parseYmd(dateStr) - new Date(n.getFullYear(), n.getMonth(), n.getDate())) / 864e5); }
+  function myTestsCard() {
+    const ex = S.settings.exams || [], t = today();
+    const up = ex.filter((e) => e.date >= t), past = ex.filter((e) => e.date < t);
+    const list = el("div", { class: "exlist" });
+    up.forEach((e) => { const n = daysTo(e.date), on = e.id === S.settings.activeExam;
+      list.append(el("div", { class: "exrow" + (on ? " on" : "") }, el("div", {}, el("strong", { text: examLabel(e) }), el("span", { class: "muted", text: " · " + (n === 0 ? "today" : n === 1 ? "tomorrow" : "in " + n + " days") + (e.target ? " · target " + e.target : "") })), on ? el("span", { class: "chip good", text: "Plan follows this one" }) : null)); });
+    past.slice(-2).reverse().forEach((e) => list.append(el("div", { class: "exrow past" }, el("div", {}, el("span", { text: examLabel(e) }), el("span", { class: "muted", text: e.score ? " · scored " + e.score : " · done" })))));
+    if (!up.length) list.append(el("p", { class: "muted", style: "font-size:14px", text: "No upcoming test yet." }));
+    return el("div", { class: "card", style: "display:grid;gap:10px" },
+      el("div", { class: "row between" }, el("h3", { text: "My tests" }), el("button", { class: "btn small", onclick: () => examsPop() }, up.length ? "Add or change dates" : "Add a test")),
+      list,
+      el("p", { class: "muted", style: "font-size:13px" }, "Your plan always counts down to the next test on this list. Official dates: ", el("a", { href: CB_DATES.psat, target: "_blank", rel: "noopener" }, "PSAT/NMSQT"), " · ", el("a", { href: CB_DATES.sat, target: "_blank", rel: "noopener" }, "SAT")));
+  }
+  // After a test day passes, ask once for the official score (optional).
+  function scorePrompt(p) {
+    const t = today(), e = (S.settings.exams || []).filter((x) => x.date < t && !x.score && !x.noScore && daysTo(x.date) >= -120).pop();
+    if (!e) return;
+    const lo = e.kind === "sat" ? 200 : 160, hi = e.kind === "sat" ? 800 : 760;
+    const rw = el("input", { type: "number", min: lo, max: hi, step: "10", inputmode: "numeric", placeholder: "R&W", "aria-label": "Reading and Writing score" });
+    const ma = el("input", { type: "number", min: lo, max: hi, step: "10", inputmode: "numeric", placeholder: "Math", "aria-label": "Math score" });
+    const f = el("form", { class: "row", style: "gap:8px" }, rw, ma, el("button", { class: "btn primary small", type: "submit" }, "Save score"),
+      el("button", { class: "btn small ghost", type: "button", onclick: () => { e.noScore = true; save(); render(); } }, "Not yet / skip"));
+    f.addEventListener("submit", (ev) => {
+      ev.preventDefault();
+      const r = Math.round(+rw.value / 10) * 10, m = Math.round(+ma.value / 10) * 10;
+      if (!(r >= lo && r <= hi && m >= lo && m <= hi)) { toast("Enter both section scores (" + lo + "–" + hi + ")."); return; }
+      e.score = r + m;
+      S.tests.push({ id: uid(), source: "official", kind: e.kind, name: "Official " + FORMATS[e.kind].name, date: e.date, rw: r, math: m, total: r + m, dom: {} });
+      addXP(100, "Official score logged"); checkGoalScore(r + m); save(); render(); toast("Score saved: " + (r + m), true);
+    });
+    p.append(el("div", { class: "card", style: "display:grid;gap:10px" }, el("div", { class: "eyebrow", text: "Your " + FORMATS[e.kind].name + " on " + fmtDay(e.date).md }),
+      el("h3", { text: "Got your score? Log it here" }), el("p", { class: "muted", style: "font-size:14px", text: "Scores usually post in the College Board account a few weeks after test day. Your score becomes the starting point for the next test's plan." }), f));
+  }
+  function examsPop(adding) {
+    const host = $("#pop"); host.textContent = ""; tool = null;
+    const box = el("div", { class: "panelpop wide", role: "dialog", "aria-label": "My tests" });
+    const t = today();
+    function draw(editId) {
+      box.textContent = "";
+      box.append(el("header", {}, el("strong", { text: "My tests" }), el("button", { type: "button", class: "btn small ghost", onclick: () => { host.textContent = ""; render(); } }, "Done")));
+      box.append(el("p", { class: "muted", style: "font-size:14px", text: "Add every PSAT or SAT you plan to take. Your plan and reminders count down to the next one; when it's over, they move to the one after." }));
+      const ex = S.settings.exams;
+      ex.forEach((e) => {
+        if (e.id === editId) { box.append(form(e)); return; }
+        box.append(el("div", { class: "exrow" + (e.date < t ? " past" : "") + (e.id === S.settings.activeExam && e.date >= t ? " on" : "") },
+          el("div", {}, el("strong", { text: examLabel(e) }), el("span", { class: "muted", text: (e.target ? " · target " + e.target : "") + (e.score ? " · scored " + e.score : e.date < t ? " · done" : "") })),
+          el("div", { class: "row", style: "gap:6px" },
+            el("button", { class: "btn small ghost", onclick: () => draw(e.id) }, "Edit"),
+            el("button", { class: "btn small ghost", onclick: () => { if (ex.length === 1) { toast("Keep at least one test on the list. Edit it instead."); return; } S.settings.exams = ex.filter((x) => x.id !== e.id); commit(); draw(); } }, "Remove"))));
+      });
+      if (editId === "new") box.append(form(null)); else box.append(el("button", { class: "btn", onclick: () => draw("new") }, "+ Add a test"));
+      box.append(el("p", { class: "muted", style: "font-size:13px" }, "Official dates: ", el("a", { href: CB_DATES.psat, target: "_blank", rel: "noopener" }, "PSAT/NMSQT (usually October, through school)"), " · ", el("a", { href: CB_DATES.sat, target: "_blank", rel: "noopener" }, "SAT dates and registration")));
+    }
+    function form(e) {
+      const last = S.settings.exams[S.settings.exams.length - 1];
+      const kind = el("select", {}, el("option", { value: "psat", text: "PSAT/NMSQT" }), el("option", { value: "sat", text: "SAT" })); kind.value = e ? e.kind : last && last.kind === "psat" ? "sat" : "psat";
+      const date = el("input", { type: "date", required: true, value: e ? e.date : "" , min: e ? "" : t });
+      const tg = el("input", { type: "number", min: "320", max: "1600", step: "10", inputmode: "numeric", placeholder: "e.g. 1300", value: e && e.target ? e.target : "" });
+      // Published 2026–27 national SAT Saturdays (College Board). PSAT/NMSQT dates are set by each school in October.
+      const SAT_DATES = ["2026-10-03", "2026-11-07", "2026-12-05", "2027-03-06", "2027-05-01", "2027-06-05"];
+      const picks = el("div", { class: "row", style: "gap:6px" });
+      const drawPicks = () => { picks.textContent = ""; if (kind.value !== "sat") { picks.append(el("span", { class: "muted", style: "font-size:13px", text: "PSAT/NMSQT is given at school in October; ask the school for its date." })); return; }
+        const fut = SAT_DATES.filter((d) => d > t); if (!fut.length) return;
+        picks.append(el("span", { class: "muted", style: "font-size:13px", text: "SAT dates:" }), ...fut.map((d) => el("button", { type: "button", class: "btn small ghost", onclick: () => { date.value = d; } }, fmtDay(d).md + (d.slice(0, 4) !== t.slice(0, 4) ? " " + d.slice(0, 4) : "")))); };
+      kind.addEventListener("change", drawPicks); drawPicks();
+      const f = el("form", { class: "exform" }, el("div", { class: "fields" }, el("label", { class: "f" }, "Test", kind), el("label", { class: "f" }, "Date", date), el("label", { class: "f" }, "Target (optional)", tg)), picks,
+        el("div", { class: "row" }, el("button", { class: "btn primary small", type: "submit" }, e ? "Save" : "Add test"), el("button", { class: "btn small ghost", type: "button", onclick: () => draw() }, "Cancel")));
+      f.addEventListener("submit", (ev) => {
+        ev.preventDefault(); if (!date.value) return;
+        const v = Math.round(+tg.value / 10) * 10, target = v >= 320 && v <= 1600 ? v : null;
+        if (S.settings.exams.some((x) => x.date === date.value && (!e || x.id !== e.id))) { toast("There's already a test on that date."); return; }
+        if (e) Object.assign(e, { kind: kind.value, date: date.value, target }); else S.settings.exams.push({ id: exId(), kind: kind.value, date: date.value, target });
+        commit(); draw(); toast(e ? "Test updated" : "Test added", true);
+      });
+      return f;
+    }
+    function commit() { syncExams(S); save(); for (const fn of settingsHooks) { try { fn(S.settings); } catch (x) { } } render(); }
+    draw(adding ? "new" : null); host.append(box);
   }
 
   function renderSprint(p, t) {
@@ -564,6 +681,9 @@
   }
 
   /* ================= Shared question rendering ================= */
+  const SUPS = { 0: "⁰", 1: "¹", 2: "²", 3: "³", 4: "⁴", 5: "⁵", 6: "⁶", 7: "⁷", 8: "⁸", 9: "⁹", "-": "⁻", "−": "⁻" };
+  // x^3 → x³ (fractional exponents like ^(t/3) stay as written, the way the test shows them)
+  const supify = (t) => (typeof t === "string" ? t.replace(/\^\(?([−-]?\d+)\)?(?![\w/])/g, (m, d) => [...d].map((ch) => SUPS[ch] || ch).join("")) : t);
   function stem(q, parts) {
     const frag = document.createDocumentFragment();
     if (parts !== "prompt") {
@@ -571,7 +691,7 @@
       if (q.table) frag.append(dataTable(q.table));
       if (q.chart) frag.append(chartView(q.chart));
     }
-    if (parts !== "passage") frag.append(el("div", { class: "prompt", text: q.q }));
+    if (parts !== "passage") frag.append(el("div", { class: "prompt", text: supify(q.q) }));
     return frag;
   }
   const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -639,17 +759,116 @@
       else if (o.picked === k) cls += " sel";
       const struck = o.strikes && o.strikes.has(k);
       if (struck) cls += " struck";
-      const b = el("button", { class: cls, disabled: !!o.reveal, "aria-pressed": String(o.picked === k), onclick: () => o.onPick(k) }, el("span", { class: "l", text: LETTERS[k] }), el("span", { text: txt }));
+      const b = el("button", { class: cls, disabled: !!o.reveal, "aria-pressed": String(o.picked === k), onclick: () => o.onPick(k) }, el("span", { class: "l", text: LETTERS[k] }), el("span", { text: supify(txt) }));
       if (o.onStrike && !o.reveal) wrap.append(el("div", { class: "optw" }, b, el("button", { class: "strike", "aria-pressed": String(!!struck), title: "Cross out choice " + LETTERS[k], "aria-label": "Cross out choice " + LETTERS[k], onclick: () => o.onStrike(k) }, "✕")));
       else wrap.append(b);
     });
     return wrap;
   }
+  // Feedback in the same shape every time, so the method sticks: spot it, solve it, watch for the trap, remember the rule.
   function explainBox(q, picked) {
-    const ok = isRight(q, picked);
-    return el("div", { class: "explain" + (ok ? "" : " miss") },
-      el("strong", { text: ok ? "Correct." : picked == null || picked === "" ? "No answer. The answer is " + answerText(q) + "." : "Not quite. The answer is " + answerText(q) + "." }),
-      el("p", { text: q.e }), q.t ? el("p", { class: "tip" }, el("b", { text: "Tip: " }), q.t) : null);
+    const ok = isRight(q, picked), blank = picked == null || picked === "";
+    const sid = STRAT.strategyFor(q), c = STRAT.cards[sid], isMath = DOM[q.d] && DOM[q.d].sec === "math";
+    const chose = !ok && !blank ? (q.type === "spr" ? String(picked) : LETTERS[picked] + ") " + q.o[picked]) : null;
+    const row = (label, ...kids) => el("div", { class: "fb-row" }, el("span", { class: "fb-label", text: label }), el("div", { class: "fb-body" }, ...kids));
+    const inDeck = !!S.deck[sid];
+    return el("div", { class: "explain fb" + (ok ? "" : " miss") },
+      el("strong", { class: "fb-verdict", text: ok ? "Correct." : blank ? "No answer. The answer is " + answerText(q).replace(/[.!?]$/, "") + "." : "Not quite. The answer is " + answerText(q).replace(/[.!?]$/, "") + "." }),
+      chose ? el("p", { class: "muted", style: "font-size:14px", text: "You chose " + supify(chose) + "." }) : null,
+      row("Spot it", el("strong", { text: c.name }), el("span", { text: " · " + c.spot })),
+      row("Solve it", el("p", { text: supify(q.e) }), el("details", { class: "fb-steps" }, el("summary", { text: "The method for every question like this" }), el("ol", {}, c.steps.map((x) => el("li", { text: x }))))),
+      isMath && c.desmos ? row("Desmos way", el("p", { text: c.desmos })) : null,
+      row(ok ? "Watch for" : "The trap", el("p", { text: c.trap })),
+      q.t ? row("Tip", el("p", { text: supify(q.t) })) : null,
+      el("div", { class: "fb-remember" }, el("span", { class: "eyebrow", text: "Remember" }), el("p", { text: c.rule }),
+        GUEST ? null : el("button", { class: "btn small" + (inDeck ? " ghost" : ""), onclick: (e) => {
+          if (S.deck[sid]) { delete S.deck[sid]; e.target.textContent = "Save to my review deck"; e.target.classList.remove("ghost"); }
+          else { S.deck[sid] = { box: 0, due: today(), added: today() }; e.target.textContent = "Saved to review deck ✓"; e.target.classList.add("ghost"); }
+          save();
+        } }, inDeck ? "Saved to review deck ✓" : "Save to my review deck")));
+  }
+  // The top strategies behind this set's misses: the "3 things to remember" after every set and mock.
+  function takeaways(results, title) {
+    const miss = {};
+    results.filter((r) => !r.ok).forEach((r) => { const id = STRAT.strategyFor(r.q); miss[id] = (miss[id] || 0) + 1; });
+    const top = Object.entries(miss).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    if (!top.length) return null;
+    return el("div", { class: "card takeaways" },
+      el("div", { class: "eyebrow", text: title || "3 things to remember" }),
+      el("div", { class: "tk-list" }, top.map(([id, n], i) => {
+        const c = STRAT.cards[id];
+        return el("div", { class: "tk" }, el("span", { class: "tk-n num", text: String(i + 1) }),
+          el("div", {}, el("strong", { text: c.name }), el("span", { class: "muted", style: "font-size:13px", text: " · missed " + n + (n === 1 ? " time" : " times") }),
+            el("p", { text: c.rule }), el("p", { class: "muted", style: "font-size:13px" }, el("b", { text: "Trap: " }), c.trap)));
+      })),
+      GUEST ? null : el("div", { class: "row" }, el("button", { class: "btn small primary", onclick: () => show("review") }, "Flip through your review deck"), el("span", { class: "muted", style: "font-size:13px", text: "These strategies were added to your deck." })));
+  }
+
+  /* ================= Review: strategy flashcards and night-before sheet ================= */
+  const BOX_DAYS = [1, 2, 4, 7, 14];
+  let RV = null; // { queue: [ids], i, flipped }
+  function dueCards() { const t = today(); return Object.entries(S.deck).filter(([, d]) => !d.due || d.due <= t).sort((a, b) => (a[1].box || 0) - (b[1].box || 0)).map(([id]) => id); }
+  function renderReview() {
+    const p = $("#p-review"); p.textContent = "";
+    const deckIds = Object.keys(S.deck), due = dueCards();
+    p.append(el("div", {}, el("h2", { text: "Strategy review" }), el("p", { class: "muted lede", text: "Every question type has one short rule to remember. Strategies behind the questions you miss land in your deck automatically; flip through them for a few minutes a day, and the night before the test read your one-page sheet." })));
+    // Flashcards
+    const fc = el("div", { class: "card", style: "display:grid;gap:14px" });
+    if (RV && RV.i < RV.queue.length) {
+      const id = RV.queue[RV.i], c = STRAT.cards[id];
+      fc.append(el("div", { class: "row between" }, el("span", { class: "eyebrow", text: c.area + " · card " + (RV.i + 1) + " of " + RV.queue.length }), el("button", { class: "btn small ghost", onclick: () => { RV = null; renderReview(); } }, "Stop")));
+      fc.append(el("div", { class: "flash" + (RV.flipped ? " flipped" : "") },
+        el("h3", { class: "flash-name", text: c.name }),
+        el("p", { class: "muted" }, el("b", { text: "When you see: " }), c.spot),
+        RV.flipped ? el("div", { class: "flash-back" },
+          el("p", { class: "flash-rule", text: c.rule }),
+          el("ol", {}, c.steps.map((x) => el("li", { text: x }))),
+          c.desmos ? el("p", {}, el("b", { text: "Desmos way: " }), c.desmos) : null,
+          el("p", {}, el("b", { text: "Trap: " }), c.trap)) : null));
+      if (!RV.flipped) fc.append(el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => { RV.flipped = true; renderReview(); } }, "Say the rule, then flip")));
+      else fc.append(el("div", { class: "row" },
+        el("button", { class: "btn primary", onclick: () => grade(id, true) }, "Got it"),
+        el("button", { class: "btn", onclick: () => grade(id, false) }, "Review again")));
+    } else if (!deckIds.length) {
+      fc.append(el("h3", { text: "Your deck is empty" }), el("p", { class: "muted", text: "Finish a practice set or a mock test. The strategy behind every miss is added here, or save any strategy yourself from an explanation." }));
+    } else {
+      const done = RV && RV.i >= RV.queue.length;
+      fc.append(el("h3", { text: done ? "Nice. That's the deck for today." : due.length ? due.length + " card" + (due.length === 1 ? "" : "s") + " to review today" : "All caught up for today" }),
+        el("p", { class: "muted", text: deckIds.length + " strategies in your deck. Cards you know come back less often (after 1, 2, 4, 7, then 14 days); cards you miss come back tomorrow." }),
+        el("div", { class: "row" },
+          due.length ? el("button", { class: "btn primary", onclick: () => { RV = { queue: due, i: 0, flipped: false }; renderReview(); } }, "Start today's cards") : null,
+          el("button", { class: "btn" + (due.length ? "" : " primary"), onclick: () => { RV = { queue: deckIds.slice().sort(() => Math.random() - 0.5), i: 0, flipped: false }; renderReview(); } }, "Review the whole deck")));
+    }
+    p.append(fc);
+    // Night-before sheet
+    const ranked = Object.entries(S.strat).filter(([, v]) => v.miss > 0).sort((a, b) => b[1].miss - a[1].miss || (b[1].last || "").localeCompare(a[1].last || "")).slice(0, 8);
+    const sheet = el("div", { class: "card sheet", id: "sheet" },
+      el("div", { class: "row between" }, el("div", {}, el("div", { class: "eyebrow", text: "One page · read it the night before" }), el("h3", { text: (who() ? who() + "'s " : "Your ") + "night-before sheet" })),
+        ranked.length ? el("button", { class: "btn small ghost noprint", onclick: () => { document.body.classList.add("print-sheet"); window.print(); setTimeout(() => document.body.classList.remove("print-sheet"), 500); } }, "Print") : null));
+    if (!ranked.length) sheet.append(el("p", { class: "muted", text: "Your most-missed strategies will appear here once you've practiced a bit." }));
+    else {
+      sheet.append(el("div", { class: "sheet-grid" }, ranked.map(([id, v]) => { const c = STRAT.cards[id]; return el("div", { class: "sheet-item" }, el("strong", { text: c.name }), el("span", { class: "muted", style: "font-size:12px", text: " · " + c.area + " · missed " + v.miss + "×" }), el("p", { text: c.rule }), el("p", { class: "muted", style: "font-size:13px" }, el("b", { text: "Trap: " }), c.trap)); })));
+      sheet.append(el("div", { class: "sheet-foot" }, el("strong", { text: "Test-day basics: " }), "Take care on Module 1 (it decides Module 2). Use Desmos and the reference sheet. Never leave a question blank. Flag and move on if you're stuck for more than a minute."));
+    }
+    p.append(sheet);
+    // Library
+    const areas = ["Grammar", "Writing", "Reading", "Math"];
+    const lib = el("div", { class: "card", style: "display:grid;gap:10px" }, el("h3", { text: "All strategies" }), el("p", { class: "muted", style: "font-size:14px", text: "Every question type on the digital PSAT and SAT, with its rule. Add any of them to your deck." }));
+    areas.forEach((ar) => {
+      const ids = Object.keys(STRAT.cards).filter((k) => STRAT.cards[k].area === ar);
+      lib.append(el("details", { class: "lib" }, el("summary", { text: ar + " (" + ids.length + ")" }),
+        el("div", { class: "lib-list" }, ids.map((id) => { const c = STRAT.cards[id], has = !!S.deck[id]; return el("div", { class: "lib-item" },
+          el("div", {}, el("strong", { text: c.name }), el("p", { class: "muted", style: "font-size:14px", text: c.rule })),
+          el("button", { class: "btn small" + (has ? " ghost" : ""), disabled: has, onclick: () => { S.deck[id] = { box: 0, due: today(), added: today() }; save(); renderReview(); } }, has ? "In deck" : "Add")); }))));
+    });
+    p.append(lib);
+    function grade(id, ok) {
+      const d = S.deck[id] || (S.deck[id] = { box: 0, added: today() });
+      d.box = ok ? Math.min(BOX_DAYS.length - 1, (d.box || 0) + 1) : 0;
+      d.due = addDays(today(), ok ? BOX_DAYS[d.box] : 1);
+      if (ok) addXP(2); bumpStreak();
+      RV.i++; RV.flipped = false; save(); renderReview();
+    }
   }
 
   /* ================= Practice ================= */
@@ -777,6 +996,7 @@
       el("div", { class: "row", style: "gap:24px;align-items:end" }, el("span", { class: "result-big num", text: c + "/" + n }), el("span", { class: "muted", text: "Time " + mmss(P.elapsed) })),
       el("div", { class: "row" }, Object.entries(byDom).map(([d, [cc, tt]]) => el("span", { class: "chip " + status(cc / tt)[0], text: DOM[d].name + ": " + cc + "/" + tt }))),
       el("p", { text: miss === 0 ? withName("Perfect set") + ". Try Harder difficulty next." : (c / n >= 0.8 ? withName("Nice work") + ". " : (who() ? who() + ", " : "")) + miss + (miss === 1 ? " miss went" : " misses went") + " to the Mistake notebook. Retry " + (miss === 1 ? "it" : "them") + " tomorrow." }),
+      takeaways(P.results),
       el("div", { class: "row" },
         el("button", { class: "btn primary", onclick: () => (P.notebook ? startPractice([], 0, "auto", true) : startPractice(P.doms, P.count, P.diff)) }, "Another set"),
         el("button", { class: "btn", onclick: () => { P = null; renderPractice(); } }, "Change skills")));
@@ -1024,6 +1244,8 @@
     p.append(el("div", { class: "card", style: "padding:6px 8px" }, el("div", { class: "tablewrap" }, el("table", { class: "mx" }, el("thead", {}, el("tr", {}, ["Skill", "Correct", "Accuracy", "Status"].map((h) => el("th", { text: h })))), tb))));
     const items = [];
     M.modules.forEach((m, mi) => m.qs.forEach((q, i) => items.push({ q, a: m.ans[i], flag: m.flag[i], label: MOD[m.sec].name + " · Module " + ((mi % 2) + 1) + " · Q" + (i + 1) })));
+    const tk = takeaways(items.map((x) => ({ q: x.q, ok: isRight(x.q, x.a) })), "3 things to remember from this test");
+    if (tk) p.append(tk);
     const shown = items.filter((x) => reviewFilter === "all" || (reviewFilter === "wrong" ? !isRight(x.q, x.a) : x.flag));
     const fseg = el("div", { class: "seg" }, [["all", "All"], ["wrong", "Incorrect (" + items.filter((x) => !isRight(x.q, x.a)).length + ")"], ["flag", "Flagged"]].map(([v, t]) => el("button", { "aria-pressed": String(reviewFilter === v), onclick: () => { reviewFilter = v; renderMock(); } }, t)));
     const list = el("div", { style: "display:grid;gap:10px" }, shown.map((x) => {
@@ -1076,8 +1298,8 @@
     const last = scored[scored.length - 1], first = scored[0];
     if (last) {
       if (last.total) tiles.append(tile("Latest total", last.total, (last.source === "app" ? "estimated · " : "") + last.name));
-      if (last.rw) tiles.append(tile("Reading and Writing", last.rw, last.source === "app" ? "estimated" : "Bluebook"));
-      if (last.math) tiles.append(tile("Math", last.math, last.source === "app" ? "estimated" : "Bluebook"));
+      if (last.rw) tiles.append(tile("Reading and Writing", last.rw, last.source === "app" ? "estimated" : last.source === "official" ? "official" : "Bluebook"));
+      if (last.math) tiles.append(tile("Math", last.math, last.source === "app" ? "estimated" : last.source === "official" ? "official" : "Bluebook"));
       const withTot = scored.filter((t) => t.total);
       if (withTot.length > 1) { const dl = withTot[withTot.length - 1].total - withTot[0].total; tiles.append(tile("Change since first test", (dl >= 0 ? "+" : "") + dl, "points", dl >= 0 ? "up" : "down")); }
     } else tiles.append(el("div", { class: "tile", style: "grid-column:1/-1" }, el("strong", { text: "No test yet" }), el("span", { class: "muted", text: "Log a Bluebook test or take a mock test here to fill in scores." })));
@@ -1116,7 +1338,7 @@
   /* ================= Log a Bluebook test ================= */
   function renderLog() {
     const p = $("#p-log"); p.textContent = "";
-    const bb = S.tests.filter((t) => t.source !== "app").length + 1;
+    const bb = S.tests.filter((t) => t.source === "bluebook").length + 1;
     const kindSel = el("select", { id: "tKind" }, el("option", { value: "psat", text: "PSAT/NMSQT (160–760 per section)" }), el("option", { value: "sat", text: "SAT (200–800 per section)" }));
     kindSel.value = S.settings.kind;
     const nameIn = el("input", { type: "text", id: "tName", value: "Bluebook Practice Test " + bb, maxlength: "60" });
@@ -1140,7 +1362,7 @@
       S.tests.push({ id: uid(), source: "bluebook", kind, name: nameIn.value.trim() || "Bluebook test", date: $("#tDate").value || today(), rw, math, total: rw + math, dom });
       S.tests.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
       logMock(2); checkGoalScore(rw + math);
-      addXP(100, "Bluebook test logged"); award("baseline"); if (S.tests.filter((t) => t.source !== "app").length >= 2) award("rehearsal"); bumpStreak(); save(); show("matrix");
+      addXP(100, "Bluebook test logged"); award("baseline"); if (S.tests.filter((t) => t.source === "bluebook").length >= 2) award("rehearsal"); bumpStreak(); save(); show("matrix");
     });
     p.append(f);
   }
@@ -1189,13 +1411,12 @@
   });
   $("#settingsBtn").addEventListener("click", () => {
     const host = $("#pop"); host.textContent = ""; tool = null;
-    const kind = el("select", { id: "setKind" }, el("option", { value: "psat", text: "PSAT/NMSQT" }), el("option", { value: "sat", text: "SAT" })); kind.value = S.settings.kind;
-    const date = el("input", { type: "date", id: "setDate", value: S.settings.date });
     const nm = el("input", { type: "text", id: "setName", value: S.settings.name || "", maxlength: "30", autocomplete: "off" });
-    const tg = el("input", { type: "number", id: "setTarget", min: "320", max: "1600", step: "10", inputmode: "numeric", placeholder: "e.g. 1300", value: S.settings.target || "" });
     const f = el("form", { class: "panelpop", role: "dialog", "aria-label": "Settings" }, el("header", {}, el("strong", { text: "Settings" }), el("button", { type: "button", class: "btn small ghost", onclick: () => (host.textContent = "") }, "Close")),
-      el("label", { class: "f", for: "setName" }, "Student's first name", nm), el("label", { class: "f" }, "Test", kind), el("label", { class: "f" }, "Test date", date), el("label", { class: "f", for: "setTarget" }, "Target score (optional)", tg), el("button", { class: "btn primary", type: "submit" }, "Save"));
-    f.addEventListener("submit", (e) => { e.preventDefault(); if (date.value) S.settings.date = date.value; S.settings.kind = kind.value; S.settings.name = nm.value.trim(); { const v = Math.round(+tg.value / 10) * 10; S.settings.target = v >= 320 && v <= 1600 ? v : null; } save(); for (const fn of settingsHooks) { try { fn(S.settings); } catch (x) { } } host.textContent = ""; render(); toast("Settings saved"); });
+      el("label", { class: "f", for: "setName" }, "Student's first name", nm),
+      el("div", { class: "f" }, "Tests and target scores", el("span", { class: "muted", style: "font-size:14px;font-weight:400", text: (S.settings.exams || []).filter((e) => e.date >= today()).map(examLabel).join("; ") || "No upcoming test" }), el("button", { type: "button", class: "btn small", style: "justify-self:start", onclick: () => examsPop() }, "Manage my tests")),
+      el("button", { class: "btn primary", type: "submit" }, "Save"));
+    f.addEventListener("submit", (e) => { e.preventDefault(); S.settings.name = nm.value.trim(); save(); for (const fn of settingsHooks) { try { fn(S.settings); } catch (x) { } } host.textContent = ""; render(); toast("Settings saved"); });
     host.append(f);
   });
   function confirmPop(msg, yes, fn) {
@@ -1214,7 +1435,7 @@
     get state() { return S; },
     blank,
     // Replace progress with a newer copy (from the cloud) without triggering another upload.
-    replace(next) { if (GUEST) return; HOLD = false; S = Object.assign(blank(), next); S.prefs = Object.assign(blank().prefs, S.prefs); S.settings = Object.assign(blank().settings, S.settings); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } render(); },
+    replace(next) { if (GUEST) return; HOLD = false; S = Object.assign(blank(), next); S.prefs = Object.assign(blank().prefs, S.prefs); S.settings = Object.assign(blank().settings, S.settings); syncExams(S); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } render(); },
     get guest() { return GUEST; },
     // Switch between the public site (signed out) and a student's own progress (signed in).
     setGuest(g) {
@@ -1236,9 +1457,15 @@
       if (GUEST) return;
       let changed = false;
       if (p.name != null && p.name !== S.settings.name) { S.settings.name = p.name; changed = true; }
-      if (p.kind && p.kind !== S.settings.kind) { S.settings.kind = p.kind; changed = true; }
-      if (p.date && p.date !== S.settings.date) { S.settings.date = p.date; changed = true; }
-      if (p.target !== undefined && p.target !== S.settings.target) { S.settings.target = p.target; changed = true; }
+      syncExams(S);
+      if (p.date) {
+        const ex = S.settings.exams.find((e) => e.date === p.date);
+        if (ex) {
+          if (p.kind && ex.kind !== p.kind) { ex.kind = p.kind; changed = true; }
+          if (p.target !== undefined && (ex.target || null) !== (p.target || null)) { ex.target = p.target || null; changed = true; }
+        } else if (p.date >= today()) { S.settings.exams.push({ id: exId(), kind: p.kind || "psat", date: p.date, target: p.target || null }); changed = true; }
+        if (syncExams(S)) changed = true;
+      }
       if (changed) { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } render(); }
     },
     // Remove this device's copy (the account keeps its copy in the cloud).
