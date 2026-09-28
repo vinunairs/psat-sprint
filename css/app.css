@@ -336,3 +336,8 @@ ol.steps li span{color:var(--graphite);font-size:14px}
 .srcpick{display:flex;flex-wrap:wrap;gap:6px}
 .howcard summary{cursor:pointer;font-weight:700}
 .howto{margin:12px 0 0;padding-left:22px;display:grid;gap:10px}
+.howinline{margin-top:6px;font-size:14px}
+.howinline summary{cursor:pointer;color:var(--graphite);font-weight:600;font-size:13px}
+.howinline[open]{padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);display:grid;gap:8px}
+.howinline .howto{margin-top:6px}
+.howinline .btn{justify-self:start}

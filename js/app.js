@@ -27,7 +27,7 @@
 
   const PLAN_TEMPLATE = [
     { title: "Baseline, part 1", tasks: ["Install the Bluebook app and sign in with your College Board account", "Download {TEST} Practice Test 1 in Bluebook", "Take the Reading and Writing section in Bluebook, timed (64 min, both modules)", "Warm up here: a 10-question practice set"] },
-    { title: "Baseline, part 2", tasks: ["Take the Math section of Bluebook Practice Test 1, timed (70 min)", "Open your scores at mypractice.collegeboard.org and count misses in each skill domain", "Enter the results in the Log a test tab (it shows exactly where to find each number)"] },
+    { title: "Baseline, part 2", tasks: ["Take the Math section of Bluebook Practice Test 1, timed (70 min)", "Open your scores at mypractice.collegeboard.org and count misses in each skill domain", "Enter the results in the Log a test tab"] },
     { title: "Fix the biggest leak", tasks: ["Read the explanation for every missed question in Bluebook", "Practice 20 questions on the #1 skill in the Skill matrix Focus list", "Retry the Mistake notebook"] },
     { title: "Grammar rules day", tasks: ["Practice 20 Standard English Conventions questions", "Learn the punctuation rules: period or semicolon between full sentences, colon before a list or explanation, commas in pairs around extra info, no comma between subject and verb", "Spend 20 minutes with Desmos: graph a line, find an intersection, find a vertex"] },
     { title: "Math under the clock", tasks: ["Take a timed Math section: an in-app mock, or a Khan Academy practice test Math section", "Review every miss (Khan Academy results: log them in the Log a test tab)", "Practice 10 questions on the #2 Focus skill"] },
@@ -318,7 +318,7 @@
       const id = day.date + "#" + i, on = !!S.tasks[id];
       ul.append(el("li", { class: "task" + (on ? " done" : "") },
         el("button", { class: "bubble", "aria-pressed": String(on), "aria-label": (on ? "Mark not done: " : "Mark done: ") + t, onclick: () => toggleTask(day, i) }, LETTERS[i] || String(i + 1)),
-        el("span", { class: "t", text: t })));
+        el("span", { class: "t" }, t, /Log a test/.test(t) ? howBox(/Khan/.test(t) ? "khan" : "bluebook", /Khan/.test(t) ? "How to log a Khan Academy section" : "How to log it: step by step") : null)));
     });
     return ul;
   }
@@ -556,6 +556,7 @@
         el("span", { class: "date", text: fmtDay(ws).md + " – " + fmtDay(addDays(ws, 6)).md + " · " + done + "/" + w.goals.length + " done" + (w.won ? " · won" : "") })),
       goalLine(),
       list,
+      w.goals.some((g) => g.type === "official") ? howBox("bluebook", "How to log a Bluebook or Khan Academy test") : null,
       el("div", { class: "row" },
         el("button", { class: "btn primary", onclick: () => { S.prefs.sel = [focusId]; save(); show("practice"); startPractice([focusId], 10, "auto"); } }, "15 minutes today: " + DOM[focusId].name),
         el("button", { class: "btn", onclick: () => show("mock") }, "Take a mock test")),
@@ -601,7 +602,8 @@
     return el("div", { class: "card", style: "display:grid;gap:10px" },
       el("div", { class: "row between" }, el("h3", { text: "Official practice tests" }), el("button", { class: "btn small primary", onclick: () => show("log") }, "Log a test")),
       el("p", { style: "font-size:15px" }, "Logged so far: ", el("strong", { text: bb.length + " Bluebook" }), ", ", el("strong", { text: kh.length + " Khan Academy" }), (last ? " · last: " + last.name + ", " + fmtDay(last.date).md + (last.total ? " (" + last.total + (isEst(last) ? " est." : "") + ")" : "") : "") + "."),
-      el("p", { class: "muted", style: "font-size:13px" }, "Take full tests in ", link(LINKS.bluebook, "Bluebook"), " (the real test app, with official scoring) and extra practice sections on ", link(LINKS.khanPsat, "Khan Academy"), ". Log each one here; the Log a test tab shows where to find every number."));
+      el("p", { class: "muted", style: "font-size:13px" }, "Take full tests in ", link(LINKS.bluebook, "Bluebook"), " (the real test app, with official scoring) and extra practice sections on ", link(LINKS.khanPsat, "Khan Academy"), ". Log each one here."),
+      howBox("bluebook"), howBox("khan"));
   }
   const CB_DATES = { psat: "https://satsuite.collegeboard.org/psat-nmsqt", sat: "https://satsuite.collegeboard.org/sat/dates-deadlines" };
   const examLabel = (e) => FORMATS[e.kind].name + " · " + fmtDay(e.date).dow + " " + fmtDay(e.date).md + ", " + parseYmd(e.date).getFullYear();
@@ -1372,6 +1374,35 @@
   /* ================= Log a practice test (Bluebook, Khan Academy, other) ================= */
   const LINKS = { mypractice: "https://mypractice.collegeboard.org/", bluebook: "https://satsuite.collegeboard.org/practice/practice-tests/bluebook", khan: "https://www.khanacademy.org/digital-sat", khanPsat: "https://www.khanacademy.org/test-prep/dpsat-practice-test-01-22" };
   let LOGSRC = "bluebook";
+  function howSteps(src) {
+    const link = (href, text) => el("a", { href, target: "_blank", rel: "noopener" }, text);
+    return {
+      bluebook: [
+        ["Finish and submit the test in Bluebook", "Stay online for a minute afterward so the results upload."],
+        ["Open My Practice", el("span", {}, "Go to ", link(LINKS.mypractice, "mypractice.collegeboard.org"), " (or use the score link Bluebook shows after you submit). Sign in with the same College Board account you use in Bluebook, then open the test.")],
+        ["Enter the two section scores", "Your score report shows a Reading and Writing score and a Math score. Type them into the Log a test form."],
+        ["Count your misses by skill area", "Open the question review and look at the questions you got wrong. Each one is labeled with its content domain (Information and Ideas, Craft and Structure, Algebra, and so on). Count the misses in each domain and enter them in the form. It takes about 5 minutes."],
+        ["Then learn from them", "Read the explanation for every miss in My Practice. Back here, your Focus list and weekly goals update to target the weakest areas."]
+      ],
+      khan: [
+        ["Take a Khan Academy practice test or section", el("span", {}, "Start from ", link(LINKS.khanPsat, "Khan Academy's digital PSAT practice test"), " or the ", link(LINKS.khan, "digital SAT course"), ". Time yourself: 32 minutes per Reading and Writing module, 35 per Math module.")],
+        ["Note your number right", "When you finish, the results page shows how many questions you got right out of the total. Enter them in the Log a test form for each section you took."],
+        ["Tag your misses (optional, but worth it)", "For each question you missed, note which skill it tested and add it to the matching skill area in the form. Khan Academy labels its questions by skill."],
+        ["About the score", "Khan Academy practice doesn't give an official College Board score, so this app shows an estimate from your number right. Use Bluebook tests for your most accurate score."]
+      ],
+      other: [
+        ["Enter the number right for each section", "Any full-length or section practice test works, such as a paper test or a prep book. Enter how many you got right out of the total."],
+        ["Add misses by skill if the test labels them", "That way the Skill matrix can use it too."]
+      ]
+    }[src];
+  }
+  // Numbered "how to log it" steps, shown in the Log tab, on plan tasks, and on the Today card.
+  function stepsEl(src) { return el("ol", { class: "howto" }, howSteps(src).map(([h, b]) => el("li", {}, el("strong", { text: h }), el("div", { class: "muted", style: "font-size:14px;margin-top:2px" }, b)))); }
+  function howBox(src, label) {
+    return el("details", { class: "howinline" }, el("summary", { text: label || (src === "khan" ? "How to log a Khan Academy test" : "How to log a Bluebook test") }), stepsEl(src),
+      el("button", { class: "btn small primary", type: "button", onclick: () => { LOGSRC = src; show("log"); } }, "Open Log a test"));
+  }
+
   function renderLog() {
     const p = $("#p-log"); p.textContent = "";
     const link = (href, text) => el("a", { href, target: "_blank", rel: "noopener" }, text);
@@ -1381,28 +1412,9 @@
     [["bluebook", "Bluebook (official)"], ["khan", "Khan Academy"], ["other", "Other"]].forEach(([id, lab]) => seg.append(el("button", { type: "button", class: "btn small" + (LOGSRC === id ? " primary" : ""), "aria-pressed": String(LOGSRC === id), onclick: () => { LOGSRC = id; renderLog(); } }, lab)));
     p.append(seg);
     const src = LOGSRC, kind0 = S.settings.kind;
-    // Where to find each number
-    const how = {
-      bluebook: [
-        ["Finish and submit the test in Bluebook", "Stay online for a minute afterward so the results upload."],
-        ["Open My Practice", el("span", {}, "Go to ", link(LINKS.mypractice, "mypractice.collegeboard.org"), " (or use the score link Bluebook shows after you submit). Sign in with the same College Board account you use in Bluebook, then open the test.")],
-        ["Enter the two section scores", "Your score report shows a Reading and Writing score and a Math score. Type them in below."],
-        ["Count your misses by skill area", "Open the question review and look at the questions you got wrong. Each one is labeled with its content domain (Information and Ideas, Craft and Structure, Algebra, and so on). Count the misses in each domain and enter them below. It takes about 5 minutes."],
-        ["Then learn from them", "Read the explanation for every miss in My Practice. Back here, your Focus list and weekly goals update to target the weakest areas."]
-      ],
-      khan: [
-        ["Take a Khan Academy practice test or section", el("span", {}, "Start from ", link(LINKS.khanPsat, "Khan Academy's digital PSAT practice test"), " or the ", link(LINKS.khan, "digital SAT course"), ". Time yourself: 32 minutes per Reading and Writing module, 35 per Math module.")],
-        ["Note your number right", "When you finish, the results page shows how many questions you got right out of the total. Enter the numbers below for each section you took."],
-        ["Tag your misses (optional, but worth it)", "For each question you missed, note which skill it tested and add it to the matching skill area below. Khan Academy labels its questions by skill."],
-        ["About the score", "Khan Academy practice doesn't give an official College Board score, so this app shows an estimate from your number right. Use Bluebook tests for your most accurate score."]
-      ],
-      other: [
-        ["Enter the number right for each section", "Any full-length or section practice test works, such as a paper test or a prep book. Enter how many you got right out of the total."],
-        ["Add misses by skill if the test labels them", "That way the Skill matrix can use it too."]
-      ]
-    }[src];
-    const ol = el("ol", { class: "howto" }, how.map(([h, b]) => el("li", {}, el("strong", { text: h }), el("div", { class: "muted", style: "font-size:14px;margin-top:2px" }, b))));
-    p.append(el("details", { class: "card howcard", open: S.tests.filter((t) => t.source === src).length < 2 }, el("summary", { text: src === "bluebook" ? "Where to find your Bluebook results" : src === "khan" ? "How to log a Khan Academy test" : "How to log another practice test" }), ol));
+    const how = howSteps(src);
+    const ol = stepsEl(src); void how;
+    p.append(el("details", { class: "card howcard", open: true }, el("summary", { text: src === "bluebook" ? "Where to find your Bluebook results" : src === "khan" ? "How to log a Khan Academy test" : "How to log another practice test" }), ol));
 
     const kindSel = el("select", { id: "tKind" }, el("option", { value: "psat", text: "PSAT/NMSQT" }), el("option", { value: "sat", text: "SAT" })); kindSel.value = kind0;
     const secSel = el("select", { id: "tSec" }, el("option", { value: "both", text: "Full test (both sections)" }), el("option", { value: "rw", text: "Reading and Writing only" }), el("option", { value: "math", text: "Math only" }));
