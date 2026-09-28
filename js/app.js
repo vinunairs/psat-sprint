@@ -86,7 +86,10 @@
     S.updatedAt = Date.now();
     try { localStorage.setItem(KEY, JSON.stringify(S)); storageOK = true; }
     catch (e) { if (storageOK) toast("This browser isn't saving progress. Use Back up progress to keep a copy."); storageOK = false; }
+    notifySaved();
   }
+  const saveHooks = [];
+  function notifySaved() { for (const fn of saveHooks) { try { fn(S); } catch (e) { } } }
 
   /* ================= Helpers ================= */
   const $ = (s) => document.querySelector(s);
@@ -813,4 +816,14 @@
   if (S.mock && S.mock.phase !== "done") TAB = "mock";
   show(TAB);
   window.__psat = { get state() { return S; }, calc };
+  window.PSApp = {
+    get state() { return S; },
+    blank,
+    // Replace progress with a newer copy (from the cloud) without triggering another upload.
+    replace(next) { S = Object.assign(blank(), next); S.prefs = Object.assign(blank().prefs, S.prefs); S.settings = Object.assign(blank().settings, S.settings); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } render(); },
+    onSave(fn) { saveHooks.push(fn); },
+    save, render, toast,
+    get busy() { return !!(S.mock && S.mock.phase !== "done") || !!(P && !P.finished); }
+  };
+  document.dispatchEvent(new Event("psapp-ready"));
 })();

@@ -23,9 +23,16 @@ A PSAT/NMSQT and SAT prep site with fresh questions every time, timed adaptive m
 
 Questions are original, written in the style of the digital PSAT/SAT. They are not College Board questions.
 
-## Progress
+## Progress and sync
 
-Stored in the browser's localStorage on the device used. Use **Back up progress** in the footer to download a JSON file, and **Restore from backup** to load it on another device.
+Progress always saves in the browser first (localStorage key `psat-sprint-v2`). When signed in, every change also uploads to Supabase (project `psat-sprint`, table `public.progress`, one row per account, protected by row-level security). On open, the newer copy wins; a replaced device copy is kept under `psat-sprint-v2-before-sync`.
+
+Rules for future changes, so logged progress is never lost:
+- Keep the storage key and the `progress` table; only add fields, never rename or remove.
+- New fields must have defaults in `blank()` so older saved progress loads cleanly.
+- Keep the site at the same URL.
+
+**Back up progress** in the footer downloads a JSON copy; **Restore from backup** loads it.
 
 ## Checks
 
