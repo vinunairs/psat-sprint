@@ -21,7 +21,8 @@
   const lvList = (a, b, c) => [...Array(a).fill(1), ...Array(b).fill(2), ...Array(c).fill(3)];
   const MATH_LV = { psat: { std: lvList(6, 10, 6), hard: lvList(0, 8, 14), easy: lvList(12, 10, 0) }, sat: { std: lvList(4, 10, 8), hard: lvList(0, 6, 16), easy: lvList(8, 12, 2) } };
   const RW_MIX = [["cs", 7], ["ii", 7], ["sec", 7], ["eoi", 6]];
-  const MATH_MIX = { alg: 8, adv: 7, psda: 4, geo: 3 };
+  // Per 22-question module. PSAT/NMSQT ≈ 35/32.5/20/12.5%; SAT ≈ 35/35/15/15% (College Board test specifications).
+  const MATH_MIXES = { psat: { alg: 8, adv: 7, psda: 4, geo: 3 }, sat: { alg: 8, adv: 8, psda: 3, geo: 3 } };
   const RW_LV = { std: [1, 2, 2, 2, 2, 3, 3], hard: [2, 2, 3, 3, 3, 3, 3], easy: [1, 1, 1, 2, 2, 2, 2] };
 
   const PLAN_TEMPLATE = [
@@ -788,7 +789,7 @@
     if (sec === "rw") {
       for (const [d, n] of RW_MIX) { const lvs = RW_LV[route].slice(0, n).sort(); lvs.forEach((lv) => qs.push(nextQuestion(d, lv, used, 0))); }
     } else {
-      const doms = rng.shuffle(Object.entries(MATH_MIX).flatMap(([d, n]) => Array(n).fill(d)));
+      const doms = rng.shuffle(Object.entries(MATH_MIXES[kind] || MATH_MIXES.psat).flatMap(([d, n]) => Array(n).fill(d)));
       const lvs = MATH_LV[kind][route];
       doms.forEach((d, i) => qs.push(nextQuestion(d, lvs[i], used, 0)));
       const sprIdx = rng.shuffle(qs.map((q, i) => (q.spr != null ? i : -1)).filter((i) => i >= 0)).slice(0, 5);

@@ -121,7 +121,7 @@
     ["The main source of the river's pollution", "s", BE, "runoff from nearby farms."],
     ["The tracks left by the dinosaurs", "p", V("reveal", "reveals", "revealed", "revealing"), "how fast the animals could walk."],
     ["The quality of the photographs in these old newspapers", "s", V("surprise", "surprises", "surprised", "surprising"), "many modern readers."],
-    ["The ancient maps displayed in the library's rare book room", "p", V("show", "shows", "showed", "showing"), "coastlines that no longer exist."],
+    ["The ancient maps displayed in the library's rare book room", "p", V("show", "shows", "shown", "showing"), "coastlines that no longer exist."],
     ["One of the scientists on the research team", "s", V("study", "studies", "studied", "studying"), "how octopuses change color."],
     ["The songs on the band's latest album", "p", V("blend", "blends", "blended", "blending"), "folk and electronic music."],
     ["The team of engineers who designed the bridge", "s", BE, "known for its innovative use of recycled steel."]
@@ -149,7 +149,7 @@
     const head = plural ? r.pick(HEADS_P) : r.pick(HEADS_S);
     const p = plural ? `After months of fieldwork, the ${num} ${BLANK} ${head}` : `After months of fieldwork, the lead ${BLANK} ${head}`;
     return { d: "sec", sk: "Possessives", lv: 1, p, q: SEC_Q, o, a,
-      e: plural ? `There are ${num} ${n}s (plural), and the ${head.split(" ")[0]} belong to them, so you need a plural possessive: "${n}s'."` : `There is one lead ${n} (singular), and the ${head.split(" ")[0]} belong to that person, so you need a singular possessive: "${n}'s."`,
+      e: plural ? `There are ${num} ${n}s (plural), and the ${head.split(" ")[0]} ${/s$/.test(head.split(" ")[0]) ? "belong" : "belongs"} to them, so you need a plural possessive: "${n}s'."` : `There is one lead ${n} (singular), and the ${head.split(" ")[0]} ${/s$/.test(head.split(" ")[0]) ? "belong" : "belongs"} to that person, so you need a singular possessive: "${n}'s."`,
       t: "Singular possessive: 's. Plural possessive (ending in s): s'. No apostrophe if nothing is owned.", key: `poss:${n}:${plural}` };
   }
 
@@ -193,14 +193,21 @@
     ["example", "Plants have developed clever ways to spread their seeds.", "burdock seeds cling to the fur of passing animals."],
     ["example", "Some early inventions were discovered by accident.", "a scientist noticed that a melted candy bar in his pocket had been heated by a radar device, which led to the microwave oven."],
     ["similarity", "Wolves live and hunt in packs led by dominant individuals.", "African wild dogs hunt in cooperative groups with clear leaders."],
-    ["similarity", "The first poem in the collection describes a childhood home in vivid detail.", "the final poem returns to that house, now seen through an adult's eyes."],
+    ["similarity", "The first poem in the collection describes a childhood home in vivid detail.", "the final poem lingers on the sights and sounds of that same home."],
     ["similarity", "Elephants mourn members of their herd that have died.", "some whale species have been observed staying beside dead companions for days."],
     ["similarity", "The city of Venice was built on wooden pilings driven into mud.", "parts of Amsterdam rest on millions of wooden poles."],
-    ["similarity", "Octopuses can change their skin color to blend into their surroundings.", "chameleons can shift color in response to light and temperature."]
+    ["similarity", "Octopuses can change their skin color to blend into their surroundings.", "cuttlefish can alter their skin color and texture to hide from predators."]
   ];
+  // Contrast pairs where only a plain contrast works (the second sentence corrects or reverses the first):
+  // concessive words like "Even so" or "Still" would be illogical there.
+  const KEYS = {
+    "The new stadium": ["However,"], "Most frogs": ["However,", "In contrast,"], "The experiment's first": ["However,"],
+    "Tickets for the concert": ["However,"], "Bats are often": ["However,"], "The author's first two": ["However,"], "Mercury is the planet": ["However,"]
+  };
+  const keysFor = (rel, s1) => { const k = Object.keys(KEYS).find((p) => s1.startsWith(p)); return k ? KEYS[k] : TRANS[rel]; };
   function eoi_trans(r) {
     const [rel, s1, s2] = r.pick(TPAIRS);
-    const right = r.pick(TRANS[rel]);
+    const right = r.pick(keysFor(rel, s1));
     const others = Object.keys(TRANS).filter((k) => k !== rel && !CLASH[rel].includes(k));
     const wrongs = r.shuffle(others).slice(0, 3).map((k) => r.pick(TRANS[k]));
     const { o, a } = mc(r, right, wrongs, String);
@@ -213,7 +220,10 @@
   /* ---------- Conjunctive adverbs between two sentences (harder) ---------- */
   function sec_conjadv(r) {
     const [rel, s1, s2] = r.pick(TPAIRS);
-    const adv = r.pick(TRANS[rel]).replace(",", "");
+    // Short adverbs ("thus", "still") are often written without a comma, so they'd make a distractor defensible.
+    const opts = keysFor(rel, s1).filter((t) => !["Thus,", "Still,"].includes(t));
+    if (!opts.length) throw { retry: true };
+    const adv = r.pick(opts).replace(",", "");
     const advLow = adv[0].toLowerCase() + adv.slice(1);
     const [aHead, aLast] = lastWord(s1.replace(/\.$/, ""));
     const [bFirst, bRest] = firstWord(s2);
@@ -226,15 +236,15 @@
 
   /* ---------- Quantitative evidence ---------- */
   const TIMELINE = [
-    { intro: "A student surveyed classmates about their average daily screen time.", measure: "average daily screen time", unit: "hours", cats: ["Grade 9", "Grade 10", "Grade 11", "Grade 12"], period: "grade", base: [4, 6] },
-    { intro: "A town tracked the number of visitors to its public library.", measure: "the number of library visitors", unit: "thousand visitors", cats: ["2021", "2022", "2023", "2024"], period: "year", base: [30, 50] },
-    { intro: "A researcher measured the average height of seedlings grown in a greenhouse.", measure: "average seedling height", unit: "centimeters", cats: ["Week 1", "Week 2", "Week 3", "Week 4"], period: "week", base: [3, 8] },
-    { intro: "A farmers market recorded its average weekly sales.", measure: "average weekly sales", unit: "thousand dollars", cats: ["Spring", "Summer", "Fall", "Winter"], period: "season", base: [8, 15] }
+    { intro: "A student surveyed classmates about their average daily screen time.", who: "The student", measure: "average daily screen time", unit: "hours", cats: ["Grade 9", "Grade 10", "Grade 11", "Grade 12"], period: "grade", base: [4, 6] },
+    { intro: "A town tracked the number of visitors to its public library.", who: "A town official", measure: "the number of library visitors", unit: "thousand visitors", cats: ["2021", "2022", "2023", "2024"], period: "year", base: [30, 50] },
+    { intro: "A researcher measured the average height of seedlings grown in a greenhouse.", who: "The researcher", measure: "average seedling height", unit: "centimeters", cats: ["Week 1", "Week 2", "Week 3", "Week 4"], period: "week", base: [3, 8] },
+    { intro: "A farmers market recorded its average weekly revenue.", who: "The market manager", measure: "average weekly revenue", unit: "thousand dollars", cats: ["Spring", "Summer", "Fall", "Winter"], period: "season", base: [8, 15] }
   ];
   const GROUPS = [
-    { intro: "Researchers compared how far different species of songbird migrate each year.", measure: "average migration distance", unit: "kilometers", cats: ["Blackpoll warbler", "Wood thrush", "Barn swallow", "Ruby-throated hummingbird"], base: [1500, 5000], int: true },
-    { intro: "A student compared the average number of daily visitors at four city parks.", measure: "average daily visitors", unit: "visitors", cats: ["Riverside Park", "Oak Hill Park", "Harbor Green", "Maple Commons"], base: [300, 900], int: true },
-    { intro: "An agricultural study compared tomato yields using four fertilizers.", measure: "average yield per plant", unit: "kilograms", cats: ["Fertilizer A", "Fertilizer B", "Fertilizer C", "Fertilizer D"], base: [2, 6] }
+    { intro: "Researchers tracked the yearly migrations of four tagged songbirds.", who: "The researchers", measure: "migration distance", unit: "kilometers", cats: ["Bird A", "Bird B", "Bird C", "Bird D"], base: [1500, 5000], int: true },
+    { intro: "A student compared the average number of daily visitors at four city parks.", who: "The student", measure: "average number of daily visitors", unit: "visitors", cats: ["Riverside Park", "Oak Hill Park", "Harbor Green", "Maple Commons"], base: [300, 900], int: true },
+    { intro: "An agricultural study compared tomato yields using four fertilizers.", who: "The researchers", measure: "average yield per plant", unit: "kilograms", cats: ["Fertilizer A", "Fertilizer B", "Fertilizer C", "Fertilizer D"], base: [2, 6] }
   ];
   const fx = (v, int) => (int ? Math.round(v).toLocaleString("en-US") : v.toFixed(1));
   function ii_quant(r) {
@@ -242,10 +252,12 @@
       const T = r.pick(TIMELINE), step = () => (T.base[1] - T.base[0]) * (0.08 + r.f() * 0.12);
       const v1 = T.base[0] + r.f() * (T.base[1] - T.base[0]) * 0.4, v2 = v1 + step(), v3 = v2 + step(), v4 = v3 - (v3 - v2) * (0.25 + r.f() * 0.4);
       const vals = [v1, v2, v3, v4].map((v) => Math.round(v * 10) / 10);
+      // After rounding, the table must still show: up, up, a clear dip, and an overall rise.
+      if (!(vals[1] > vals[0] && vals[2] > vals[1] && vals[3] < vals[2] && vals[3] > vals[0])) throw { retry: true };
       const [c1, c2, c3, c4] = T.cats, [a1, a2, a3, a4] = vals.map((v) => fx(v));
       const right = `${cap(T.measure)} rose from ${a1} ${T.unit} in ${c1} to ${a3} ${T.unit} in ${c3}, then dipped slightly to ${a4} ${T.unit} in ${c4}.`;
       const { o, a } = mc(r, right, [`${cap(T.measure)} was highest in ${c4}, at ${a4} ${T.unit}.`, `${cap(T.measure)} was ${a2} ${T.unit} in ${c2}.`, `${cap(T.measure)} fell from ${a1} ${T.unit} in ${c1} to ${a2} ${T.unit} in ${c2}.`], String);
-      return { d: "ii", sk: "Quantitative evidence", lv: 2, p: `${T.intro}\n\nThe student claims that ${T.measure} generally increased from ${c1} to ${c4}, though it did not rise every ${T.period}.`,
+      return { d: "ii", sk: "Quantitative evidence", lv: 2, p: `${T.intro}\n\n${T.who} claims that ${T.measure} generally increased from ${c1} to ${c4}, though it did not rise every ${T.period}.`,
         table: { head: ["", `${cap(T.measure)} (${T.unit})`], rows: T.cats.map((c, i) => [c, fx(vals[i])]) },
         q: "Which choice most effectively uses data from the table to support the claim?", o, a,
         e: `The claim has two parts: an overall increase AND at least one ${T.period} without an increase. Only this choice shows both. Check the others against the table: some are false, and some are true but don't address the claim.`,
@@ -257,10 +269,11 @@
     vals = vals.map((v) => (Gp.int ? Math.round(v) : Math.round(v * 10) / 10));
     const order = vals.map((v, i) => i).sort((x, y) => vals[y] - vals[x]);
     const top = order[0], second = order[1], low1 = order[2], low2 = order[3];
+    if (vals[second] === vals[low1] || vals[low1] === vals[low2] || vals[top] === vals[second]) throw { retry: true }; // no ties
     const cats = Gp.cats;
     const right = `${cats[top]} had the highest ${Gp.measure}, ${fx(vals[top], Gp.int)} ${Gp.unit}, compared with ${fx(vals[second], Gp.int)} ${Gp.unit} for ${cats[second]}, the next highest.`;
     const { o, a } = mc(r, right, [`${cats[second]} had the highest ${Gp.measure}, ${fx(vals[second], Gp.int)} ${Gp.unit}.`, `${cats[low1]} had a higher ${Gp.measure} than ${cats[low2]}.`, `The ${Gp.measure} of ${cats[top]} was lower than that of ${cats[low1]}.`], String);
-    return { d: "ii", sk: "Quantitative evidence", lv: 2, p: `${Gp.intro}\n\nThey claim that ${cats[top]} had the highest ${Gp.measure} of the four.`,
+    return { d: "ii", sk: "Quantitative evidence", lv: 2, p: `${Gp.intro}\n\n${Gp.who} ${Gp.who === "The student" ? "claims" : "claim"} that ${cats[top]} had the highest ${Gp.measure} of the four.`,
       table: { head: ["", `${cap(Gp.measure)} (${Gp.unit})`], rows: cats.map((c, i) => [c, fx(vals[i], Gp.int)]) },
       q: "Which choice most effectively uses data from the table to support the claim?", o, a,
       e: `The claim is about which group is highest, so the best evidence compares ${cats[top]} with the others. Choices about other groups may be true but don't support this claim, and one misreads the table.`,

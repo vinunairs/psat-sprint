@@ -38,7 +38,7 @@
     W("w47", 1, `The company ${B} its plans to open a new factory after a survey found little demand for its products in the region.`, ["abandoned", "announced", "accelerated", "celebrated"], "Little demand is a reason to give up the plan: \"abandoned.\""),
     W("w48", 2, `The poem's imagery is ${B}: in just a few lines, it moves from a quiet kitchen to a storm at sea to a crowded city street.`, ["wide-ranging", "repetitive", "limited", "literal"], "Moving across very different scenes shows broad variety: \"wide-ranging.\""),
     W("w49", 1, `The scientists were ${B} to announce the discovery until other labs had repeated their results.`, ["reluctant", "eager", "forced", "quick"], "Waiting for other labs before announcing shows hesitation: \"reluctant.\""),
-    W("w50", 2, `The artist's later paintings are ${B} her early work: the bright, crowded scenes of her youth gave way to pale, nearly empty canvases.`, ["a departure from", "an imitation of", "a copy of", "identical to"], "Bright and crowded changing to pale and empty is a big change: \"a departure from.\""),
+    W("w50", 2, `The artist's later paintings are ${B} her early work: the bright, crowded scenes of her youth gave way to pale, nearly empty canvases.`, ["a departure from", "an imitation of", "a continuation of", "identical to"], "Bright and crowded changing to pale and empty is a big change: \"a departure from.\""),
     W("w51", 2, `The archaeologists' conclusions are ${B}, since they are based on only a few pottery fragments; more evidence will be needed to confirm them.`, ["tentative", "definitive", "unanimous", "outdated"], "Conclusions that still need confirming are not final: \"tentative.\""),
     W("w52", 2, `Because the river's course has ${B} many times over the centuries, the ruins of the old port now sit several kilometers from its banks.`, ["shifted", "frozen", "flooded", "narrowed"], "Ruins far from the river show the river moved: \"shifted.\""),
     W("w53", 1, `The report's language is deliberately ${B}, avoiding technical terms so that readers without scientific training can follow it.`, ["accessible", "specialized", "ornate", "misleading"], "Written so non-experts can follow it means easy to understand: \"accessible.\""),
@@ -92,7 +92,7 @@
       "Based on the texts, how would the researchers in Text 2 most likely respond to the assumption in Text 1?", ["By suggesting that it doesn't account for all forms of animal play", "By agreeing that play is always practice for adult skills", "By arguing that ravens don't play at all", "By claiming that hunting skills can't be practiced through play"],
       "The ravens' sliding doesn't fit the practice explanation, so Text 2 says the assumption misses some play."),
     Q("x05", "cs", "Cross-text connections", 2, "Text 1\nArchitect Lena Ruiz argues that cities should protect historic buildings because they give neighborhoods a distinct identity that new construction rarely matches.\n\nText 2\nPlanner Omar Haddad agrees that older buildings add character to a neighborhood. He argues, however, that strict preservation rules can make housing more expensive by limiting new construction.",
-      "Based on the texts, Ruiz and Haddad would most likely agree that", ["historic buildings contribute to a neighborhood's character.", "preservation rules should be eliminated.", "new construction always improves neighborhoods.", "housing costs are unrelated to building rules."],
+      "Based on the texts, Ruiz and Haddad would most likely agree with which statement?", ["Historic buildings contribute to a neighborhood's character.", "Preservation rules should be eliminated.", "New construction always improves neighborhoods.", "Housing costs are unrelated to building rules."],
       "Text 2 explicitly \"agrees that older buildings add character,\" which matches Text 1's point about identity."),
     Q("x06", "cs", "Cross-text connections", 3, "Text 1\nSome linguists have argued that young children learn grammar mainly by imitating the adults around them.\n\nText 2\nChildren often say words like \"goed\" instead of \"went\" or \"mouses\" instead of \"mice\" — forms they are unlikely to have heard from adults. Such errors suggest that children figure out grammar rules on their own and apply them, sometimes too broadly.",
       "Based on the texts, how would the author of Text 2 most likely respond to the linguists in Text 1?", ["By pointing out that children produce forms they didn't learn by imitation", "By agreeing that imitation fully explains how children learn grammar", "By arguing that children learn vocabulary but not grammar", "By claiming that adults often say \"goed\" and \"mouses\""],
@@ -102,7 +102,7 @@
     Q("i10", "ii", "Central ideas", 1, "When a city replaced the asphalt at several schoolyards with gardens and trees, teachers reported that students returned from recess calmer and more focused. School nurses also recorded fewer playground injuries, and attendance rose slightly the following year.",
       "Which choice best states the main idea of the text?", ["Replacing asphalt schoolyards with green spaces appears to have benefited students in several ways.", "School nurses treat most injuries that happen during recess.", "Attendance at the city's schools rose because of new teachers.", "Gardens are less expensive to maintain than asphalt."],
       "Calmer students, fewer injuries, better attendance: several benefits after the green makeover."),
-    Q("i11", "ii", "Central ideas", 2, "For centuries, the Inca Empire kept detailed records without a written script. Officials used khipus, bundles of knotted cords in which the position, type, and color of each knot stood for information such as population counts and tax payments.",
+    Q("i11", "ii", "Central ideas", 2, "Throughout its history, the Inca Empire kept detailed records without a written script. Officials used khipus, bundles of knotted cords in which the type and position of the knots and the color of the cords stood for information such as population counts and tax payments.",
       "Which choice best states the main idea of the text?", ["The Inca recorded detailed information using knotted cords rather than writing.", "The Inca Empire collected more taxes than other empires.", "Khipus were used mainly as decorations.", "Inca officials were the first to count their population."],
       "The text explains how the Inca kept records without writing: khipus."),
     Q("i12", "ii", "Central ideas", 2, "Sleep researchers have found that teenagers' internal clocks naturally shift later during adolescence, making it hard for them to fall asleep early. When one school district moved its start time from 7:30 to 8:45 a.m., students slept more on average, and their grades in first-period classes improved.",
@@ -126,7 +126,7 @@
       `Which choice most logically completes the text? The results suggest that ${B}`, ["people's expectations about a product can influence how they experience it.", "expensive coffee tastes better than cheap coffee.", "most shoppers can't tell coffee from tea.", "shoppers prefer store brands."],
       "The coffee was identical, so the only difference was what people were told, which shaped their ratings."),
     Q("i23", "ii", "Inferences", 1, "A town's main bridge closed for repairs in March. In April, the only café on the far side of the river reported that its sales had dropped by half, while cafés near the other end of the bridge reported no change.",
-      `Which choice most logically completes the text? The café owner most likely concluded that ${B}`, ["the bridge closure kept many customers from reaching the café.", "customers had stopped drinking coffee in April.", "the other cafés had lowered their prices.", "the café's menu needed to be changed."],
+      `Which choice most logically completes the text? The owner of the café on the far side of the river most likely concluded that ${B}`, ["the bridge closure kept many customers from reaching the café.", "customers had stopped drinking coffee in April.", "the other cafés had lowered their prices.", "the café's menu needed to be changed."],
       "Only the café cut off by the closure lost sales, which points to the bridge."),
     Q("i24", "ii", "Inferences", 3, "Tree rings are wider in years with plenty of rain and narrower in dry years. Researchers studying an ancient wooden beam from a cliff dwelling found a long series of very narrow rings in the final decades of the tree's growth.",
       `Which choice most logically completes the text? The researchers most likely concluded that ${B}`, ["the region had an extended dry period near the end of the tree's life.", "the tree was cut down while it was very young.", "the cliff dwelling was built during a rainy period.", "trees in the region grew faster than trees elsewhere."],
@@ -154,7 +154,7 @@
     Q("e08", "ii", "Textual evidence", 2, "A biologist hypothesizes that frogs in the warmer of two nearby ponds breed earlier in spring than frogs in the cooler pond.",
       "Which finding, if true, would most directly support the hypothesis?", ["Frogs in the warmer pond laid eggs an average of 12 days earlier than frogs in the cooler pond.", "The warmer pond had more frogs than the cooler pond.", "Frogs in the cooler pond called more loudly.", "Frogs in both ponds ate the same insects."],
       "The hypothesis is about timing of breeding, and only this finding measures that."),
-    Q("e09", "ii", "Textual evidence", 2, "In an imagined novel, a student claims that the character Maya is portrayed as determined.",
+    Q("e09", "ii", "Textual evidence", 2, "In an imagined novel, a character named Maya pursues a goal despite setbacks. A student claims that Maya is portrayed as determined.",
       "Which quotation from the novel would most effectively support the student's claim?", ["\"Maya failed the audition twice, and twice she came back the next year, practicing every morning before school.\"", "\"Maya glanced at the clock and sighed.\"", "\"Maya lived with her grandmother in an apartment above a bakery.\"", "\"Maya's favorite color was green.\""],
       "Coming back after failing twice and practicing daily shows determination."),
     Q("e10", "ii", "Textual evidence", 3, "An archaeologist claims that an ancient city was a major center of long-distance trade.",
@@ -216,6 +216,14 @@
   ];
 
   for (const q of MORE) BANK.push(q);
+  // Official style: the sentence with the blank ends the passage; the stem is only the standard question.
+  const STEM = "Which choice most logically completes the text?";
+  for (const q of BANK) {
+    if (q.q && q.q.startsWith(STEM + " ") && q.q.includes(B)) {
+      q.p = (q.p || "").trim() + " " + q.q.slice(STEM.length + 1).trim();
+      q.q = STEM;
+    }
+  }
   root.RWBank = BANK;
   if (typeof module !== "undefined") module.exports = BANK;
 })(typeof window !== "undefined" ? window : globalThis);

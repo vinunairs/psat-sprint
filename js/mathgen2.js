@@ -10,34 +10,44 @@
   const { fmtN, frac, poly, lin, xMinus, mc, MINUS } = C;
   const M = MINUS;
   const G = MG.G;
+  const lc1 = (s) => s[0].toLowerCase() + s.slice(1);
 
   /* ---------- Scatterplot with a line of best fit ---------- */
   const SCATTER = [
-    { x: "Hours studied", y: "Test score", xq: "a student studies", xu: "hours", yq: "test score", xs: [1, 2, 3, 4, 5, 6, 7, 8, 9], ms: [4, 5, 6], bs: [40, 45, 50], noise: 4, per: "hour studied", unitY: "points", xmax: 10, ystep: 10 },
-    { x: "Temperature (°F)", y: "Cups of lemonade sold", xq: "the temperature is", xu: "°F", yq: "number of cups of lemonade sold", xs: [60, 65, 70, 75, 80, 85, 90, 95], ms: [2, 3], bs: [-100, -80, -60], noise: 8, per: "degree Fahrenheit", unitY: "cups", xmin: 55, xmax: 100, xstep: 5, ystep: 20 },
-    { x: "Age of car (years)", y: "Value (thousands of dollars)", xq: "a car is", xu: "years old", yq: "value of the car, in thousands of dollars,", xs: [1, 2, 3, 4, 5, 6, 7, 8, 9], ms: [-2, -3], bs: [30, 32, 34], noise: 2, per: "year of age", unitY: "thousand dollars", xmax: 10, ystep: 5 },
-    { x: "Minutes of practice per day", y: "Free throws made (out of 50)", xq: "a player practices", xu: "minutes per day", yq: "number of free throws made", xs: [5, 10, 15, 20, 25, 30, 35, 40], ms: [1], bs: [5, 8, 10], noise: 3, per: "minute of daily practice", unitY: "free throws", xmax: 45, xstep: 5, ystep: 10 }
+    { x: "Hours studied", y: "Test score", xq: "a student studies", xu: "hours", yq: "test score", xs: [1, 2, 3, 4, 5, 6, 7, 8, 9], ms: [4, 5, 6], bs: [35, 40, 45], noise: 4, per: "hour studied", unitY: "points", unit1: "point", xmax: 10, ystep: 10, cap: 100 },
+    { x: "Temperature (°F)", y: "Cups of lemonade sold", xq: "the temperature is", xu: "°F", yq: "number of cups of lemonade sold", xs: [60, 65, 70, 75, 80, 85, 90, 95], ms: [2, 3], bs: [-100, -80, -60], noise: 8, per: "degree Fahrenheit", unitY: "cups", unit1: "cup", xmin: 55, xmax: 100, xstep: 5, ystep: 20 },
+    { x: "Age of car (years)", y: "Value (thousands of dollars)", xq: "a car is", xu: "years old", yq: "value of the car, in thousands of dollars,", xs: [1, 2, 3, 4, 5, 6, 7, 8, 9], ms: [-2, -3], bs: [30, 32, 34], noise: 2, per: "year of age", unitY: "thousand dollars", unit1: "thousand dollars", xmax: 10, ystep: 5 },
+    { x: "Minutes of practice per day", y: "Free throws made (out of 50)", xq: "a player practices", xu: "minutes per day", yq: "number of free throws made", xs: [5, 10, 15, 20, 25, 30, 35, 40], ms: [1], bs: [5, 8, 10], noise: 3, per: "minute of daily practice", unitY: "free throws", unit1: "free throw", xmax: 45, xstep: 5, ystep: 10, cap: 50 }
   ];
   G.psda_scatter = (r, L) => {
     const c = r.pick(SCATTER), m = r.pick(c.ms), b = r.pick(c.bs);
     const xs = r.sample(c.xs, Math.min(c.xs.length, 8)).sort((p, q) => p - q);
-    const pts = xs.map((x) => { let n; do { n = r.int(-c.noise, c.noise); } while (Math.abs(n) < Math.max(1, c.noise / 3)); return [x, m * x + b + n]; });
+    // Offset each dot from the line by a clear, readable amount relative to the chart's scale.
+    const lineYs = c.xs.map((x) => m * x + b), span = Math.max(...lineYs) - Math.min(...lineYs) + 2 * c.ystep;
+    const gap = Math.max(1, Math.ceil(0.08 * span)), far = Math.max(gap + 1, Math.ceil(0.16 * span));
+    const pts = xs.map((x) => [x, m * x + b + r.sign() * r.int(gap, far)]);
+    if (pts.some(([, y]) => y < 0)) throw { retry: true }; // no negative counts, scores, or values
     const ysAll = pts.map((p) => p[1]).concat(xs.map((x) => m * x + b));
+    if (c.cap && Math.max(...ysAll, ...c.xs.map((x) => m * x + b)) > c.cap) throw { retry: true }; // impossible values for the context
     const ymin = Math.max(0, Math.floor((Math.min(...ysAll) - c.ystep) / c.ystep) * c.ystep), ymax = Math.ceil((Math.max(...ysAll) + c.ystep / 2) / c.ystep) * c.ystep;
+    // Every dot must sit clearly off the line on screen (at least ~6% of the y-range), so the chart can be read.
+    if (pts.some(([x, y]) => Math.abs(y - (m * x + b)) < 0.06 * (ymax - ymin))) throw { retry: true };
     const chart = { type: "scatter", x: { label: c.x, min: c.xmin || 0, max: c.xmax, step: c.xstep || 1 }, y: { label: c.y, min: ymin, max: ymax, step: c.ystep }, points: pts, lines: [{ m, b }] };
-    const intro = `The scatterplot shows the relationship between ${c.x.toLowerCase()} and ${c.y.toLowerCase()} for ${pts.length} data points, along with a line of best fit, y = ${lin(m, b)}.`;
+    const intro = `The scatterplot shows the relationship between ${lc1(c.x)} and ${lc1(c.y)} for ${pts.length} data points, along with a line of best fit, y = ${lin(m, b)}.`;
     if (L === 1) {
       const cand = c.xs.filter((x) => !xs.includes(x) && m * x + b >= ymin && m * x + b <= ymax);
       const x0 = cand.length ? r.pick(cand) : r.pick(xs);
       const ans = m * x0 + b;
       const { o, a } = mc(r, ans, [m * x0, ans + c.noise, ans - c.noise, b], fmtN);
       return { d: "psda", sk: "Scatterplots", chart, p: intro, q: `Based on the line of best fit, what is the predicted ${c.yq} when ${c.xq} ${x0}${c.xu === "°F" ? "°F" : " " + c.xu}?`, o, a, spr: ans,
-        e: `Substitute into the line of best fit: y = ${fmtN(m)}(${x0}) + ${fmtN(b)} = ${fmtN(ans)}.`, t: "\"Predicted\" means use the line, not the nearest dot.", key: `sc1:${c.x}:${m}:${b}:${x0}` };
+        e: `Substitute into the line of best fit: y = ${fmtN(m)}(${x0})${b < 0 ? " " + MINUS + " " + Math.abs(b) : " + " + b} = ${fmtN(ans)}.`, t: "\"Predicted\" means use the line, not the nearest dot.", key: `sc1:${c.x}:${m}:${b}:${x0}` };
     }
     if (L === 2) {
       const up = m > 0, abs = Math.abs(m);
-      const right = `Each additional ${c.per} is associated with ${up ? "an increase" : "a decrease"} of about ${abs} ${c.unitY}.`;
-      const { o, a } = mc(r, right, [`Each additional ${abs} ${c.per.split(" ")[0]}${abs === 1 ? "" : "s"} is associated with ${up ? "an increase" : "a decrease"} of about 1 ${c.unitY.replace(/s$/, "")}.`, `When ${c.x.toLowerCase()} is 0, the predicted value is ${abs}.`, `Every data point ${up ? "increases" : "decreases"} by exactly ${abs} ${c.unitY}.`], String);
+      const u = (n) => (n === 1 ? c.unit1 : c.unitY), dir = up ? "an increase" : "a decrease";
+      const right = `Each additional ${c.per} is associated with ${dir} of about ${abs} ${u(abs)}.`;
+      const swapped = abs !== 1 ? `Each additional ${abs} ${c.per.split(" ")[0]}s is associated with ${dir} of about 1 ${u(1)}.` : `Each additional ${c.per} is associated with ${dir} of about ${abs + 1} ${u(abs + 1)}.`;
+      const { o, a } = mc(r, right, [swapped, `When ${c.x.replace(/\s*\(.*\)/, "").toLowerCase()} is 0, the predicted value is ${abs}.`, `Every data point ${up ? "increases" : "decreases"} by exactly ${abs} ${u(abs)}.`], String);
       return { d: "psda", sk: "Scatterplots", chart, p: intro, q: `Which choice is the best interpretation of the slope of the line of best fit in this context?`, o, a,
         e: `The slope ${fmtN(m)} is the predicted change in y for each 1-unit increase in x. It's an average trend, not an exact rule for every point.`, t: "Slope = change in y per 1 unit of x. The intercept is the value at x = 0.", key: `sc2:${c.x}:${m}:${b}` };
     }
@@ -130,6 +140,7 @@
   G.adv_graph = (r, L) => {
     const h = r.int(-3, 3), k = r.int(-4, 4), A = r.pick([1, -1]);
     const f = (x) => A * (x - h) * (x - h) + k;
+    if (L === 3 && Math.abs(f(0)) > 7) throw { retry: true }; // keep the asked-about intercept on the drawn grid
     const pts = []; for (let x = -7; x <= 7.001; x += 0.25) pts.push([x, f(x)]);
     const chart = { type: "graph", x: { label: "x", min: -7, max: 7, step: 1 }, y: { label: "y", min: -8, max: 8, step: 1 }, curves: [pts], points: [[h, k]] };
     const eq = (aa, hh, kk) => `y = ${aa === -1 ? M : ""}(${xMinus(hh)})²${kk === 0 ? "" : kk > 0 ? " + " + kk : " " + M + " " + Math.abs(kk)}`;
@@ -137,7 +148,7 @@
       const ans = f(0);
       const { o, a } = mc(r, ans, [k, h, -ans, A * h * h], fmtN);
       return { d: "adv", sk: "Quadratic functions", chart, q: "The graph of y = f(x) is shown, with its vertex marked. What is the y-coordinate of the y-intercept of the graph?", o, a, spr: ans,
-        e: `The vertex is (${fmtN(h)}, ${fmtN(k)}) and the parabola opens ${A > 0 ? "up" : "down"}, so f(x) = ${eq(A, h, k).slice(4)}. Then f(0) = ${A === -1 ? M : ""}(${fmtN(-h)})² + ${fmtN(k)} = ${fmtN(ans)}.`, t: "Write the vertex form from the graph, then substitute x = 0.", key: `pg3:${h},${k},${A}` };
+        e: `The vertex is (${fmtN(h)}, ${fmtN(k)}) and the parabola opens ${A > 0 ? "up" : "down"}, so f(x) = ${eq(A, h, k).slice(4)}. Then f(0) = ${A === -1 ? M : ""}(${fmtN(-h)})²${k ? (k < 0 ? " " + M + " " + Math.abs(k) : " + " + k) : ""} = ${fmtN(ans)}.`, t: "Write the vertex form from the graph, then substitute x = 0.", key: `pg3:${h},${k},${A}` };
     }
     const { o, a } = mc(r, eq(A, h, k), [eq(A, -h, k), eq(A, h, -k), eq(-A, h, k), eq(A, -h, -k)], String);
     return { d: "adv", sk: "Quadratic functions", chart, q: "Which equation could define the parabola shown, whose vertex is marked?", o, a,

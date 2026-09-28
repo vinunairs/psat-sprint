@@ -96,7 +96,7 @@
   // Parse a grid-in answer: "3/4", "-2", ".75", "−1.5"
   function parseAnswer(s) {
     if (s == null) return NaN;
-    s = String(s).trim().replace(/−/g, "-").replace(/\s+/g, "");
+    s = String(s).trim().replace(/−/g, "-").replace(/[\s%°$,]/g, ""); // ignore units, commas, and spaces the student may type
     if (!s) return NaN;
     if (/^-?\d+\/\d+$/.test(s)) { const [n, d] = s.split("/").map(Number); return d === 0 ? NaN : n / d; }
     if (/^-?(\d+\.?\d*|\.\d+)$/.test(s)) return Number(s);

@@ -5,6 +5,9 @@
   const { fmtN, frac, poly, lin, eq2, paren, xMinus, mc, gcd, MINUS } = C;
   const M = MINUS;
   const money = (x) => "$" + x.toFixed(2);
+  const sgn = (n) => (n === 0 ? "" : n < 0 ? " " + MINUS + " " + fmtN(Math.abs(n)) : " + " + fmtN(n)); // " + 3", " − 3", or nothing
+  const art = (n, cap) => { const a = /^(8|11|18)(\D|$)/.test(String(n)) || /^8\d/.test(String(n)) ? "an" : "a"; return cap ? a[0].toUpperCase() + a.slice(1) : a; };
+  const ordinal = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th");
 
   const G = {};
 
@@ -15,13 +18,13 @@
       const a = r.int(2, 9), b = r.nz(-15, 20), c = a * x + b;
       const { o, a: ai } = mc(r, x, [(c + b) / a, -x, x + 1, c - b], fmtN);
       return { d: "alg", sk: "Linear equations", q: `If ${lin(a, b)} = ${fmtN(c)}, what is the value of x?`, o, a: ai, spr: x,
-        e: `Subtract ${fmtN(b)} from both sides: ${fmtN(a)}x = ${fmtN(c - b)}. Divide by ${a}: x = ${fmtN(x)}.`, key: `lineq1:${a},${b},${c}` };
+        e: `${b > 0 ? "Subtract " + b : "Add " + Math.abs(b)} ${b > 0 ? "from" : "to"} both sides: ${fmtN(a)}x = ${fmtN(c - b)}. Divide by ${a}: x = ${fmtN(x)}.`, key: `lineq1:${a},${b},${c}` };
     }
     if (L === 2) {
       const a = r.int(4, 11), c2 = r.int(1, a - 2), b = r.nz(-12, 15), d = (a - c2) * x + b;
       const { o, a: ai } = mc(r, x, [(d - b) / (a + c2), -x, (d + b) / (a - c2), x + 2], fmtN);
       return { d: "alg", sk: "Linear equations", q: `${lin(a, b)} = ${lin(c2, d)}\n\nWhat value of x is the solution to the equation above?`, o, a: ai, spr: x,
-        e: `Move the x-terms to one side and constants to the other: ${fmtN(a)}x ${M} ${fmtN(c2)}x = ${fmtN(d)} ${M} ${paren(b)}, so ${poly([[a - c2, 1]])} = ${fmtN(d - b)} and x = ${fmtN(x)}.`,
+        e: `Move the x-terms to one side and constants to the other: ${fmtN(a)}x ${M} ${c2 === 1 ? "" : fmtN(c2)}x = ${fmtN(d)} ${M} ${paren(b)}, so ${poly([[a - c2, 1]])} = ${fmtN(d - b)}${a - c2 === 1 ? "" : " and x = " + fmtN(x)}.`,
         t: "Plug your answer back in to check: both sides should match.", key: `lineq2:${a},${b},${c2},${d}` };
     }
     const p = r.int(2, 6), m = r.nz(-7, 7), rr = r.pick([1, 2, 3, p + 1, p + 2].filter((v) => v !== p)), n = p * x + p * m - rr * x;
@@ -45,7 +48,7 @@
     let e1, e2, how;
     if (L === 1) {
       e1 = [1, 1, x + y]; e2 = [1, -1, x - y];
-      how = `Add the equations to eliminate y: 2x = ${fmtN(2 * x)}, so x = ${fmtN(x)}. Then y = ${fmtN(x + y)} ${M} ${paren(x)} = ${fmtN(y)}.`;
+      how = `Add the equations to eliminate y: 2x = ${fmtN(2 * x)}, so x = ${fmtN(x)}. Then y = ${fmtN(x + y)}${sgn(-x)} = ${fmtN(y)}.`;
     } else {
       let a1, b1, a2, b2;
       do { a1 = r.nz(-4, 5); b1 = r.nz(-4, 5); a2 = r.nz(-4, 5); b2 = r.nz(-4, 5); } while (a1 * b2 - a2 * b1 === 0 || (L === 2 && Math.abs(b1) !== Math.abs(b2) && Math.abs(a1) !== Math.abs(a2)));
@@ -86,7 +89,8 @@
       right: (F, R) => `The plant grows ${R} centimeters each day.`, wrong: (F, R) => [`The plant was ${R} centimeters tall when first measured.`, `The plant will stop growing after ${R} days.`, `The plant doubles in height every ${R} days.`], unit: "days", total: "height" }
   ];
   G.alg_model = (r, L) => {
-    const ctx = r.pick(MODELS), F = r.int(2, 9) * 5, R = r.pick([3, 4, 6, 8, 12, 15, 18, 25]);
+    const ctx = r.pick(MODELS), F = r.int(2, 9) * 5;
+    let R; do { R = r.pick([3, 4, 6, 8, 12, 15, 18, 25]); } while (R === F);
     if (L === 1) {
       const { o, a } = mc(r, ctx.right(F, R), ctx.wrong(F, R), String);
       return { d: "alg", sk: "Linear models", q: `${ctx.setup(F, R)} What is the best interpretation of ${R} in this context?`, o, a,
@@ -126,7 +130,7 @@
     if (L < 3) {
       const m = r.nz(-6, 7), b1 = r.int(-8, 8); let b2; do { b2 = r.int(-8, 8); } while (b2 === b1);
       const { o, a } = mc(r, m, [-m, frac(1, m), b1 === m ? b2 : b1, m + 1], (x) => (typeof x === "string" ? x : fmtN(x)));
-      return { d: "alg", sk: "Systems of equations", q: `y = ${lin(m, b1)}\ny = kx ${b2 < 0 ? M + " " + Math.abs(b2) : "+ " + b2}\n\nIn the system of equations above, k is a constant. For what value of k does the system have no solution?`, o, a, spr: m,
+      return { d: "alg", sk: "Systems of equations", q: `y = ${lin(m, b1)}\ny = kx${b2 < 0 ? " " + M + " " + Math.abs(b2) : b2 > 0 ? " + " + b2 : ""}\n\nIn the system of equations above, k is a constant. For what value of k does the system have no solution?`, o, a, spr: m,
         e: `No solution means the lines are parallel: same slope, different y-intercepts. The intercepts (${fmtN(b1)} and ${fmtN(b2)}) already differ, so k must equal the other slope, ${fmtN(m)}.`,
         t: "No solution = same slope, different intercept. Infinitely many = the same line.", key: `nosol:${m},${b1},${b2}` };
     }
@@ -145,7 +149,7 @@
     const u = m * p + b, v = m * q + b, ans = m * rr + b;
     const { o, a } = mc(r, ans, [m * rr, m, b, (u + v) / 2, ans + m], fmtN);
     return { d: "alg", sk: "Linear functions", q: `For the linear function f, f(${fmtN(p)}) = ${fmtN(u)} and f(${fmtN(q)}) = ${fmtN(v)}. What is the value of f(${fmtN(rr)})?`, o, a, spr: ans,
-      e: `Slope = (${fmtN(v)} ${M} ${paren(u)}) ÷ (${fmtN(q)} ${M} ${paren(p)}) = ${fmtN(m)}. So f(x) = ${lin(m, b)}, and f(${fmtN(rr)}) = ${fmtN(m)}(${fmtN(rr)}) + ${paren(b)} = ${fmtN(ans)}.`,
+      e: `Slope = (${fmtN(v)} ${M} ${paren(u)}) ÷ (${fmtN(q)} ${M} ${paren(p)}) = ${fmtN(m)}. So f(x) = ${lin(m, b)}, and f(${fmtN(rr)}) = ${fmtN(m)}(${fmtN(rr)})${sgn(b)} = ${fmtN(ans)}.`,
       key: `fx:${p},${u},${q},${v},${rr}` };
   };
 
@@ -176,7 +180,7 @@
     const ans = a * n * n + b * n + c;
     const { o, a: ai } = mc(r, ans, [-a * n * n + b * n + c, a * n * n - b * n + c, a * n * 2 + b * n + c, ans + 2], fmtN);
     return { d: "adv", sk: "Nonlinear functions", q: `The function f is defined by f(x) = ${poly([[a, 2], [b, 1], [c, 0]])}. What is the value of f(${fmtN(n)})?`, o, a: ai, spr: ans,
-      e: `f(${fmtN(n)}) = ${fmtN(a)}(${fmtN(n)})² + ${paren(b)}(${fmtN(n)}) + ${paren(c)} = ${fmtN(a * n * n)} + ${paren(b * n)} + ${paren(c)} = ${fmtN(ans)}. Squaring a negative number gives a positive result.`,
+      e: `f(${fmtN(n)}) = ${a === 1 ? "" : a === -1 ? M : fmtN(a)}(${fmtN(n)})²${b ? sgn(b) + "(" + fmtN(n) + ")" : ""}${sgn(c)} = ${fmtN(a * n * n)}${sgn(b * n)}${sgn(c)} = ${fmtN(ans)}. Squaring a negative number gives a positive result.`,
       t: "Use parentheses when substituting negatives, in your head and in Desmos.", key: `eval:${a},${b},${c},${n}` };
   };
 
@@ -213,7 +217,7 @@
     const right = poly([[A2, 2], [B1, 1], [C0, 0]]);
     const { o, a: ai } = mc(r, right, [poly([[A2, 2], [p * b + a, 1], [a * b, 0]]), poly([[A2, 2], [B1, 1], [-C0, 0]]), poly([[A2, 2], [a - b, 1], [C0, 0]]), poly([[A2, 2], [C0, 0]])], String);
     return { d: "adv", sk: "Equivalent expressions", q: `Which expression is equivalent to (${lin(p, a)})(${xMinus(b)})?`, o, a: ai,
-      e: `Multiply every term: ${fmtN(p)}x·x = ${poly([[p, 2]])}, ${fmtN(p)}x·${paren(-b)} = ${poly([[-p * b, 1]])}, ${fmtN(a)}·x = ${poly([[a, 1]])}, and ${fmtN(a)}·${paren(-b)} = ${fmtN(C0)}. Combine: ${right}.`,
+      e: `Multiply every term: ${p === 1 ? "" : fmtN(p)}x·x = ${poly([[p, 2]])}, ${p === 1 ? "" : fmtN(p)}x·${paren(-b)} = ${poly([[-p * b, 1]])}, ${fmtN(a)}·x = ${poly([[a, 1]])}, and ${fmtN(a)}·${paren(-b)} = ${fmtN(C0)}. Combine: ${right}.`,
       t: "Desmos check: graph the original and your answer. Equivalent expressions draw the same graph.", key: `equiv:${p},${a},${b}` };
   };
 
@@ -222,7 +226,7 @@
       const h = r.nz(-6, 6), b = -2 * h, c = r.int(-10, 20), ans = c - h * h;
       const { o, a } = mc(r, ans, [c, h, -h, c + h * h], fmtN);
       return { d: "adv", sk: "Quadratic functions", q: `The function f is defined by f(x) = ${poly([[1, 2], [b, 1], [c, 0]])}. What is the minimum value of f(x)?`, o, a, spr: ans,
-        e: `The vertex is at x = −b/(2a) = ${fmtN(-b)}/2 = ${fmtN(h)}. f(${fmtN(h)}) = ${fmtN(h * h)} + ${paren(b * h)} + ${paren(c)} = ${fmtN(ans)}.`,
+        e: `The vertex is at x = −b/(2a) = ${fmtN(-b)}/2 = ${fmtN(h)}. f(${fmtN(h)}) = ${fmtN(h * h)}${sgn(b * h)}${sgn(c)} = ${fmtN(ans)}.`,
         t: "Desmos: graph it and click the lowest point.", key: `vert3:${b},${c}` };
     }
     const h = r.nz(-7, 7), k = r.nz(-9, 12), up = r.f() < 0.6, A = up ? r.int(1, 3) : -r.int(1, 3), askX = L === 2 && r.f() < 0.5;
@@ -244,7 +248,7 @@
     const right = labels[type];
     const { o, a: ai } = mc(r, right, labels.filter((x) => x !== right), String);
     return { d: "adv", sk: "Quadratic equations", q: `How many distinct real solutions does the equation ${poly([[a, 2], [b, 1], [c, 0]])} = 0 have?`, o, a: ai,
-      e: `The discriminant b² − 4ac = ${paren(b)}² − 4(${a})(${paren(c)}) = ${fmtN(D)}. ${D > 0 ? "Positive means two real solutions." : D === 0 ? "Zero means exactly one real solution." : "Negative means no real solutions."}`,
+      e: `The discriminant b² − 4ac = (${fmtN(b)})² − 4(${a})(${fmtN(c)}) = ${fmtN(D)}. ${D > 0 ? "Positive means two real solutions." : D === 0 ? "Zero means exactly one real solution." : "Negative means no real solutions."}`,
       t: "Desmos: graph y = the expression and count how many times it touches the x-axis.", key: `disc:${a},${b},${c}` };
   };
 
@@ -258,7 +262,7 @@
   };
 
   G.adv_radical = (r, L) => {
-    const bb = r.int(2, 9), a = r.int(-10, 12), ans = bb * bb - a;
+    const bb = r.int(2, 9), a = r.nz(-10, 12), ans = bb * bb - a;
     const { o, a: ai } = mc(r, ans, [bb - a, bb * bb + a, 2 * bb - a, ans + 1], fmtN);
     return { d: "adv", sk: "Radical equations", q: `√(${lin(1, a)}) = ${bb}\n\nWhat is the solution to the equation above?`, o, a: ai, spr: ans,
       e: `Square both sides: ${lin(1, a)} = ${bb * bb}. So x = ${bb * bb} ${M} ${paren(a)} = ${fmtN(ans)}. Check: √(${fmtN(ans + a)}) = ${bb}.`, key: `rad:${a},${bb}` };
@@ -267,9 +271,13 @@
   /* ============ PROBLEM-SOLVING & DATA ANALYSIS ============ */
   G.psda_discount = (r, L) => {
     const P = r.int(8, 40) * 5, d = r.pick([10, 15, 20, 25, 30, 40]), t = r.pick([5, 6, 7, 8]);
-    const ans = Math.round(P * (1 - d / 100) * (1 + t / 100) * 100) / 100;
-    const { o, a } = mc(r, ans, [Math.round(P * (1 - d / 100 + t / 100) * 100) / 100, P * (1 - d / 100), Math.round(P * (1 - d / 100) * (1 - t / 100) * 100) / 100, P - d + t], money);
-    return { d: "psda", sk: "Percentages", q: `A jacket regularly priced at $${P} is on sale for ${d}% off. A ${t}% sales tax is then applied to the sale price. What is the total cost of the jacket?`, o, a,
+    // Work in exact cents; retry if the true total isn't a whole number of cents.
+    const exact = P * (100 - d) * (100 + t); // in 1/100 of a cent
+    if (exact % 100 !== 0) throw { retry: true };
+    const ans = exact / 10000;
+    const cents = (x) => Math.round(x * 100) / 100;
+    const { o, a } = mc(r, ans, [cents((P * (100 - d + t)) / 100), (P * (100 - d)) / 100, cents((P * (100 - d) * (100 - t)) / 10000), P - d + t], money);
+    return { d: "psda", sk: "Percentages", q: `A jacket regularly priced at $${P} is on sale for ${d}% off. ${art(t, true)} ${t}% sales tax is then applied to the sale price. What is the total cost of the jacket?`, o, a,
       e: `Sale price: ${P} × ${(1 - d / 100).toFixed(2)} = ${money(P * (1 - d / 100))}. With tax: × ${(1 + t / 100).toFixed(2)} = ${money(ans)}.`,
       t: "Percent off: multiply by (1 − rate). Percent added: multiply by (1 + rate).", key: `disc:${P},${d},${t}` };
   };
@@ -278,16 +286,18 @@
     if (L === 3) {
       const p1 = r.pick([10, 20, 25, 50]), p2 = r.pick([10, 20, 25, 40]);
       const net = Math.round(((1 + p1 / 100) * (1 - p2 / 100) - 1) * 10000) / 100;
-      const desc = (x) => (x === 0 ? "No change" : `A ${Math.abs(x)}% ${x > 0 ? "increase" : "decrease"}`);
+      const desc = (x) => (x === 0 ? "No change" : `${art(Math.abs(x), true)} ${Math.abs(x)}% ${x > 0 ? "increase" : "decrease"}`);
       const { o, a } = mc(r, desc(net), [desc(p1 - p2), desc(-net === 0 ? p2 : -net), desc(p1 + p2 === 0 ? 5 : Math.round((p1 - p2) / 2))], String);
       return { d: "psda", sk: "Percentages", q: `The price of a stock rose by ${p1}% on Monday and then fell by ${p2}% on Tuesday. Which describes the total change in price from the start of Monday to the end of Tuesday?`, o, a,
-        e: `Multiply the factors: ${(1 + p1 / 100).toFixed(2)} × ${(1 - p2 / 100).toFixed(2)} = ${((1 + p1 / 100) * (1 - p2 / 100)).toFixed(4).replace(/0+$/, "")}. That's ${desc(net).toLowerCase()} overall. You can't just add the percents.`,
+        e: `Multiply the factors: ${(1 + p1 / 100).toFixed(2)} × ${(1 - p2 / 100).toFixed(2)} = ${((1 + p1 / 100) * (1 - p2 / 100)).toFixed(4).replace(/\.?0+$/, "")}. That's ${desc(net).toLowerCase()} overall. You can't just add the percents.`,
         t: "Successive percent changes multiply; they don't add.", key: `pc3:${p1},${p2}` };
     }
     let A, p, B;
     do { A = r.pick([20, 25, 40, 50, 60, 80, 120, 150, 200, 250, 400]); p = r.pick([10, 12, 15, 20, 25, 30, 35, 40, 60, 75]); B = (A * (100 + p)) / 100; } while (!Number.isInteger(B));
     const down = L === 2 && r.f() < 0.5;
-    const from = down ? B : A, to = down ? A : B, ans = Math.round((Math.abs(to - from) / from) * 10000) / 100;
+    const from = down ? B : A, to = down ? A : B;
+    if ((Math.abs(to - from) * 10000) % from !== 0) throw { retry: true }; // exact to 2 decimal places
+    const ans = (Math.abs(to - from) * 100) / from;
     const { o, a } = mc(r, ans, [Math.round((Math.abs(to - from) / to) * 10000) / 100, Math.abs(to - from), Math.round((to / from) * 10000) / 100], (x) => fmtN(x) + "%");
     return { d: "psda", sk: "Percentages", q: `The number of members in a club ${down ? "decreased" : "increased"} from ${from} to ${to}. By what percent did the number of members ${down ? "decrease" : "increase"}?`, o, a, spr: ans,
       e: `Percent change = change ÷ original = ${Math.abs(to - from)} ÷ ${from} = ${fmtN(ans / 100)}, or ${fmtN(ans)}%.`,
@@ -296,7 +306,7 @@
 
   G.psda_mean = (r, L) => {
     const n = L === 1 ? 4 : r.int(5, 7), target = r.int(76, 92);
-    const vals = Array.from({ length: n - 1 }, () => r.int(target - 12, target + 10));
+    const vals = Array.from({ length: n - 1 }, () => r.int(target - 12, Math.min(100, target + 10)));
     const ans = target * n - vals.reduce((s, v) => s + v, 0);
     if (ans < 40 || ans > 100) return G.psda_mean(r, L);
     const { o, a } = mc(r, ans, [target, Math.round(vals.reduce((s, v) => s + v, 0) / (n - 1)), ans + n, target * (n - 1) - vals.reduce((s, v) => s + v, 0) + target], fmtN);
@@ -315,7 +325,7 @@
     const unsortedMid = n % 2 ? vals[(n - 1) / 2] : (vals[n / 2 - 1] + vals[n / 2]) / 2;
     const { o, a } = mc(r, med, [mean, unsortedMid, sorted[Math.floor(n / 2)], med + 1], fmtN);
     return { d: "psda", sk: "Statistics", q: `What is the median of the data set below?\n\n${vals.join(", ")}`, o, a, spr: med,
-      e: `First put the values in order: ${sorted.join(", ")}. ${n % 2 ? `The middle (${(n + 1) / 2}th) value is ${fmtN(med)}.` : `With ${n} values, the median is the mean of the two middle values: (${sorted[n / 2 - 1]} + ${sorted[n / 2]}) ÷ 2 = ${fmtN(med)}.`}`,
+      e: `First put the values in order: ${sorted.join(", ")}. ${n % 2 ? `The middle (${ordinal((n + 1) / 2)}) value is ${fmtN(med)}.` : `With ${n} values, the median is the mean of the two middle values: (${sorted[n / 2 - 1]} + ${sorted[n / 2]}) ÷ 2 = ${fmtN(med)}.`}`,
       t: "Sort first. The median of an unsorted list is a classic trap.", key: `med:${vals}` };
   };
 
@@ -330,8 +340,8 @@
     }
     const T = r.pick([1, 3, 3.5, 5, 6].filter((v) => v !== t)), ans = sp * T;
     const { o, a } = mc(r, ans, [d * T, (d / T) * t, ans + sp, d + T], fmtN);
-    return { d: "psda", sk: "Rates and units", q: `A car travels ${d} miles in ${t} hours. At the same rate, how many miles will it travel in ${T} hours?`, o, a, spr: ans,
-      e: `Rate = ${d} ÷ ${t} = ${sp} miles per hour. In ${T} hours: ${sp} × ${T} = ${fmtN(ans)} miles.`, key: `rate:${d},${t},${T}` };
+    return { d: "psda", sk: "Rates and units", q: `A car travels ${d} miles in ${t} hours. At the same rate, how many miles will it travel in ${T} ${T === 1 ? "hour" : "hours"}?`, o, a, spr: ans,
+      e: `Rate = ${d} ÷ ${t} = ${sp} miles per hour. In ${T} ${T === 1 ? "hour" : "hours"}: ${sp} × ${T} = ${fmtN(ans)} miles.`, key: `rate:${d},${t},${T}` };
   };
 
   G.psda_prob = (r, L) => {
@@ -339,7 +349,7 @@
       const R = r.int(2, 9), B = r.int(2, 9), Gg = r.int(2, 9), tot = R + B + Gg;
       const { o, a } = mc(r, frac(R + Gg, tot), [frac(B, tot), frac(R, tot), frac(R + Gg, B), frac(Gg, tot)], String);
       return { d: "psda", sk: "Probability", q: `A bag contains ${R} red, ${B} blue, and ${Gg} green marbles. If one marble is chosen at random, what is the probability that it is NOT blue?`, o, a,
-        e: `There are ${tot} marbles and ${R + Gg} are not blue. Probability = ${R + Gg}/${tot} = ${frac(R + Gg, tot)}.`, key: `prob1:${R},${B},${Gg}` };
+        e: `There are ${tot} marbles and ${R + Gg} are not blue. Probability = ${R + Gg}/${tot}${frac(R + Gg, tot) === (R + Gg) + "/" + tot ? "" : " = " + frac(R + Gg, tot)}.`, key: `prob1:${R},${B},${Gg}` };
     }
     const g10y = r.int(8, 40), g10n = r.int(8, 40), g11y = r.int(8, 40), g11n = r.int(8, 40);
     const rowG = r.pick(["10", "11"]), yes = rowG === "10" ? g10y : g11y, rowT = rowG === "10" ? g10y + g10n : g11y + g11n, colT = g10y + g11y, all = g10y + g10n + g11y + g11n;
@@ -374,7 +384,7 @@
     const { o, a } = mc(r, ans, askLeg ? [H - A, H + A, Math.round(Math.sqrt(H * H + A * A) * 100) / 100] : [A + B, A * A + B * B, H + k], fmtN);
     return { d: "geo", sk: "Right triangles", q: askLeg ? `A right triangle has a hypotenuse of length ${H} and one leg of length ${A}. What is the length of the other leg?` : `A right triangle has legs of length ${A} and ${B}. What is the length of the hypotenuse?`, o, a, spr: ans,
       e: askLeg ? `${A}² + b² = ${H}², so b² = ${H * H} − ${A * A} = ${B * B} and b = ${B}.` : `${A}² + ${B}² = ${A * A} + ${B * B} = ${H * H}, and √${H * H} = ${H}.`,
-      t: `Spot Pythagorean triples: ${p}-${q}-${h} (here multiplied by ${k}).`, key: `pyth:${A},${B},${askLeg}` };
+      t: `Spot Pythagorean triples: ${p}-${q}-${h}${k > 1 ? " (here multiplied by " + k + ")" : ""}.`, key: `pyth:${A},${B},${askLeg}` };
   };
 
   G.geo_trig = (r, L) => {
@@ -399,8 +409,8 @@
     if (L === 3) {
       const D = -2 * h, E = -2 * k, F = h * h + k * k - rad * rad;
       const { o, a } = mc(r, rad, [rad * rad, Math.abs(F), h * h + k * k, rad * 2], fmtN);
-      return { d: "geo", sk: "Circles", q: `x² + y² ${D < 0 ? M : "+"} ${Math.abs(D)}x ${E < 0 ? M : "+"} ${Math.abs(E)}y ${F < 0 ? M : "+"} ${Math.abs(F)} = 0\n\nWhat is the radius of the circle defined by the equation above?`, o, a, spr: rad,
-        e: `Complete the square: (x ${h > 0 ? M : "+"} ${Math.abs(h)})² + (y ${k > 0 ? M : "+"} ${Math.abs(k)})² = ${h * h} + ${k * k} ${F < 0 ? "+ " + Math.abs(F) : M + " " + F} = ${rad * rad}. The radius is √${rad * rad} = ${rad}.`,
+      return { d: "geo", sk: "Circles", q: `x² + y² ${D < 0 ? M : "+"} ${Math.abs(D)}x ${E < 0 ? M : "+"} ${Math.abs(E)}y${F ? (F < 0 ? " " + M + " " : " + ") + Math.abs(F) : ""} = 0\n\nWhat is the radius of the circle defined by the equation above?`, o, a, spr: rad,
+        e: `Complete the square: (x ${h > 0 ? M : "+"} ${Math.abs(h)})² + (y ${k > 0 ? M : "+"} ${Math.abs(k)})² = ${h * h} + ${k * k}${sgn(-F)} = ${rad * rad}. The radius is √${rad * rad} = ${rad}.`,
         t: "Complete the square: half the x-coefficient, squared, gets added to both sides.", key: `circ3:${h},${k},${rad}` };
     }
     const c = (hh, kk, rr) => `Center (${fmtN(hh)}, ${fmtN(kk)}), radius ${rr}`;
