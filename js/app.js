@@ -27,13 +27,13 @@
 
   const PLAN_TEMPLATE = [
     { title: "Baseline, part 1", tasks: ["Install the Bluebook app and sign in with your College Board account", "Download {TEST} Practice Test 1 in Bluebook", "Take the Reading and Writing section in Bluebook, timed (64 min, both modules)", "Warm up here: a 10-question practice set"] },
-    { title: "Baseline, part 2", tasks: ["Take the Math section of Bluebook Practice Test 1, timed (70 min)", "Open the score report and count misses in each skill domain", "Enter the results in the Log Bluebook test tab"] },
+    { title: "Baseline, part 2", tasks: ["Take the Math section of Bluebook Practice Test 1, timed (70 min)", "Open your scores at mypractice.collegeboard.org and count misses in each skill domain", "Enter the results in the Log a test tab (it shows exactly where to find each number)"] },
     { title: "Fix the biggest leak", tasks: ["Read the explanation for every missed question in Bluebook", "Practice 20 questions on the #1 skill in the Skill matrix Focus list", "Retry the Mistake notebook"] },
     { title: "Grammar rules day", tasks: ["Practice 20 Standard English Conventions questions", "Learn the punctuation rules: period or semicolon between full sentences, colon before a list or explanation, commas in pairs around extra info, no comma between subject and verb", "Spend 20 minutes with Desmos: graph a line, find an intersection, find a vertex"] },
-    { title: "Math under the clock", tasks: ["Take an in-app mock: Math section only, timed", "Review every miss in the results", "Practice 10 questions on the #2 Focus skill"] },
-    { title: "Dress rehearsal", tasks: ["Take Bluebook {TEST} Practice Test 2 in one sitting, starting at the same time as the real test", "Take only the scheduled 10-minute break", "Enter the results in the Log Bluebook test tab"] },
+    { title: "Math under the clock", tasks: ["Take a timed Math section: an in-app mock, or a Khan Academy practice test Math section", "Review every miss (Khan Academy results: log them in the Log a test tab)", "Practice 10 questions on the #2 Focus skill"] },
+    { title: "Dress rehearsal", tasks: ["Take Bluebook {TEST} Practice Test 2 in one sitting, starting at the same time as the real test", "Take only the scheduled 10-minute break", "Enter the results in the Log a test tab"] },
     { title: "Review the rehearsal", tasks: ["Review every miss from Practice Test 2", "Compare the Skill matrix with Test 1 and note what improved", "Practice 20 questions on the lowest skill"] },
-    { title: "Reading under the clock", tasks: ["Take an in-app mock: Reading and Writing section only, timed", "Review every miss in the results", "Retry the Mistake notebook"] },
+    { title: "Reading under the clock", tasks: ["Take a timed Reading and Writing section: an in-app mock, or a Khan Academy practice test section (log it in Log a test)", "Review every miss in the results", "Retry the Mistake notebook"] },
     { title: "Light review", tasks: ["Flip through your strategy cards and read your night-before sheet (Review tab)", "One 10-question mixed practice set, nothing more", "Charge the device, update Bluebook, and run its exam readiness check", "Pack what the school asks for: device, charger, admission info", "Lights out by 10 pm"] },
     { title: "Test day", tasks: ["Eat a real breakfast", "Take care on Module 1: it decides whether Module 2 is the harder set", "Never leave a question blank; wrong answers cost nothing", "Use Desmos and the reference sheet to check math answers"] }
   ];
@@ -51,8 +51,8 @@
     { id: "first", s: "1st", name: "First Rep", how: "Finish your first practice set" },
     { id: "mock1", s: "M1", name: "Mock Debut", how: "Finish a mock test section" },
     { id: "mockfull", s: "Full", name: "Full Distance", how: "Finish a full mock test (both sections)" },
-    { id: "baseline", s: "BB", name: "Baseline Set", how: "Log a Bluebook practice test" },
-    { id: "rehearsal", s: "BB2", name: "Dress Rehearsal", how: "Log a second Bluebook test" },
+    { id: "baseline", s: "BB", name: "Baseline Set", how: "Log a Bluebook or Khan Academy practice test" },
+    { id: "rehearsal", s: "BB2", name: "Dress Rehearsal", how: "Log a second full Bluebook test" },
     { id: "hardroute", s: "M2+", name: "Harder Module", how: "Reach the harder Module 2 in a mock" },
     { id: "streak3", s: "3d", name: "Three-Day Streak", how: "Practice 3 days in a row" },
     { id: "streak5", s: "5d", name: "Five-Day Streak", how: "Practice 5 days in a row" },
@@ -68,6 +68,9 @@
   ];
   const LEVELS = ["Warm-Up", "Test Taker", "Module Master", "Adaptive Ace", "Score Climber", "Top Percentile", "Legend"];
   const XP_PER_LEVEL = 250;
+  const OFFICIAL_SRC = ["bluebook", "khan", "other"]; // practice tests taken outside this app and logged here
+  const srcLabel = (t) => ({ app: "estimated", khan: "Khan Academy · estimated", other: "estimated", official: "official", bluebook: "Bluebook" }[t.source] || "");
+  const isEst = (t) => t && (t.source === "app" || t.source === "khan" || t.source === "other");
 
   /* ================= My tests: several PSAT/SAT dates ================= */
   // settings.exams holds every test the student plans to take. The next upcoming one is the "active" test;
@@ -274,7 +277,7 @@
     lab.append(weeks ? "weeks" : n > 1 ? "days" : n === 1 ? "day" : n === 0 ? "today" : "done", el("em", { text: n > 0 ? "to test day" : n === 0 ? "test day, good luck" : "test complete" }));
     const s = liveStreak(); $("#hStreak").textContent = s + (s === 1 ? " day" : " days");
     const t = S.tests.filter((x) => x.total).pop();
-    $("#hScore").textContent = (t && t.total ? t.total + (t.source === "app" ? " est." : "") : "—") + (S.settings.target ? " / goal " + S.settings.target : "");
+    $("#hScore").textContent = (t && t.total ? t.total + (isEst(t) ? " est." : "") : "—") + (S.settings.target ? " / goal " + S.settings.target : "");
     const l = level(); $("#hLevel").textContent = "Level " + l + " · " + levelName(l);
     $("#hXpBar").style.width = ((S.xp % XP_PER_LEVEL) / XP_PER_LEVEL) * 100 + "%";
     $("#hXp").textContent = S.xp + " XP · " + (XP_PER_LEVEL - (S.xp % XP_PER_LEVEL)) + " to next level";
@@ -331,9 +334,9 @@
   /* ================= Long-range plan ================= */
   const SPRINT_DAYS = 9; // switch to the day-by-day plan when the test is this close
   const PHASES = {
-    foundations: { name: "Foundations", what: "Diagnostic mock, then practice all 8 skills" },
-    build: { name: "Build", what: "Focus on the weakest skills, one mock section a week" },
-    ready: { name: "Test-ready", what: "A full mock every week, timed practice" },
+    foundations: { name: "Foundations", what: "A full Bluebook diagnostic, then practice all 8 skills" },
+    build: { name: "Build", what: "Weakest skills first, a mock section weekly, a Bluebook or Khan Academy test every other week" },
+    ready: { name: "Test-ready", what: "A full Bluebook practice test every week, timed practice" },
     sprint: { name: "Final sprint", what: "Day-by-day plan with two dress rehearsals" }
   };
   function addDays(str, n) { const d = parseYmd(str); d.setDate(d.getDate() + n); return ymd(d); }
@@ -342,7 +345,7 @@
   function logActivity(d, ok) { const a = dayOf(); a.q++; if (ok) a.c++; const x = a.dom[d] || (a.dom[d] = [0, 0]); x[0]++; if (ok) x[1]++; }
   function logMock(sections) { dayOf().mock += sections; }
   function weekTotals(ws) {
-    const t = { q: 0, c: 0, dom: {}, mock: 0, days: 0 };
+    const t = { ws, q: 0, c: 0, dom: {}, mock: 0, days: 0 };
     for (let i = 0; i < 7; i++) {
       const a = S.activity[addDays(ws, i)]; if (!a) continue;
       if (a.q || a.mock) t.days++;
@@ -365,10 +368,10 @@
     const hasData = S.tests.length > 0 || S.answered >= 20;
     const goals = [];
     if (!hasData) {
-      goals.push({ id: "mock", type: "mock", target: 2, label: "Take a full diagnostic mock test (here or in Bluebook)" });
+      goals.push({ id: "official", type: "official", orMock: true, target: 1, label: "Take a full Bluebook practice test and log it (or a full mock here)" });
       goals.push({ id: "q", type: "q", target: 40, label: "Answer 40 practice questions" });
       goals.push({ id: "cover", type: "cover", min: 1, target: 8, label: "Try all 8 skills at least once" });
-      return { phase: "foundations", diagnostic: true, goals };
+      return { phase: "foundations", diagnostic: true, goals, v: 2 };
     }
     const qT = ph === "foundations" ? 60 : ph === "build" ? 80 : 100, per = ph === "ready" ? 25 : 20;
     goals.push({ id: "q", type: "q", target: qT, label: "Answer " + qT + " practice questions" });
@@ -381,13 +384,17 @@
       goals.push({ id: "acc-" + d.id, type: "acc", d: d.id, target: acc, label: acc + "% accuracy on " + d.name });
     }
     goals.push(ph === "ready" ? { id: "mock", type: "mock", target: 2, label: "Take a full mock test (here or in Bluebook)" } : { id: "mock", type: "mock", target: 1, label: "Take one mock test section" });
+    // Official practice tests: every week when test-ready, every other week while building.
+    const wkNo = Math.round((parseYmd(ws) - parseYmd(weekStart(S.planStart || today()))) / (7 * 864e5));
+    if (ph === "ready") goals.push({ id: "official", type: "official", target: 1, label: "Take a full Bluebook practice test and log it" });
+    else if (ph === "build" && wkNo % 2 === 0) goals.push({ id: "official", type: "official", target: 1, label: "Take a Bluebook or Khan Academy practice test (a full test or one section) and log it" });
     const nb = ph === "ready" ? 5 : 10;
     goals.push({ id: "nb", type: "notebook", target: nb, label: "Get the Mistake notebook down to " + nb + " or fewer" });
-    return { phase: ph, goals };
+    return { phase: ph, goals, v: 2 };
   }
   function currentWeek() {
     const ws = weekStart(today());
-    if (!S.weeks[ws]) S.weeks[ws] = makeWeekGoals(ws);
+    if (!S.weeks[ws] || ((S.weeks[ws].v || 1) < 2 && !S.weeks[ws].won)) S.weeks[ws] = makeWeekGoals(ws); // v2 adds official-test goals
     return { ws, w: S.weeks[ws] };
   }
   // Returns [done, target, note]
@@ -401,6 +408,11 @@
       if (!x || x[0] < 10) return [0, 1, (x ? x[0] : 0) + " of 10 answers needed"];
       const a = Math.round((x[1] / x[0]) * 100);
       return [a >= g.target ? 1 : a / g.target, 1, a + "% this week"];
+    }
+    if (g.type === "official") {
+      const end = addDays(tot.ws, 7), inWk = (t) => t.date >= tot.ws && t.date < end;
+      const n = S.tests.filter((t) => inWk(t) && (OFFICIAL_SRC.includes(t.source) || (g.orMock && t.source === "app" && t.total))).length;
+      return [n, g.target, n ? "logged" : "not yet"];
     }
     if (g.type === "notebook") { const n = S.mistakes.length; return [n <= g.target ? 1 : g.target / n, 1, n + " in the notebook"]; }
     return [0, 1];
@@ -432,6 +444,7 @@
     if (mode === "sprint") renderSprint(p, t);
     else if (mode === "after") renderAfter(p);
     else renderLongPlan(p, mode);
+    p.append(officialCard());
     p.append(myTestsCard());
     p.append(el("div", { class: "card row between", style: "padding:14px 18px" },
       el("span", {}, el("strong", { text: "Reminders on your phone" }), el("span", { class: "muted", text: mode === "sprint" ? " · a nudge each evening with the skill to work on" : " · an evening nudge with this week's goals, plus a Sunday check-in" })),
@@ -522,7 +535,7 @@
     if (!tg) return el("p", { class: "muted", style: "font-size:14px" }, "No target score yet. ", el("button", { class: "btn small ghost", onclick: () => examsPop() }, "Set a target score"));
     if (!lt) return el("p", { style: "font-size:14px" }, el("strong", { text: "Target " + tg }), el("span", { class: "muted", text: " · take a mock test to see how far you are from it" }));
     const gap = tg - lt.total;
-    return el("p", { style: "font-size:14px" }, el("strong", { text: "Target " + tg }), el("span", { class: "muted", text: " · latest " + lt.total + (lt.source === "app" ? " (estimated)" : "") + " · " }), gap > 0 ? el("strong", { text: gap + " to go" }) : el("strong", { style: "color:var(--good)", text: "target reached" }));
+    return el("p", { style: "font-size:14px" }, el("strong", { text: "Target " + tg }), el("span", { class: "muted", text: " · latest " + lt.total + (isEst(lt) ? " (estimated)" : "") + " · " }), gap > 0 ? el("strong", { text: gap + " to go" }) : el("strong", { style: "color:var(--good)", text: "target reached" }));
   }
 
   function renderLongPlan(p, mode) {
@@ -581,6 +594,15 @@
       el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => examsPop(true) }, "Add my next test"), el("button", { class: "btn", onclick: () => show("practice") }, "Keep practicing"))));
   }
 
+  function officialCard() {
+    const off = S.tests.filter((t) => OFFICIAL_SRC.includes(t.source)), bb = off.filter((t) => t.source === "bluebook"), kh = off.filter((t) => t.source === "khan");
+    const last = off[off.length - 1];
+    const link = (href, text) => el("a", { href, target: "_blank", rel: "noopener" }, text);
+    return el("div", { class: "card", style: "display:grid;gap:10px" },
+      el("div", { class: "row between" }, el("h3", { text: "Official practice tests" }), el("button", { class: "btn small primary", onclick: () => show("log") }, "Log a test")),
+      el("p", { style: "font-size:15px" }, "Logged so far: ", el("strong", { text: bb.length + " Bluebook" }), ", ", el("strong", { text: kh.length + " Khan Academy" }), (last ? " · last: " + last.name + ", " + fmtDay(last.date).md + (last.total ? " (" + last.total + (isEst(last) ? " est." : "") + ")" : "") : "") + "."),
+      el("p", { class: "muted", style: "font-size:13px" }, "Take full tests in ", link(LINKS.bluebook, "Bluebook"), " (the real test app, with official scoring) and extra practice sections on ", link(LINKS.khanPsat, "Khan Academy"), ". Log each one here; the Log a test tab shows where to find every number."));
+  }
   const CB_DATES = { psat: "https://satsuite.collegeboard.org/psat-nmsqt", sat: "https://satsuite.collegeboard.org/sat/dates-deadlines" };
   const examLabel = (e) => FORMATS[e.kind].name + " · " + fmtDay(e.date).dow + " " + fmtDay(e.date).md + ", " + parseYmd(e.date).getFullYear();
   function daysTo(dateStr) { const n = new Date(); return Math.round((parseYmd(dateStr) - new Date(n.getFullYear(), n.getMonth(), n.getDate())) / 864e5); }
@@ -1304,17 +1326,17 @@
   /* ================= Skill matrix ================= */
   function renderMatrix() {
     const p = $("#p-matrix"); p.textContent = "";
-    p.append(el("div", {}, el("h2", { text: "Skill matrix" }), el("p", { class: "muted lede", text: "Mastery blends the most recent test (60%) with practice accuracy (40%). Tests include Bluebook tests you log and mock tests taken here. Practice accuracy counts once a skill has at least 3 answers. Strong is 80% or better, Building is 60–79%, Focus is below 60%." })));
+    p.append(el("div", {}, el("h2", { text: "Skill matrix" }), el("p", { class: "muted lede", text: "Mastery blends the most recent test (60%) with practice accuracy (40%). Tests include Bluebook and Khan Academy tests you log and mock tests taken here. Practice accuracy counts once a skill has at least 3 answers. Strong is 80% or better, Building is 60–79%, Focus is below 60%." })));
     const tiles = el("div", { class: "tiles" });
     const scored = S.tests.filter((t) => t.total || t.rw || t.math);
     const last = scored[scored.length - 1], first = scored[0];
     if (last) {
-      if (last.total) tiles.append(tile("Latest total", last.total, (last.source === "app" ? "estimated · " : "") + last.name));
-      if (last.rw) tiles.append(tile("Reading and Writing", last.rw, last.source === "app" ? "estimated" : last.source === "official" ? "official" : "Bluebook"));
-      if (last.math) tiles.append(tile("Math", last.math, last.source === "app" ? "estimated" : last.source === "official" ? "official" : "Bluebook"));
+      if (last.total) tiles.append(tile("Latest total", last.total, (isEst(last) ? "estimated · " : "") + last.name));
+      if (last.rw) tiles.append(tile("Reading and Writing", last.rw, srcLabel(last)));
+      if (last.math) tiles.append(tile("Math", last.math, srcLabel(last)));
       const withTot = scored.filter((t) => t.total);
       if (withTot.length > 1) { const dl = withTot[withTot.length - 1].total - withTot[0].total; tiles.append(tile("Change since first test", (dl >= 0 ? "+" : "") + dl, "points", dl >= 0 ? "up" : "down")); }
-    } else tiles.append(el("div", { class: "tile", style: "grid-column:1/-1" }, el("strong", { text: "No test yet" }), el("span", { class: "muted", text: "Log a Bluebook test or take a mock test here to fill in scores." })));
+    } else tiles.append(el("div", { class: "tile", style: "grid-column:1/-1" }, el("strong", { text: "No test yet" }), el("span", { class: "muted", text: "Log a Bluebook or Khan Academy test, or take a mock test here, to fill in scores." })));
     const ans = DOMAINS.reduce((s, d) => s + (S.stats[d.id]?.att || 0), 0), cor = DOMAINS.reduce((s, d) => s + (S.stats[d.id]?.cor || 0), 0);
     tiles.append(tile("Practice accuracy", ans ? pct(cor / ans) : "—", ans + " answered"));
     if (S.settings.target) { const lt = latestTotal(); const gap = lt ? S.settings.target - lt.total : null; tiles.append(tile("Target score", S.settings.target, lt ? (gap > 0 ? gap + " points to go" : "reached") : "take a test to compare", lt && gap <= 0 ? "up" : "")); }
@@ -1340,41 +1362,123 @@
     if (S.tests.length) {
       const h = el("div", { class: "card", style: "display:grid;gap:10px" }, el("h3", { text: "Test history" }));
       S.tests.slice().reverse().forEach((x) => h.append(el("div", { class: "row between", style: "border-bottom:1px solid var(--line);padding-bottom:8px" },
-        el("span", {}, el("strong", { text: x.name }), el("span", { class: "muted", text: " · " + fmtDay(x.date).md + (x.source === "app" ? " · estimated" : "") })),
+        el("span", {}, el("strong", { text: x.name }), el("span", { class: "muted", text: " · " + fmtDay(x.date).md + (isEst(x) ? " · estimated" : "") })),
         el("span", { class: "num", text: [x.rw ? "RW " + x.rw : "", x.math ? "Math " + x.math : "", x.total ? "Total " + x.total : ""].filter(Boolean).join(" · ") }),
         el("button", { class: "btn small ghost", onclick: () => { S.tests = S.tests.filter((y) => y.id !== x.id); save(); render(); toast("Removed " + x.name); } }, "Remove"))));
       p.append(h);
     }
   }
 
-  /* ================= Log a Bluebook test ================= */
+  /* ================= Log a practice test (Bluebook, Khan Academy, other) ================= */
+  const LINKS = { mypractice: "https://mypractice.collegeboard.org/", bluebook: "https://satsuite.collegeboard.org/practice/practice-tests/bluebook", khan: "https://www.khanacademy.org/digital-sat", khanPsat: "https://www.khanacademy.org/test-prep/dpsat-practice-test-01-22" };
+  let LOGSRC = "bluebook";
   function renderLog() {
     const p = $("#p-log"); p.textContent = "";
-    const bb = S.tests.filter((t) => t.source === "bluebook").length + 1;
-    const kindSel = el("select", { id: "tKind" }, el("option", { value: "psat", text: "PSAT/NMSQT (160–760 per section)" }), el("option", { value: "sat", text: "SAT (200–800 per section)" }));
-    kindSel.value = S.settings.kind;
-    const nameIn = el("input", { type: "text", id: "tName", value: "Bluebook Practice Test " + bb, maxlength: "60" });
+    const link = (href, text) => el("a", { href, target: "_blank", rel: "noopener" }, text);
+    const n = (src) => S.tests.filter((t) => t.source === src).length + 1;
+    p.append(el("div", {}, el("h2", { text: "Log a practice test" }), el("p", { class: "muted lede", text: "Took a practice test in Bluebook or on Khan Academy? Enter the results here. They feed your Skill matrix, Focus list, weekly goals and score trend, and each logged test is worth 100 XP." })));
+    const seg = el("div", { class: "srcpick", role: "group", "aria-label": "Where you took the test" });
+    [["bluebook", "Bluebook (official)"], ["khan", "Khan Academy"], ["other", "Other"]].forEach(([id, lab]) => seg.append(el("button", { type: "button", class: "btn small" + (LOGSRC === id ? " primary" : ""), "aria-pressed": String(LOGSRC === id), onclick: () => { LOGSRC = id; renderLog(); } }, lab)));
+    p.append(seg);
+    const src = LOGSRC, kind0 = S.settings.kind;
+    // Where to find each number
+    const how = {
+      bluebook: [
+        ["Finish and submit the test in Bluebook", "Stay online for a minute afterward so the results upload."],
+        ["Open My Practice", el("span", {}, "Go to ", link(LINKS.mypractice, "mypractice.collegeboard.org"), " (or use the score link Bluebook shows after you submit). Sign in with the same College Board account you use in Bluebook, then open the test.")],
+        ["Enter the two section scores", "Your score report shows a Reading and Writing score and a Math score. Type them in below."],
+        ["Count your misses by skill area", "Open the question review and look at the questions you got wrong. Each one is labeled with its content domain (Information and Ideas, Craft and Structure, Algebra, and so on). Count the misses in each domain and enter them below. It takes about 5 minutes."],
+        ["Then learn from them", "Read the explanation for every miss in My Practice. Back here, your Focus list and weekly goals update to target the weakest areas."]
+      ],
+      khan: [
+        ["Take a Khan Academy practice test or section", el("span", {}, "Start from ", link(LINKS.khanPsat, "Khan Academy's digital PSAT practice test"), " or the ", link(LINKS.khan, "digital SAT course"), ". Time yourself: 32 minutes per Reading and Writing module, 35 per Math module.")],
+        ["Note your number right", "When you finish, the results page shows how many questions you got right out of the total. Enter the numbers below for each section you took."],
+        ["Tag your misses (optional, but worth it)", "For each question you missed, note which skill it tested and add it to the matching skill area below. Khan Academy labels its questions by skill."],
+        ["About the score", "Khan Academy practice doesn't give an official College Board score, so this app shows an estimate from your number right. Use Bluebook tests for your most accurate score."]
+      ],
+      other: [
+        ["Enter the number right for each section", "Any full-length or section practice test works, such as a paper test or a prep book. Enter how many you got right out of the total."],
+        ["Add misses by skill if the test labels them", "That way the Skill matrix can use it too."]
+      ]
+    }[src];
+    const ol = el("ol", { class: "howto" }, how.map(([h, b]) => el("li", {}, el("strong", { text: h }), el("div", { class: "muted", style: "font-size:14px;margin-top:2px" }, b))));
+    p.append(el("details", { class: "card howcard", open: S.tests.filter((t) => t.source === src).length < 2 }, el("summary", { text: src === "bluebook" ? "Where to find your Bluebook results" : src === "khan" ? "How to log a Khan Academy test" : "How to log another practice test" }), ol));
+
+    const kindSel = el("select", { id: "tKind" }, el("option", { value: "psat", text: "PSAT/NMSQT" }), el("option", { value: "sat", text: "SAT" })); kindSel.value = kind0;
+    const secSel = el("select", { id: "tSec" }, el("option", { value: "both", text: "Full test (both sections)" }), el("option", { value: "rw", text: "Reading and Writing only" }), el("option", { value: "math", text: "Math only" }));
+    const defName = src === "bluebook" ? "Bluebook Practice Test " + n("bluebook") : src === "khan" ? "Khan Academy practice test " + n("khan") : "Practice test";
+    const nameIn = el("input", { type: "text", id: "tName", value: defName, maxlength: "60" });
     const f = el("form", { class: "card form", novalidate: true });
-    f.append(el("div", {}, el("h2", { text: "Log a Bluebook test" }), el("p", { class: "muted lede", text: "After a full test in Bluebook, open the score report in My Practice. Enter the two section scores, then count how many questions you missed in each skill domain (the report labels every question with its domain). Logging a test is worth 100 XP." })));
-    f.append(el("div", { class: "fields" }, el("label", { class: "f" }, "Test name", nameIn), el("label", { class: "f" }, "Test type", kindSel), el("label", { class: "f" }, "Date taken", el("input", { type: "date", id: "tDate", value: today() })),
-      el("label", { class: "f" }, "Reading and Writing score", el("input", { type: "number", id: "tRw", step: "10", inputmode: "numeric", placeholder: "e.g. 580" })),
-      el("label", { class: "f" }, "Math score", el("input", { type: "number", id: "tMath", step: "10", inputmode: "numeric", placeholder: "e.g. 560" }))));
-    for (const [sec, lab] of [["rw", "Reading and Writing: questions missed"], ["math", "Math: questions missed"]]) {
-      f.append(el("div", { class: "eyebrow", text: lab }));
-      f.append(el("div", { class: "fields" }, DOMAINS.filter((d) => d.sec === sec).map((d) => el("label", { class: "f" }, d.name, el("small", { text: "out of about " + d.n }), el("input", { type: "number", id: "m-" + d.id, min: "0", max: String(d.n + 4), value: "0", inputmode: "numeric" })))));
+    f.append(el("div", { class: "fields" }, el("label", { class: "f" }, "Test name", nameIn), el("label", { class: "f" }, "Test type", kindSel), el("label", { class: "f" }, "Sections taken", secSel), el("label", { class: "f" }, "Date taken", el("input", { type: "date", id: "tDate", value: today() }))));
+    const scoreBox = el("div", {});
+    f.append(scoreBox);
+    const est = el("p", { class: "muted", style: "font-size:14px" });
+    const missBox = el("div", {});
+    f.append(missBox);
+    function drawScores() {
+      scoreBox.textContent = ""; missBox.textContent = "";
+      const k = kindSel.value, sec = secSel.value, show = (x) => sec === "both" || sec === x;
+      const lo = FORMATS[k].lo, hi = FORMATS[k].hi;
+      if (src === "bluebook") {
+        scoreBox.append(el("div", { class: "eyebrow", text: "Section scores (" + lo + "–" + hi + " each)" }),
+          el("div", { class: "fields" }, show("rw") ? el("label", { class: "f" }, "Reading and Writing score", el("input", { type: "number", id: "tRw", step: "10", min: lo, max: hi, inputmode: "numeric", placeholder: "e.g. 580" })) : null,
+            show("math") ? el("label", { class: "f" }, "Math score", el("input", { type: "number", id: "tMath", step: "10", min: lo, max: hi, inputmode: "numeric", placeholder: "e.g. 560" })) : null));
+      } else {
+        const numIn = (id, ph) => el("input", { type: "number", id, min: "0", inputmode: "numeric", placeholder: ph, oninput: upd });
+        scoreBox.append(el("div", { class: "eyebrow", text: "Number right" }),
+          el("div", { class: "fields" },
+            show("rw") ? el("label", { class: "f" }, "Reading and Writing: right", numIn("tRwC", "e.g. 40")) : null, show("rw") ? el("label", { class: "f" }, "out of", numIn("tRwT", "54")) : null,
+            show("math") ? el("label", { class: "f" }, "Math: right", numIn("tMathC", "e.g. 30")) : null, show("math") ? el("label", { class: "f" }, "out of", numIn("tMathT", "44")) : null), est);
+        const rwT = scoreBox.querySelector("#tRwT"), mT = scoreBox.querySelector("#tMathT"); if (rwT) rwT.value = 54; if (mT) mT.value = 44;
+        upd();
+      }
+      missBox.append(el("p", { class: "muted", style: "font-size:14px;margin-top:6px", text: "Questions missed in each skill area. Leave a box blank if you didn't count it." }));
+      for (const [sc, lab] of [["rw", "Reading and Writing: questions missed"], ["math", "Math: questions missed"]]) {
+        if (!show(sc)) continue;
+        missBox.append(el("div", { class: "eyebrow", text: lab }));
+        missBox.append(el("div", { class: "fields" }, DOMAINS.filter((d) => d.sec === sc).map((d) => el("label", { class: "f" }, d.name, el("small", { text: "out of about " + d.n }), el("input", { type: "number", id: "m-" + d.id, min: "0", max: String(d.n + 4), inputmode: "numeric", placeholder: "—" })))));
+      }
     }
+    const $v = (id) => { const x = f.querySelector("#" + id); return x && x.value !== "" ? +x.value : null; };
+    function scaleFrom(c, t, k) { const lo = FORMATS[k].lo, hi = FORMATS[k].hi; return Math.round((lo + (c / t) * (hi - lo)) / 10) * 10; }
+    function upd() {
+      const k = kindSel.value, bits = [];
+      const rc = $v("tRwC"), rt = $v("tRwT"), mc2 = $v("tMathC"), mt = $v("tMathT");
+      if (rc != null && rt > 0 && rc <= rt) bits.push("Reading and Writing ≈ " + scaleFrom(rc, rt, k));
+      if (mc2 != null && mt > 0 && mc2 <= mt) bits.push("Math ≈ " + scaleFrom(mc2, mt, k));
+      est.textContent = bits.length ? "Estimated score: " + bits.join(" · ") + ". A rough guide only; Bluebook gives the real scale." : "";
+    }
+    kindSel.addEventListener("change", drawScores); secSel.addEventListener("change", drawScores);
+    drawScores();
     const err = el("p", { class: "err", role: "alert" });
     f.append(err, el("div", { class: "row" }, el("button", { class: "btn primary", type: "submit" }, "Save test")));
     f.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const kind = kindSel.value, lo = FORMATS[kind].lo, hi = FORMATS[kind].hi, rw = +$("#tRw").value, math = +$("#tMath").value;
-      if (!(rw >= lo && rw <= hi && math >= lo && math <= hi)) { err.textContent = "Enter both section scores between " + lo + " and " + hi + "."; return; }
+      e.preventDefault(); err.textContent = "";
+      const kind = kindSel.value, sec = secSel.value, lo = FORMATS[kind].lo, hi = FORMATS[kind].hi, want = (x) => sec === "both" || sec === x;
+      let rw = null, math = null;
+      const raw = {};
+      if (src === "bluebook") {
+        if (want("rw")) { rw = $v("tRw"); if (!(rw >= lo && rw <= hi)) { err.textContent = "Enter the Reading and Writing score (" + lo + "–" + hi + ")."; return; } rw = Math.round(rw / 10) * 10; }
+        if (want("math")) { math = $v("tMath"); if (!(math >= lo && math <= hi)) { err.textContent = "Enter the Math score (" + lo + "–" + hi + ")."; return; } math = Math.round(math / 10) * 10; }
+      } else {
+        for (const [x, cId, tId, label] of [["rw", "tRwC", "tRwT", "Reading and Writing"], ["math", "tMathC", "tMathT", "Math"]]) {
+          if (!want(x)) continue;
+          const c = $v(cId), t = $v(tId);
+          if (!(t > 0 && c != null && c >= 0 && c <= t)) { err.textContent = "Enter the number right and the total for " + label + "."; return; }
+          raw[x] = { c, t };
+          if (x === "rw") rw = scaleFrom(c, t, kind); else math = scaleFrom(c, t, kind);
+        }
+      }
       const dom = {};
-      for (const d of DOMAINS) { const v = Math.round(+$("#m-" + d.id).value); if (!(v >= 0)) { err.textContent = "Missed counts must be 0 or more."; return; } dom[d.id] = { c: Math.max(0, d.n - v), t: d.n }; }
-      S.tests.push({ id: uid(), source: "bluebook", kind, name: nameIn.value.trim() || "Bluebook test", date: $("#tDate").value || today(), rw, math, total: rw + math, dom });
+      for (const d of DOMAINS) { if (!want(d.sec)) continue; const v = $v("m-" + d.id); if (v == null) continue; if (!(v >= 0)) { err.textContent = "Missed counts must be 0 or more."; return; } dom[d.id] = { c: Math.max(0, d.n - Math.round(v)), t: d.n }; }
+      const rec = { id: uid(), source: src, kind, name: nameIn.value.trim() || defName, date: f.querySelector("#tDate").value || today(), rw, math, total: rw != null && math != null ? rw + math : null, dom };
+      if (Object.keys(raw).length) rec.raw = raw;
+      S.tests.push(rec);
       S.tests.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
-      logMock(2); checkGoalScore(rw + math);
-      addXP(100, "Bluebook test logged"); award("baseline"); if (S.tests.filter((t) => t.source === "bluebook").length >= 2) award("rehearsal"); bumpStreak(); save(); show("matrix");
+      logMock(sec === "both" ? 2 : 1); if (rec.total && src === "bluebook") checkGoalScore(rec.total);
+      addXP(100, (src === "bluebook" ? "Bluebook" : src === "khan" ? "Khan Academy" : "Practice") + " test logged"); award("baseline");
+      if (S.tests.filter((t) => t.source === "bluebook" && t.total).length >= 2) award("rehearsal");
+      bumpStreak(); save(); toast("Test saved. Your Skill matrix is updated.", true); show("matrix");
     });
     p.append(f);
   }
@@ -1386,7 +1490,7 @@
     p.append(el("div", { class: "card lvl" }, el("div", { class: "ring" }, el("div", {}, el("b", { class: "num", text: String(l) }), el("small", { text: "Level" }))),
       el("div", { style: "display:grid;gap:8px" }, el("h2", { text: levelName(l) }), el("div", { class: "track" }, el("i", { style: "width:" + (into / XP_PER_LEVEL) * 100 + "%" })),
         el("span", { class: "num muted", style: "font-size:13px", text: S.xp + " XP total · " + (XP_PER_LEVEL - into) + " XP to " + levelName(l + 1) }),
-        el("span", { class: "muted", style: "font-size:13px", text: "Earn XP: 10 per correct practice answer, 20 per finished set, 15 per plan task, 100 per mock section or logged Bluebook test, 200 for a full mock." }))));
+        el("span", { class: "muted", style: "font-size:13px", text: "Earn XP: 10 per correct practice answer, 20 per finished set, 15 per plan task, 100 per mock section or logged practice test, 200 for a full mock." }))));
     const bg = el("div", { class: "badges" });
     BADGES.forEach((b) => { const on = !!S.badges[b.id]; bg.append(el("div", { class: "badge" + (on ? " on" : "") }, el("div", { class: "seal", text: b.s }), el("b", { text: b.name }), el("span", { text: on ? "Earned " + fmtDay(S.badges[b.id]).md : b.how }))); });
     p.append(el("div", {}, el("div", { class: "row between", style: "margin-bottom:12px" }, el("h3", { text: "Badges" }), el("span", { class: "muted num", text: Object.keys(S.badges).length + " of " + BADGES.length })), bg));

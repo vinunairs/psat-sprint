@@ -10,7 +10,7 @@ A PSAT/NMSQT and SAT prep site with fresh questions every time, timed adaptive m
 - **Practice**: pick skills (for example, weak areas from a Bluebook score report) and get new questions with an explanation after each one. Misses go to a Mistake notebook until answered correctly.
 - **Mock test**: PSAT or SAT format. Two timed modules per section; Module 2 is harder or easier depending on Module 1. Mark for review, cross out choices, question navigator, calculator, reference sheet. Estimated scores and a full review at the end.
 - **Skill matrix**: mastery for the 8 College Board skill domains, blending the latest test with practice accuracy, plus the narrower question types missed most.
-- **Log Bluebook test**: enter official Bluebook practice test results so they feed the matrix.
+- **Log a test**: enter Bluebook practice test scores (from mypractice.collegeboard.org) or Khan Academy / other results as number right (converted to an estimate), with misses by skill area, so they feed the matrix, Focus list and weekly goals. Step-by-step instructions are on the tab. Official tests are built into the sprint plan and the weekly goals (every week when test-ready, every other week while building).
 - **Rewards**: XP, levels, badges, and parent-defined real-world rewards.
 
 ## Where questions come from

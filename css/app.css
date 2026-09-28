@@ -331,3 +331,8 @@ ol.steps li span{color:var(--graphite);font-size:14px}
 .exrow.past{opacity:.7}
 .panelpop.wide{width:min(560px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto}
 .exform{display:grid;gap:10px;padding:12px;border:1px dashed var(--line);border-radius:10px}
+
+/* Log a test */
+.srcpick{display:flex;flex-wrap:wrap;gap:6px}
+.howcard summary{cursor:pointer;font-weight:700}
+.howto{margin:12px 0 0;padding-left:22px;display:grid;gap:10px}
