@@ -254,24 +254,46 @@
     const hourLabel = (h) => (h % 12 || 12) + ":00 " + (h < 12 ? "am" : "pm");
     const tz = () => Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York";
 
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    // Step-by-step phone setup, shown in the Reminders panel. The guide for this device opens automatically.
+    function phoneGuide(openFor) {
+      const ol = (items) => el("ol", { class: "phsteps" }, items.map((t) => el("li", {}, t)));
+      const b = (t) => el("strong", { text: t });
+      const ios = el("details", { class: "phguide", open: openFor === "ios" }, el("summary", { text: "iPhone or iPad" }),
+        ol([
+          el("span", {}, "Open this site in ", b("Safari"), ". Needs iOS 16.4 or later (Settings → General → About → iOS Version)."),
+          el("span", {}, "Tap the ", b("Share"), " button (the square with an up arrow). On newer iPhones it may be inside the ", b("⋯"), " menu at the bottom."),
+          el("span", {}, "Scroll down, tap ", b("Add to Home Screen"), ", then tap ", b("Add"), "."),
+          el("span", {}, "Close Safari and open ", b("Test Prep Hub"), " from its new Home Screen icon. Reminders only work from the icon, not from Safari."),
+          el("span", {}, "Sign in, scroll to the bottom, and tap ", b("Reminders"), "."),
+          el("span", {}, "Pick a time, tap ", b("Turn on reminders"), ", then tap ", b("Allow"), " when iPhone asks."),
+          el("span", {}, "Tap ", b("Send a test"), ". A notification should appear within a few seconds.")]),
+        el("p", { class: "muted", style: "font-size:13px" }, b("Not getting them? "), "Open iPhone Settings → Notifications → Test Prep Hub and turn on Allow Notifications. Also check that a Focus or Do Not Disturb mode isn't hiding them."));
+      const and = el("details", { class: "phguide", open: openFor === "android" }, el("summary", { text: "Android" }),
+        ol([
+          el("span", {}, "Open this site in ", b("Chrome"), "."),
+          el("span", {}, "Optional but handy: tap Chrome's ", b("⋮"), " menu, then ", b("Add to Home screen"), " (or ", b("Install app"), ") for an app icon."),
+          el("span", {}, "Sign in, scroll to the bottom, and tap ", b("Reminders"), "."),
+          el("span", {}, "Pick a time, tap ", b("Turn on reminders"), ", then tap ", b("Allow"), " when Chrome asks."),
+          el("span", {}, "Tap ", b("Send a test"), ". A notification should appear within a few seconds.")]),
+        el("p", { class: "muted", style: "font-size:13px" }, b("Not getting them? "), "In Chrome, tap the icon to the left of the web address → Permissions → Notifications → Allow. Then check phone Settings → Apps → Chrome → Notifications is on. Battery saver can delay reminders."));
+      return el("div", { class: "phwrap" }, el("div", { class: "eyebrow", text: "Set up on a phone" }), ios, and,
+        el("p", { class: "muted", style: "font-size:13px", text: "Reminders are per device: turn them on separately on each phone or computer you want them on." }));
+    }
     async function openReminders() {
       const h = host(); h.textContent = "";
       const panel = el("div", { class: "panelpop acct", role: "dialog", "aria-label": "Study reminders" }, el("header", {}, el("strong", { text: "Study reminders" }), close()));
       h.append(panel);
       const add = (...n) => panel.append(...n);
       const msg = el("p", { class: "muted", role: "status", style: "font-size:13px" });
+      const here = isIOS ? "ios" : isAndroid ? "android" : null;
       if (isIOS && !standalone) {
-        add(el("p", { text: "On iPhone and iPad, reminders work once Test Prep Hub is added to the Home Screen:" }),
-          el("ol", { style: "margin:0;padding-left:20px;display:grid;gap:4px;font-size:14px" },
-            el("li", { text: "In Safari, tap the Share button (the square with an arrow)." }),
-            el("li", { text: "Tap Add to Home Screen, then Add." }),
-            el("li", { text: "Open Test Prep Hub from the Home Screen, sign in, and tap Reminders again." })),
-          el("p", { class: "muted", style: "font-size:13px", text: "Needs iOS 16.4 or later. Progress comes along after signing in." }));
+        add(el("p", { text: "On iPhone and iPad, reminders work once Test Prep Hub is added to the Home Screen. Follow these steps (your progress comes along after you sign in):" }), phoneGuide("ios"));
         return;
       }
-      if (!pushOK) { add(el("p", { text: "This browser can't show notifications. Try Chrome, Edge, or Safari." })); return; }
-      if (!user) { add(el("p", { text: "Sign in first, so reminders can use your progress to pick what to practice." }), el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => openAccount() }, "Sign in"))); return; }
-      if (Notification.permission === "denied") { add(el("p", { text: "Notifications are blocked for this site. Allow them in the browser's site settings, then come back here." })); return; }
+      if (!pushOK) { add(el("p", { text: "This browser can't show notifications. Try Chrome, Edge, or Safari, or set it up on a phone:" }), phoneGuide(here)); return; }
+      if (!user) { add(el("p", { text: "Sign in first, so reminders can use your progress to pick what to practice." }), el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => openAccount() }, "Sign in")), phoneGuide(here)); return; }
+      if (Notification.permission === "denied") { add(el("p", { text: "Notifications are blocked for this site. Allow them in your browser's site settings (on a phone, see \"Not getting them?\" below), then come back here." }), phoneGuide(here)); return; }
       const sub = await currentSub();
       let row = null;
       if (sub) { const { data } = await sb.from("push_subscriptions").select("id, remind_hour, enabled").eq("endpoint", sub.endpoint).maybeSingle(); row = data; }
@@ -316,6 +338,7 @@
         } }, "Turn on reminders");
         add(el("div", { class: "row" }, on), msg);
       }
+      add(phoneGuide(row && row.enabled ? null : here));
     }
     const rb = document.getElementById("remindBtn");
     if (rb) rb.addEventListener("click", () => openReminders());
