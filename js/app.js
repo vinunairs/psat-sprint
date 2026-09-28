@@ -233,9 +233,23 @@
     q = Object.assign({}, q, { uid: uid(), d: q.d || domain });
     if (!q.type) q.type = "mc";
     used.add(q.key);
+    if (!GUEST) trackFresh(q);
     if (q.src === "bank") S.seenBank[q.id] = Date.now();
     else { S.recentKeys.push(q.key); if (S.recentKeys.length > 600) S.recentKeys.splice(0, S.recentKeys.length - 600); }
     return q;
+  }
+  // Freshness: per question type, how many were served and how many were exact repeats
+  // (same question seen within the student's last 2,500). Shown on the admin dashboard.
+  const hash32 = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); };
+  const tplOf = (q) => q.gen || (q.src === "bank" ? "bank:" + q.d : "rw:" + q.d + ":" + (q.sk || ""));
+  function trackFresh(q) {
+    const F = S.fresh || (S.fresh = { t: {}, h: [], d: {} });
+    const hk = hash32(String(q.key)), rep = F.h.includes(hk), tpl = tplOf(q), day = today();
+    const t = F.t[tpl] || (F.t[tpl] = [0, 0]); t[0]++; if (rep) t[1]++;
+    if (q.sk) (F.s || (F.s = {}))[tpl] = q.sk;
+    const dd = F.d[day] || (F.d[day] = [0, 0]); dd[0]++; if (rep) dd[1]++;
+    F.h.push(hk); if (F.h.length > 2500) F.h.splice(0, F.h.length - 2500);
+    const cut = addDays(day, -60); for (const k of Object.keys(F.d)) if (k < cut) delete F.d[k];
   }
   const isRight = (q, ans) => (q.type === "spr" ? ans != null && ans !== "" && checkSpr(ans, q.spr) : ans === q.a);
   const answerText = (q) => (q.type === "spr" ? String(q.o[q.a]).replace(/^\$/, "") : LETTERS[q.a] + ") " + q.o[q.a]);
@@ -1892,8 +1906,51 @@
       grid.append(card);
     }
     p.append(grid);
+    p.append(freshnessCard(list));
     if (ADMIN.api) p.append(invitesCard());
     function stat(h, v, sub) { return el("div", { class: "adm-stat" }, el("span", { class: "eyebrow", text: h }), el("strong", { class: "num", text: v }), el("span", { class: "muted", style: "font-size:12px", text: sub })); }
+  }
+  // Question freshness across all students: repeat rate, question types running out, reading bank coverage.
+  function tplLabel(tpl, names) {
+    if (names && names[tpl] && !tpl.startsWith("bank:")) { const d = DOM[tpl.split("_")[0]]; return names[tpl] + (tpl.startsWith("hard_") ? " (harder set)" : d ? " · " + d.name : "") + " · " + tpl; }
+    if (tpl.startsWith("bank:")) return "Reading bank · " + (DOM[tpl.slice(5)] || { name: tpl.slice(5) }).name;
+    if (tpl.startsWith("rw:")) { const [, d, sk] = tpl.split(":"); return (sk || (DOM[d] || {}).name || d) + " (generated)"; }
+    const c = STRAT.cards[STRAT.strategyFor({ gen: tpl })]; const d = DOM[tpl.split("_")[0]];
+    return (c ? c.name : tpl) + (d ? " · " + d.name : tpl.startsWith("hard_") ? " · hard set" : "");
+  }
+  function freshnessCard(list) {
+    const now30 = addDays(today(), -30), agg = {}, names = {};
+    const per = list.map((x) => {
+      const F = x.D.fresh || { t: {}, d: {} };
+      let n = 0, r = 0; for (const [k, v] of Object.entries(F.d || {})) if (k >= now30) { n += v[0]; r += v[1]; }
+      for (const [tpl, v] of Object.entries(F.t || {})) { const a = agg[tpl] || (agg[tpl] = [0, 0]); a[0] += v[0]; a[1] += v[1]; }
+      Object.assign(names, F.s || {});
+      return { x, n, r, pct: n ? r / n : 0 };
+    });
+    const hot = Object.entries(agg).filter(([, v]) => v[0] >= 12 && v[1] / v[0] >= 0.15).map(([tpl, v]) => ({ tpl, n: v[0], pct: v[1] / v[0] })).sort((a, b) => b.pct - a.pct).slice(0, 8);
+    const bank = window.RWBank || [], cov = ["cs", "ii", "eoi", "sec"].map((d) => {
+      const ids = bank.filter((q) => q.d === d).map((q) => q.id), tot = ids.length;
+      const best = Math.max(0, ...list.map((x) => ids.filter((id) => (x.D.seenBank || {})[id]).length));
+      return { d, tot, best, pct: tot ? best / tot : 0 };
+    });
+    const worstRep = Math.max(0, ...per.filter((o) => o.n >= 30).map((o) => o.pct)), worstCov = Math.max(0, ...cov.map((c) => c.pct));
+    const level = hot.length || worstRep >= 0.15 || worstCov >= 0.85 ? "bad" : worstRep >= 0.07 || worstCov >= 0.6 ? "warn" : "good";
+    const verdict = { good: "Questions are fresh. No action needed.", warn: "Getting familiar. Plan to add new questions in the next few weeks.", bad: "Time to add new questions for the types listed below." }[level];
+    const bar = (pct, cls) => el("div", { class: "track", style: "height:7px" }, el("i", { class: cls, style: "width:" + Math.round(pct * 100) + "%" }));
+    return el("div", { class: "card", style: "display:grid;gap:12px" },
+      el("div", { class: "row between" }, el("h3", { text: "Question freshness" }), el("span", { class: "chip " + level, text: { good: "Fresh", warn: "Watch", bad: "Refresh due" }[level] })),
+      el("p", { style: "font-size:14px", text: verdict }),
+      el("p", { class: "muted", style: "font-size:13px", text: "A repeat is an exact question a student has already seen (among their last 2,500). Under 7% repeats is fine; over 15%, or a reading bank more than 85% used, means it's time for new questions." }),
+      el("div", { class: "eyebrow", text: "Repeats in the last 30 days" }),
+      el("div", { class: "adm-skills" }, per.map((o) => el("div", { class: "adm-skill" },
+        el("div", { class: "adm-skill-top" }, el("span", { class: "adm-skill-name", text: o.x.name }), el("span", { class: "muted", style: "font-size:13px", text: o.n ? Math.round(o.pct * 100) + "% of " + o.n : "no questions yet" })),
+        bar(Math.min(1, o.pct / 0.3), o.pct >= 0.15 ? "bad" : o.pct >= 0.07 ? "warn" : "good")))),
+      el("div", { class: "eyebrow", text: "Hand-written reading bank used (most-used student)" }),
+      el("div", { class: "adm-skills" }, cov.map((c) => el("div", { class: "adm-skill" },
+        el("div", { class: "adm-skill-top" }, el("span", { class: "adm-skill-name", text: DOM[c.d].name }), el("span", { class: "muted", style: "font-size:13px", text: c.best + " of " + c.tot })),
+        bar(c.pct, c.pct >= 0.85 ? "bad" : c.pct >= 0.6 ? "warn" : "good")))),
+      el("div", { class: "eyebrow", text: "Question types repeating most" }),
+      hot.length ? el("ul", { class: "adm-list" }, hot.map((h) => el("li", {}, el("strong", { text: tplLabel(h.tpl, names) }), " · " + Math.round(h.pct * 100) + "% repeats of " + h.n))) : el("p", { class: "muted", style: "font-size:14px", text: "None yet. A type shows up here once it has 12+ questions served and 15%+ repeats." }));
   }
   // Single-use invite codes: create, copy, see who used them, revoke unused ones.
   function invitesCard() {
