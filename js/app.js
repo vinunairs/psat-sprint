@@ -1617,10 +1617,10 @@
         el("div", { class: "row between" }, el("div", {}, el("h3", { text: x.name }), el("div", { class: "muted", style: "font-size:13px", text: fmt.name + (x.date ? " · " + fmtDay(x.date).md + ", " + parseYmd(x.date).getFullYear() + (x.left != null ? (x.left > 0 ? " · " + x.left + " days away" : x.left === 0 ? " · today" : " · done") : "") : "") + (x.target ? " · target " + x.target : "") })),
           el("span", { class: "chip " + idleCls, text: "Active " + agoText(x.idle) })),
         el("div", { class: "adm-stats" },
-          stat("This week", x.wk.q + " questions", x.wk.q ? Math.round((x.wk.c / x.wk.q) * 100) + "% correct · " + x.wk.days + " day" + (x.wk.days === 1 ? "" : "s") : x.wk.days + " days"),
-          stat("Streak", x.streak + " day" + (x.streak === 1 ? "" : "s"), "Level " + x.lvl + " · " + (x.D.xp || 0) + " XP"),
+          stat("This week", String(x.wk.q), "questions" + (x.wk.q ? " · " + Math.round((x.wk.c / x.wk.q) * 100) + "% right" : "") + " · " + x.wk.days + " day" + (x.wk.days === 1 ? "" : "s")),
+          stat("Streak", String(x.streak), "day" + (x.streak === 1 ? "" : "s") + " · level " + x.lvl),
           stat("Latest score", x.latest ? String(x.latest.total) : "—", x.latest ? (isEst(x.latest) ? "estimated · " : "") + x.latest.name : "no test yet"),
-          stat("Answered", String(x.D.answered || 0), (x.D.mistakes || []).length + " in mistake notebook")),
+          stat("All time", String(x.D.answered || 0), "answered · " + (x.mistakes = (x.D.mistakes || []).length) + " to redo")),
         x.weakest.length ? el("p", { style: "font-size:14px" }, el("strong", { text: "Weakest: " }), x.weakest.map((w) => w.d.name + " (" + Math.round(w.m * 100) + "%)").join(", ")) : el("p", { class: "muted", style: "font-size:14px", text: "Not enough practice yet to rank skills." }),
         el("p", { class: "muted", style: "font-size:13px" }, (x.row.reminders ? "Reminders on (" + x.row.reminders + " device" + (x.row.reminders === 1 ? "" : "s") + (x.row.remind_hour != null ? ", " + ((x.row.remind_hour % 12) || 12) + (x.row.remind_hour < 12 ? " am" : " pm") : "") + ")" : "Reminders off") + " · " + (x.row.email || "") + (x.row.grade ? " · grade " + x.row.grade : "")),
         el("button", { class: "btn small" + (open ? "" : " primary"), onclick: () => { ADMIN.open = open ? null : x.row.user_id; renderAdmin(); } }, open ? "Hide details" : "See details"),
@@ -1639,9 +1639,16 @@
     days.forEach(([d, q, mk]) => bars.append(el("div", { class: "adm-bar", title: fmtDay(d).md + ": " + q + " questions" + (mk ? ", " + mk + " mock section(s)" : "") }, el("i", { style: "height:" + Math.round((q / mx) * 100) + "%" + (mk ? ";background:var(--pencil)" : "") }), el("span", { text: fmtDay(d).dow[0] }))));
     box.append(el("div", { class: "eyebrow", text: "Last 14 days (questions per day; gold = mock test day)" }), bars);
     // Skills
-    const tb = el("tbody");
-    x.dom.forEach((r) => { const [c, l] = status(r.m); tb.append(el("tr", {}, el("td", { text: r.d.name }), el("td", { class: "num", text: r.att ? r.cor + "/" + r.att + " (" + Math.round((r.cor / r.att) * 100) + "%)" : "—" }), el("td", { class: "num", text: r.ta != null ? Math.round(r.ta * 100) + "%" : "—" }), el("td", {}, el("span", { class: "chip " + c, text: l })))); });
-    box.append(el("div", { class: "eyebrow", text: "Skills" }), el("div", { class: "tablewrap" }, el("table", { class: "mx" }, el("thead", {}, el("tr", {}, ["Skill", "Practice", "Latest test", "Status"].map((h) => el("th", { text: h })))), tb)));
+    // Skills as a stacked list: reads well on a phone and on a desktop.
+    const sk = el("div", { class: "adm-skills" });
+    x.dom.forEach((r) => {
+      const [c, l] = status(r.m);
+      sk.append(el("div", { class: "adm-skill" },
+        el("div", { class: "adm-skill-top" }, el("span", { class: "adm-skill-name", text: r.d.name }), el("span", { class: "chip " + c, text: l })),
+        el("div", { class: "track", style: "height:6px" }, el("i", { class: c, style: "width:" + (r.m != null ? Math.round(r.m * 100) : 0) + "%" })),
+        el("div", { class: "muted", style: "font-size:12px", text: "Practice " + (r.att ? r.cor + "/" + r.att + " (" + Math.round((r.cor / r.att) * 100) + "%)" : "none yet") + " · Latest test " + (r.ta != null ? Math.round(r.ta * 100) + "%" : "—") })));
+    });
+    box.append(el("div", { class: "eyebrow", text: "Skills (weakest first in the Focus list)" }), sk);
     // Tests
     const tl = x.tests.slice(-8).reverse();
     box.append(el("div", { class: "eyebrow", text: "Tests (" + x.tests.length + ")" }), tl.length ? el("ul", { class: "adm-list" }, tl.map((t) => el("li", {}, el("strong", { text: t.name }), " · " + fmtDay(t.date).md + " · " + [t.rw ? "R&W " + t.rw : null, t.math ? "Math " + t.math : null, t.total ? "total " + t.total : null].filter(Boolean).join(", ") + (isEst(t) ? " (est.)" : "")))) : el("p", { class: "muted", style: "font-size:14px", text: "No tests yet." }));

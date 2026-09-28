@@ -160,10 +160,11 @@
       if (user) {
         const nm = (app.state.settings && app.state.settings.name) || "";
         h.append(el("div", { class: "panelpop acct", role: "dialog", "aria-label": "Account" },
-          el("header", {}, el("strong", { text: nm ? nm + "'s account" : "Your account" }), close()),
+          el("header", {}, el("strong", { text: app.admin ? "Admin account" : nm ? nm + "'s account" : "Your account" }), close()),
           el("p", {}, "Signed in as ", el("strong", { text: user.email })),
-          el("p", { class: "muted", style: "font-size:13px", text: (lastSynced ? "Last synced " + lastSynced.toLocaleString() + ". " : "") + "Every change on this device uploads automatically. A parent can follow along by signing in with the same account." }),
-          el("div", { class: "row" },
+          app.admin ? el("p", { class: "muted", style: "font-size:13px", text: "Read-only view of every student's progress. Nothing you do here changes a student's data." }) :
+          el("p", { class: "muted", style: "font-size:13px", text: (lastSynced ? "Last synced " + lastSynced.toLocaleString() + ". " : "") + "Every change on this device uploads automatically." }),
+          app.admin ? null : el("div", { class: "row" },
             el("button", { class: "btn primary", onclick: async () => { await pull(false); if (status === "synced") await pushNow(); app.toast(status === "synced" ? "Synced" : "Couldn't sync right now"); openAccount(); } }, "Sync now"),
             el("button", { class: "btn", onclick: () => openReminders() }, "Reminders")),
           el("div", { class: "row" },
