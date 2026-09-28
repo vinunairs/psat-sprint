@@ -112,6 +112,7 @@
           el("p", { class: "muted", style: "font-size:13px", text: lastSynced ? "Last synced " + lastSynced.toLocaleString() + ". Every change on this device uploads automatically." : "Every change on this device uploads automatically." }),
           el("div", { class: "row" },
             el("button", { class: "btn primary", onclick: async () => { await pull(false); if (status === "synced") await pushNow(); app.toast(status === "synced" ? "Synced" : "Couldn't sync right now"); openAccount(); } }, "Sync now"),
+            el("button", { class: "btn", onclick: () => openReminders() }, "Reminders"),
             el("button", { class: "btn ghost", onclick: async () => { await pushNow(); await sb.auth.signOut(); app.toast("Signed out. Progress stays on this device."); host().textContent = ""; } }, "Sign out"))));
         return;
       }
@@ -171,6 +172,84 @@
       });
       h.append(f); pw.focus();
     }
+
+    /* ---------- Study reminders (web push) ---------- */
+    const APP_KEY = "BJ9VTfUnx7ubJrlV-oaQfCQhWtBco1uCGjH6eDVPkTbEpjGNz_Jdveg8OK74hGSBRQfznUUXiOQ3dLhmWuQwowU";
+    const pushOK = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+    let swReg = null;
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").then((r) => (swReg = r)).catch(() => {});
+    const b64u = (str) => { const pad = "=".repeat((4 - (str.length % 4)) % 4); const bin = atob((str + pad).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(bin, (c) => c.charCodeAt(0)); };
+    async function currentSub() { const r = swReg || (await navigator.serviceWorker.getRegistration()); return r ? r.pushManager.getSubscription() : null; }
+    const hourLabel = (h) => (h % 12 || 12) + ":00 " + (h < 12 ? "am" : "pm");
+    const tz = () => Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York";
+
+    async function openReminders() {
+      const h = host(); h.textContent = "";
+      const panel = el("div", { class: "panelpop acct", role: "dialog", "aria-label": "Study reminders" }, el("header", {}, el("strong", { text: "Study reminders" }), close()));
+      h.append(panel);
+      const add = (...n) => panel.append(...n);
+      const msg = el("p", { class: "muted", role: "status", style: "font-size:13px" });
+      if (isIOS && !standalone) {
+        add(el("p", { text: "On iPhone and iPad, reminders work once PSAT Sprint is added to the Home Screen:" }),
+          el("ol", { style: "margin:0;padding-left:20px;display:grid;gap:4px;font-size:14px" },
+            el("li", { text: "In Safari, tap the Share button (the square with an arrow)." }),
+            el("li", { text: "Tap Add to Home Screen, then Add." }),
+            el("li", { text: "Open PSAT Sprint from the Home Screen, sign in, and tap Reminders again." })),
+          el("p", { class: "muted", style: "font-size:13px", text: "Needs iOS 16.4 or later. Progress comes along after signing in." }));
+        return;
+      }
+      if (!pushOK) { add(el("p", { text: "This browser can't show notifications. Try Chrome, Edge, or Safari." })); return; }
+      if (!user) { add(el("p", { text: "Sign in first, so reminders can use your progress to pick what to practice." }), el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => openAccount() }, "Sign in"))); return; }
+      if (Notification.permission === "denied") { add(el("p", { text: "Notifications are blocked for this site. Allow them in the browser's site settings, then come back here." })); return; }
+      const sub = await currentSub();
+      let row = null;
+      if (sub) { const { data } = await sb.from("push_subscriptions").select("id, remind_hour, enabled").eq("endpoint", sub.endpoint).maybeSingle(); row = data; }
+      const sel = el("select", { id: "remindHour", "aria-label": "Reminder time" }, [15, 16, 17, 18, 19, 20, 21].map((hh) => el("option", { value: String(hh), text: hourLabel(hh) })));
+      sel.value = String(row ? row.remind_hour : 19);
+      add(el("p", { style: "font-size:14px", text: "A daily nudge with the days left and the skill to work on next. It skips days you've already practiced, and sends a good-luck message on test morning." }));
+      add(el("label", { class: "f", for: "remindHour" }, "Remind me at", sel));
+      if (row && row.enabled) {
+        sel.addEventListener("change", async () => {
+          const { error } = await sb.from("push_subscriptions").update({ remind_hour: +sel.value, tz: tz() }).eq("id", row.id);
+          msg.textContent = error ? friendly(error) : "Reminder time saved: " + hourLabel(+sel.value) + ".";
+        });
+        add(el("p", {}, el("span", { class: "chip good", text: "On for this device" })),
+          el("div", { class: "row" },
+            el("button", { class: "btn primary", onclick: async () => {
+              msg.textContent = "Sending…";
+              const { error } = await sb.functions.invoke("send-reminders", { body: { mode: "test" } });
+              msg.textContent = error ? "Couldn't send the test. Try again in a minute." : "Test sent. It should appear in a few seconds.";
+            } }, "Send a test"),
+            el("button", { class: "btn ghost", onclick: async () => {
+              try { await sub.unsubscribe(); } catch (e) { }
+              await sb.from("push_subscriptions").delete().eq("id", row.id);
+              app.toast("Reminders turned off on this device"); openReminders();
+            } }, "Turn off")),
+          msg);
+      } else {
+        const on = el("button", { class: "btn primary", onclick: async () => {
+          on.disabled = true; msg.textContent = "Asking the browser for permission…";
+          try {
+            const perm = await Notification.requestPermission();
+            if (perm !== "granted") { msg.textContent = "Notifications weren't allowed, so reminders are off."; on.disabled = false; return; }
+            const reg = swReg || (await navigator.serviceWorker.register("sw.js"));
+            await navigator.serviceWorker.ready;
+            const s = (await reg.pushManager.getSubscription()) || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(APP_KEY) }));
+            const j = s.toJSON();
+            const { error } = await sb.from("push_subscriptions").upsert({ user_id: user.id, endpoint: s.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, tz: tz(), remind_hour: +sel.value, enabled: true }, { onConflict: "endpoint" });
+            if (error) throw error;
+            app.toast("Reminders are on", true);
+            sb.functions.invoke("send-reminders", { body: { mode: "test" } });
+            openReminders();
+          } catch (e) { msg.textContent = "Couldn't turn on reminders: " + friendly(e); on.disabled = false; }
+        } }, "Turn on reminders");
+        add(el("div", { class: "row" }, on), msg);
+      }
+    }
+    const rb = document.getElementById("remindBtn");
+    if (rb) rb.addEventListener("click", () => openReminders());
 
     chip.addEventListener("click", () => openAccount());
     paint();

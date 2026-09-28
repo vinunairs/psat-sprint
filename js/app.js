@@ -265,6 +265,9 @@
     } else if (t > PLAN[PLAN.length - 1].date) {
       p.append(el("div", { class: "card mission" }, el("h2", { text: "Test's done. Nice work." }), el("p", { class: "muted", text: "Scores usually arrive a few weeks after test day. Keep practicing here for the SAT: change the test date and type with the Test date button at the bottom of the page." })));
     }
+    p.append(el("div", { class: "card row between", style: "padding:14px 18px" },
+      el("span", {}, el("strong", { text: "Daily reminder on your phone" }), el("span", { class: "muted", text: " · a nudge each evening with the skill to work on" })),
+      el("button", { class: "btn small", onclick: () => { const b = document.getElementById("remindBtn"); if (b) b.click(); } }, "Set up reminders")));
     const pw = el("div", { class: "plan" });
     PLAN.forEach((day) => {
       const f = fmtDay(day.date), isT = day.date === t, dots = el("div", { class: "dots", "aria-hidden": "true" });
