@@ -53,21 +53,48 @@
       const { data, error } = await sb.from("progress").select("data, client_updated_ms").eq("user_id", user.id).maybeSingle();
       if (error) { status = navigator.onLine ? "error" : "offline"; paint(); return; }
       const local = app.state, localMs = local.updatedAt || 0;
+      const done = () => { app.setOwner(user.id); status = "synced"; lastSynced = new Date(); paint(); };
+      const keepCopy = (label) => { try { localStorage.setItem(BACKUP_KEY + (label ? "-" + label : ""), JSON.stringify(local)); } catch (e) { } };
+
+      // This device holds another student's progress: set it aside, never upload it to this account.
+      if (local.owner && local.owner !== user.id) {
+        keepCopy(local.owner);
+        app.replace(data ? data.data : Object.assign(app.blank(), { owner: user.id }));
+        done();
+        if (first) app.toast(data ? "Loaded your progress" : "Fresh start for this account", true);
+        return;
+      }
       if (!data) {
-        if (localMs > 0) { await pushNow(); if (first) app.toast("Progress on this device is now saved to the account", true); }
-        else { status = "synced"; lastSynced = new Date(); paint(); }
+        // Progress made on this device before signing in joins the account only if the account is empty.
+        if (localMs > 0) { app.setOwner(user.id); await pushNow(); if (first) app.toast("Progress on this device is now saved to your account", true); }
+        else done();
         return;
       }
       const remoteMs = Number(data.client_updated_ms) || 0;
+      if (!local.owner && localMs > 0) {
+        // Anonymous progress on this device vs. an account that already has progress: the account wins.
+        keepCopy(); app.replace(data.data); done();
+        if (first) app.toast("Loaded your progress from your account", true);
+        return;
+      }
       if (remoteMs > localMs + 1000 && !app.busy) {
-        if (localMs > 0) { try { localStorage.setItem(BACKUP_KEY, JSON.stringify(local)); } catch (e) { } }
-        app.replace(data.data);
-        status = "synced"; lastSynced = new Date(); paint();
-        if (first) app.toast("Loaded your latest progress from the account", true);
+        if (localMs > 0) keepCopy();
+        app.replace(data.data); done();
+        if (first) app.toast("Loaded your latest progress from your account", true);
       } else if (localMs > remoteMs + 1000) {
-        await pushNow();
-      } else { status = "synced"; lastSynced = new Date(); paint(); }
+        app.setOwner(user.id); await pushNow();
+      } else done();
     }
+
+    async function loadProfile() {
+      if (!user) return;
+      const { data } = await sb.from("profiles").select("first_name, test_kind, test_date").eq("user_id", user.id).maybeSingle();
+      if (data) app.applyProfile({ name: data.first_name || "", kind: data.test_kind, date: data.test_date || null });
+    }
+    app.onSettings(async (st) => {
+      if (!user) return;
+      await sb.from("profiles").upsert({ user_id: user.id, first_name: st.name || "", test_kind: st.kind === "sat" ? "sat" : "psat", test_date: st.date || null }, { onConflict: "user_id" });
+    });
 
     app.onSave(() => schedulePush());
     window.addEventListener("online", () => { if (user) pushNow(); });
@@ -77,7 +104,7 @@
       const was = user && user.id;
       user = session ? session.user : null;
       if (event === "PASSWORD_RECOVERY") setTimeout(showReset, 0);
-      if (user && user.id !== was) setTimeout(() => pull(true), 0);
+      if (user && user.id !== was) setTimeout(async () => { await pull(true); await loadProfile(); }, 0);
       if (!user) status = "off";
       paint();
       if (document.querySelector("#pop .acct")) setTimeout(openAccount, 0);
@@ -100,37 +127,58 @@
       if (/password/i.test(m) && /6|short|least/i.test(m)) return "Use a password with at least 6 characters.";
       if (/rate limit|too many/i.test(m)) return "Too many attempts. Wait a few minutes and try again.";
       if (/fetch|network/i.test(m)) return "Can't reach the sync service. Check the internet connection.";
+      if (/database error saving new user|INVITE_CODE/i.test(m)) return "That invite code isn't right. Check the code from the person who shared the site.";
+      if (/email.*invalid|invalid.*email/i.test(m)) return "That email address doesn't look right.";
       return m;
     }
 
     function openAccount(mode) {
       const h = host(); h.textContent = "";
       if (user) {
+        const nm = (app.state.settings && app.state.settings.name) || "";
         h.append(el("div", { class: "panelpop acct", role: "dialog", "aria-label": "Account" },
-          el("header", {}, el("strong", { text: "Progress sync" }), close()),
+          el("header", {}, el("strong", { text: nm ? nm + "'s account" : "Your account" }), close()),
           el("p", {}, "Signed in as ", el("strong", { text: user.email })),
-          el("p", { class: "muted", style: "font-size:13px", text: lastSynced ? "Last synced " + lastSynced.toLocaleString() + ". Every change on this device uploads automatically." : "Every change on this device uploads automatically." }),
+          el("p", { class: "muted", style: "font-size:13px", text: (lastSynced ? "Last synced " + lastSynced.toLocaleString() + ". " : "") + "Every change on this device uploads automatically. A parent can follow along by signing in with the same account." }),
           el("div", { class: "row" },
             el("button", { class: "btn primary", onclick: async () => { await pull(false); if (status === "synced") await pushNow(); app.toast(status === "synced" ? "Synced" : "Couldn't sync right now"); openAccount(); } }, "Sync now"),
-            el("button", { class: "btn", onclick: () => openReminders() }, "Reminders"),
-            el("button", { class: "btn ghost", onclick: async () => { await pushNow(); await sb.auth.signOut(); app.toast("Signed out. Progress stays on this device."); host().textContent = ""; } }, "Sign out"))));
+            el("button", { class: "btn", onclick: () => openReminders() }, "Reminders")),
+          el("div", { class: "row" },
+            el("button", { class: "btn ghost", onclick: async () => { await pushNow(); await sb.auth.signOut(); app.toast("Signed out. Your progress stays on this device."); host().textContent = ""; } }, "Sign out"),
+            el("button", { class: "btn ghost", onclick: async () => { await pushNow(); await sb.auth.signOut(); app.reset(); app.toast("Signed out and removed from this device. Your progress is safe in your account."); host().textContent = ""; } }, "Sign out and clear this device")),
+          el("p", { class: "muted", style: "font-size:12px", text: "On a shared or school computer, use “Sign out and clear this device.”" })));
         return;
       }
       mode = mode || "in";
+      const up = mode === "up";
       const email = el("input", { type: "email", id: "acEmail", autocomplete: "email", required: true, placeholder: "name@example.com" });
-      const pw = el("input", { type: "password", id: "acPw", autocomplete: mode === "up" ? "new-password" : "current-password", minlength: "6", placeholder: "At least 6 characters" });
+      const pw = el("input", { type: "password", id: "acPw", autocomplete: up ? "new-password" : "current-password", minlength: "6", placeholder: "At least 6 characters" });
       const msg = el("p", { class: "err", role: "alert" });
-      const busyBtn = (b, on) => { b.disabled = on; };
-      const submit = el("button", { class: "btn primary", type: "submit" }, mode === "up" ? "Create account" : "Sign in");
-      const f = el("form", { class: "panelpop acct", role: "dialog", "aria-label": "Sign in to sync" },
-        el("header", {}, el("strong", { text: mode === "up" ? "Create an account" : "Sign in to sync" }), close()),
-        el("p", { class: "muted", style: "font-size:13px", text: "Signing in saves progress online so it shows up on every device. A parent can check it by signing in with the same account. Progress already on this device is kept." }),
-        el("label", { class: "f", for: "acEmail" }, "Email", email),
-        el("label", { class: "f", for: "acPw" }, "Password", pw),
-        msg,
+      const submit = el("button", { class: "btn primary", type: "submit" }, up ? "Create account" : "Sign in");
+      const fields = [];
+      let first, kind, date, grade, code;
+      if (up) {
+        const st = app.state.settings || {};
+        first = el("input", { type: "text", id: "acFirst", autocomplete: "given-name", maxlength: "40", required: true, value: app.state.owner ? "" : st.name || "" });
+        kind = el("select", { id: "acKind" }, el("option", { value: "psat", text: "PSAT/NMSQT" }), el("option", { value: "sat", text: "SAT" }));
+        kind.value = app.state.owner ? "psat" : st.kind || "psat";
+        date = el("input", { type: "date", id: "acDate", value: app.state.owner ? "2026-10-07" : st.date || "2026-10-07" });
+        grade = el("select", { id: "acGrade" }, ["", "8", "9", "10", "11", "12"].map((g) => el("option", { value: g, text: g ? "Grade " + g : "Choose…" })));
+        code = el("input", { type: "text", id: "acCode", autocomplete: "off", maxlength: "20", placeholder: "e.g. SPRINT-XXXXX", style: "text-transform:uppercase" });
+        fields.push(
+          el("label", { class: "f", for: "acFirst" }, "Student's first name", first),
+          el("div", { class: "fields" }, el("label", { class: "f", for: "acKind" }, "Test", kind), el("label", { class: "f", for: "acDate" }, "Test date", date)),
+          el("label", { class: "f", for: "acGrade" }, "Grade", grade));
+      }
+      fields.push(el("label", { class: "f", for: "acEmail" }, up ? "Student's email" : "Email", email), el("label", { class: "f", for: "acPw" }, "Password", pw));
+      if (up) fields.push(el("label", { class: "f", for: "acCode" }, "Invite code", code));
+      const f = el("form", { class: "panelpop acct", role: "dialog", "aria-label": up ? "Create a student account" : "Sign in", style: "max-height:calc(100vh - 32px);overflow:auto" },
+        el("header", {}, el("strong", { text: up ? "Create a student account" : "Sign in" }), close()),
+        el("p", { class: "muted", style: "font-size:13px", text: up ? "One account per student. Progress saves online and shows up on every device; a parent can follow along with the same sign-in." : "Sign in to save progress online and see it on every device." }),
+        ...fields, msg,
         el("div", { class: "row" }, submit,
-          el("button", { type: "button", class: "btn small ghost", onclick: () => openAccount(mode === "up" ? "in" : "up") }, mode === "up" ? "I have an account" : "Create account"),
-          mode === "in" ? el("button", { type: "button", class: "btn small ghost", onclick: forgot }, "Forgot password?") : null));
+          el("button", { type: "button", class: "btn small ghost", onclick: () => openAccount(up ? "in" : "up") }, up ? "I have an account" : "Create a student account"),
+          !up ? el("button", { type: "button", class: "btn small ghost", onclick: forgot }, "Forgot password?") : null));
       async function forgot() {
         if (!email.value.trim()) { msg.textContent = "Type the email address first."; return; }
         const { error } = await sb.auth.resetPasswordForEmail(email.value.trim(), { redirectTo: SITE });
@@ -139,23 +187,28 @@
       f.addEventListener("submit", async (e) => {
         e.preventDefault(); msg.className = "err"; msg.textContent = "";
         const em = email.value.trim(), p = pw.value;
+        if (up && !first.value.trim()) { msg.textContent = "Enter the student's first name."; return; }
         if (!em || p.length < 6) { msg.textContent = "Enter an email and a password of at least 6 characters."; return; }
-        busyBtn(submit, true);
-        if (mode === "up") {
-          const { data, error } = await sb.auth.signUp({ email: em, password: p, options: { emailRedirectTo: SITE } });
-          busyBtn(submit, false);
+        if (up && !code.value.trim()) { msg.textContent = "Enter the invite code."; return; }
+        submit.disabled = true;
+        if (up) {
+          const meta = { first_name: first.value.trim(), test_kind: kind.value, test_date: date.value || "", grade: grade.value, invite_code: code.value.trim().toUpperCase() };
+          const { data, error } = await sb.auth.signUp({ email: em, password: p, options: { emailRedirectTo: SITE, data: meta } });
+          submit.disabled = false;
           if (error) { msg.textContent = friendly(error); return; }
-          if (!data.session) { msg.className = "muted"; msg.textContent = "Account created. Open the confirmation link sent to " + em + ", then come back here and sign in."; return; }
-          host().textContent = ""; app.toast("Account created and signed in", true);
+          if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) { msg.textContent = "An account with this email already exists. Sign in instead."; return; }
+          if (!data.session) { msg.className = "muted"; msg.textContent = "Account created for " + meta.first_name + ". Open the confirmation link sent to " + em + " (check Spam too), then come back and sign in."; return; }
+          host().textContent = ""; app.toast("Welcome, " + meta.first_name + "! Your account is ready.", true);
         } else {
           const { error } = await sb.auth.signInWithPassword({ email: em, password: p });
-          busyBtn(submit, false);
+          submit.disabled = false;
           if (error) { msg.textContent = friendly(error); return; }
           host().textContent = "";
         }
       });
-      h.append(f); email.focus();
+      h.append(f); (up ? first : email).focus();
     }
+    document.addEventListener("psapp-account", (e) => openAccount(e.detail));
     function showReset() {
       const h = host(); h.textContent = "";
       const pw = el("input", { type: "password", id: "newPw", autocomplete: "new-password", minlength: "6" });

@@ -24,18 +24,27 @@
   const MATH_MIX = { alg: 8, adv: 7, psda: 4, geo: 3 };
   const RW_LV = { std: [1, 2, 2, 2, 2, 3, 3], hard: [2, 2, 3, 3, 3, 3, 3], easy: [1, 1, 1, 2, 2, 2, 2] };
 
-  const PLAN = [
-    { date: "2026-09-28", title: "Baseline, part 1", tasks: ["Install the Bluebook app and sign in with your College Board account", "Download PSAT/NMSQT Practice Test 1 in Bluebook", "Take the Reading and Writing section in Bluebook, timed (64 min, both modules)", "Warm up here: a 10-question practice set"] },
-    { date: "2026-09-29", title: "Baseline, part 2", tasks: ["Take the Math section of Bluebook Practice Test 1, timed (70 min)", "Open the score report and count misses in each skill domain", "Enter the results in the Log Bluebook test tab"] },
-    { date: "2026-09-30", title: "Fix the biggest leak", tasks: ["Read the explanation for every missed question in Bluebook", "Practice 20 questions on the #1 skill in the Skill matrix Focus list", "Retry the Mistake notebook"] },
-    { date: "2026-10-01", title: "Grammar rules day", tasks: ["Practice 20 Standard English Conventions questions", "Learn the punctuation rules: period or semicolon between full sentences, colon before a list or explanation, commas in pairs around extra info, no comma between subject and verb", "Spend 20 minutes with Desmos: graph a line, find an intersection, find a vertex"] },
-    { date: "2026-10-02", title: "Math under the clock", tasks: ["Take an in-app mock: Math section only, timed", "Review every miss in the results", "Practice 10 questions on the #2 Focus skill"] },
-    { date: "2026-10-03", title: "Dress rehearsal", tasks: ["Take Bluebook PSAT Practice Test 2 in one sitting, starting at the same time as the real test", "Take only the scheduled 10-minute break", "Enter the results in the Log Bluebook test tab"] },
-    { date: "2026-10-04", title: "Review the rehearsal", tasks: ["Review every miss from Practice Test 2", "Compare the Skill matrix with Test 1 and note what improved", "Practice 20 questions on the lowest skill"] },
-    { date: "2026-10-05", title: "Reading under the clock", tasks: ["Take an in-app mock: Reading and Writing section only, timed", "Review every miss in the results", "Retry the Mistake notebook"] },
-    { date: "2026-10-06", title: "Light review", tasks: ["One 10-question mixed practice set, nothing more", "Charge the device, update Bluebook, and run its exam readiness check", "Pack what the school asks for: device, charger, admission info", "Lights out by 10 pm"] },
-    { date: "2026-10-07", title: "Test day", tasks: ["Eat a real breakfast", "Take care on Module 1: it decides whether Module 2 is the harder set", "Never leave a question blank; wrong answers cost nothing", "Use Desmos and the reference sheet to check math answers"] }
+  const PLAN_TEMPLATE = [
+    { title: "Baseline, part 1", tasks: ["Install the Bluebook app and sign in with your College Board account", "Download {TEST} Practice Test 1 in Bluebook", "Take the Reading and Writing section in Bluebook, timed (64 min, both modules)", "Warm up here: a 10-question practice set"] },
+    { title: "Baseline, part 2", tasks: ["Take the Math section of Bluebook Practice Test 1, timed (70 min)", "Open the score report and count misses in each skill domain", "Enter the results in the Log Bluebook test tab"] },
+    { title: "Fix the biggest leak", tasks: ["Read the explanation for every missed question in Bluebook", "Practice 20 questions on the #1 skill in the Skill matrix Focus list", "Retry the Mistake notebook"] },
+    { title: "Grammar rules day", tasks: ["Practice 20 Standard English Conventions questions", "Learn the punctuation rules: period or semicolon between full sentences, colon before a list or explanation, commas in pairs around extra info, no comma between subject and verb", "Spend 20 minutes with Desmos: graph a line, find an intersection, find a vertex"] },
+    { title: "Math under the clock", tasks: ["Take an in-app mock: Math section only, timed", "Review every miss in the results", "Practice 10 questions on the #2 Focus skill"] },
+    { title: "Dress rehearsal", tasks: ["Take Bluebook {TEST} Practice Test 2 in one sitting, starting at the same time as the real test", "Take only the scheduled 10-minute break", "Enter the results in the Log Bluebook test tab"] },
+    { title: "Review the rehearsal", tasks: ["Review every miss from Practice Test 2", "Compare the Skill matrix with Test 1 and note what improved", "Practice 20 questions on the lowest skill"] },
+    { title: "Reading under the clock", tasks: ["Take an in-app mock: Reading and Writing section only, timed", "Review every miss in the results", "Retry the Mistake notebook"] },
+    { title: "Light review", tasks: ["One 10-question mixed practice set, nothing more", "Charge the device, update Bluebook, and run its exam readiness check", "Pack what the school asks for: device, charger, admission info", "Lights out by 10 pm"] },
+    { title: "Test day", tasks: ["Eat a real breakfast", "Take care on Module 1: it decides whether Module 2 is the harder set", "Never leave a question blank; wrong answers cost nothing", "Use Desmos and the reference sheet to check math answers"] }
   ];
+
+  // The plan counts back from the student's own test date: day 1 is 9 days before, the last day is test day.
+  function plan() {
+    const end = parseYmd(S.settings.date || "2026-10-07"), label = S.settings.kind === "sat" ? "SAT" : "PSAT/NMSQT";
+    return PLAN_TEMPLATE.map((d, i) => {
+      const dt = new Date(end); dt.setDate(end.getDate() - (PLAN_TEMPLATE.length - 1 - i));
+      return { date: ymd(dt), title: d.title, tasks: d.tasks.map((t) => t.replace("{TEST}", label)) };
+    });
+  }
 
   const BADGES = [
     { id: "first", s: "1st", name: "First Rep", how: "Finish your first practice set" },
@@ -65,7 +74,7 @@
       stats: {}, sub: {}, answered: 0, tests: [], mistakes: [], fixed: 0, badges: {},
       seenBank: {}, recentKeys: [], mock: null, lastMock: null,
       prefs: { sel: [], count: 10, diff: "auto", timed: true },
-      settings: { kind: "psat", date: "2026-10-07", name: "Rishabh" },
+      settings: { kind: "psat", date: "2026-10-07", name: "" },
       rewards: [
         { id: "r1", xp: 500, label: "Choose Friday dinner", claimed: false },
         { id: "r2", xp: 1000, label: "Pick the family movie night", claimed: false },
@@ -88,7 +97,7 @@
     catch (e) { if (storageOK) toast("This browser isn't saving progress. Use Back up progress to keep a copy."); storageOK = false; }
     notifySaved();
   }
-  const saveHooks = [];
+  const saveHooks = [], settingsHooks = [];
   function notifySaved() { for (const fn of saveHooks) { try { fn(S); } catch (e) { } } }
 
   /* ================= Helpers ================= */
@@ -250,7 +259,21 @@
   function renderToday() {
     const p = $("#p-today"); p.textContent = "";
     const t = today();
+    const PLAN = plan();
     const cur = PLAN.find((d) => d.date === t) || (t < PLAN[0].date ? PLAN[0] : null);
+    const signedIn = !!(window.__psync && window.__psync.user);
+    if (!signedIn && !S.owner && !S.prefs.welcomeDone && !S.updatedAt) {
+      const acct = (mode) => document.dispatchEvent(new CustomEvent("psapp-account", { detail: mode }));
+      p.append(el("div", { class: "card mission" },
+        el("div", { class: "eyebrow", text: "Welcome" }),
+        el("h2", { text: "PSAT and SAT practice that adapts to you" }),
+        el("p", { class: "lede", text: "Fresh practice questions every time, full-length adaptive mock tests, a skill matrix that shows what to work on, and rewards for keeping at it. Create a free student account to save progress across your phone and computer and get daily reminders." }),
+        el("div", { class: "row" },
+          el("button", { class: "btn primary", onclick: () => acct("up") }, "Create a student account"),
+          el("button", { class: "btn", onclick: () => acct("in") }, "Sign in"),
+          el("button", { class: "btn ghost", onclick: () => { S.prefs.welcomeDone = true; save(); render(); } }, "Try it first")),
+        el("p", { class: "muted", style: "font-size:13px", text: "You'll need an invite code from the person who shared this site." })));
+    }
     if (S.mock && S.mock.phase !== "done") {
       p.append(el("div", { class: "card mission" }, el("div", { class: "eyebrow", text: "Mock test in progress" }), el("h2", { text: FORMATS[S.mock.kind].name + " mock" }), el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => show("mock") }, "Resume the mock test"))));
     }
@@ -858,7 +881,7 @@
     const nm = el("input", { type: "text", id: "setName", value: S.settings.name || "", maxlength: "30", autocomplete: "off" });
     const f = el("form", { class: "panelpop", role: "dialog", "aria-label": "Settings" }, el("header", {}, el("strong", { text: "Settings" }), el("button", { type: "button", class: "btn small ghost", onclick: () => (host.textContent = "") }, "Close")),
       el("label", { class: "f", for: "setName" }, "Student's first name", nm), el("label", { class: "f" }, "Test", kind), el("label", { class: "f" }, "Test date", date), el("button", { class: "btn primary", type: "submit" }, "Save"));
-    f.addEventListener("submit", (e) => { e.preventDefault(); if (date.value) S.settings.date = date.value; S.settings.kind = kind.value; S.settings.name = nm.value.trim(); save(); host.textContent = ""; render(); toast("Settings saved"); });
+    f.addEventListener("submit", (e) => { e.preventDefault(); if (date.value) S.settings.date = date.value; S.settings.kind = kind.value; S.settings.name = nm.value.trim(); save(); for (const fn of settingsHooks) { try { fn(S.settings); } catch (x) { } } host.textContent = ""; render(); toast("Settings saved"); });
     host.append(f);
   });
   function confirmPop(msg, yes, fn) {
@@ -878,6 +901,19 @@
     // Replace progress with a newer copy (from the cloud) without triggering another upload.
     replace(next) { S = Object.assign(blank(), next); S.prefs = Object.assign(blank().prefs, S.prefs); S.settings = Object.assign(blank().settings, S.settings); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } render(); },
     onSave(fn) { saveHooks.push(fn); },
+    onSettings(fn) { settingsHooks.push(fn); },
+    // Record which account this device's progress belongs to (does not count as a change).
+    setOwner(id) { S.owner = id; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } },
+    // Apply the signed-in student's profile (name, test, date) without counting as a change.
+    applyProfile(p) {
+      let changed = false;
+      if (p.name != null && p.name !== S.settings.name) { S.settings.name = p.name; changed = true; }
+      if (p.kind && p.kind !== S.settings.kind) { S.settings.kind = p.kind; changed = true; }
+      if (p.date && p.date !== S.settings.date) { S.settings.date = p.date; changed = true; }
+      if (changed) { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } render(); }
+    },
+    // Remove this device's copy (the account keeps its copy in the cloud).
+    reset() { P = null; S = blank(); try { localStorage.removeItem(KEY); } catch (e) { } render(); },
     save, render, toast,
     get busy() { return !!(S.mock && S.mock.phase !== "done") || !!(P && !P.finished); }
   };
