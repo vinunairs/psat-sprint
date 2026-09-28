@@ -1,4 +1,4 @@
-const C=require('../js/core.js');globalThis.PSCore=C;const RW=require('../js/rwgen.js');const BANK=require('../js/rwbank.js');globalThis.RWBank=BANK;require('../js/rwbank2.js');
+const C=require('../js/core.js');globalThis.PSCore=C;const RW=require('../js/rwgen.js');const BANK=require('../js/rwbank.js');globalThis.RWBank=BANK;require('../js/rwbank2.js');require('../js/rwbank3.js');
 let bad=0,n=0;
 for(const [name,fn] of Object.entries(RW.fns)) for(let i=0;i<500;i++){const q=RW.build(fn,C.makeRng(i*31+name.length));n++;
  const errs=[]; if(!q){bad++;console.log(name,'NULL');continue;}

@@ -23,6 +23,8 @@ A PSAT/NMSQT and SAT prep site with fresh questions every time, timed adaptive m
 
 Questions are original, written in the style of the digital PSAT/SAT. They are not College Board questions.
 
+Math generators live in `js/mathgen.js`, `js/mathgen2.js` and `js/mathgen3.js`. Batch 3 adds rearranging formulas, systems of inequalities, polynomial and rational expressions, measures of spread, area and percent scaling, and parallel lines and polygons. `MathGen.HARD` holds multi-step items (function composition, circle equations in expanded form, perpendicular lines, two-way tables, growth models, quadratic–constant systems) that make up about 40% of level-3 questions. Reading bank batch 3 (`js/rwbank3.js`) adds purpose, structure and cross-text items. Craft and Structure picks are weighted about 55% words in context, 30% purpose and structure, and 15% cross-text.
+
 ## Feedback that sticks
 Every question type maps to a strategy card in `js/strategies.js` (the name of the question type, how to spot it, a one-line rule, the steps, a Desmos shortcut where it helps, and the usual trap). After each answer the explanation shows Spot it, Solve it, The trap and Remember. After each set or mock, "3 things to remember" lists the most-missed strategies. The Review tab has spaced-repetition flashcards built from missed strategies, a printable night-before sheet, and the full strategy library. When you add a question generator or bank skill, map it in `BY_GEN` or `BY_SKILL`.
 

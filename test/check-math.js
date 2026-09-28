@@ -1,9 +1,10 @@
 global.window=undefined;
 const C=require('../js/core.js'); globalThis.PSCore=C;
-const MG=require('../js/mathgen.js');globalThis.MathGen=MG;require('../js/mathgen2.js');
+const MG=require('../js/mathgen.js');globalThis.MathGen=MG;require('../js/mathgen2.js');require('../js/mathgen3.js');
 let bad=0,total=0; const fails={};
 const norm=s=>C.parseAnswer(String(s).replace(/[$°%π,]/g,''));
-for(const [dom,list] of Object.entries(MG.BY_DOMAIN)) for(const name of list) for(const L of [1,2,3]) for(let i=0;i<400;i++){
+const ALL=Object.entries(MG.BY_DOMAIN).map(([d,l])=>[d,l.map(n=>[n,[1,2,3]])]).concat(Object.entries(MG.HARD).map(([d,l])=>[d,l.map(n=>[n,[3]])]));
+for(const [dom,list] of ALL) for(const [name,LV] of list) for(const L of LV) for(let i=0;i<400;i++){
   const r=C.makeRng(i*977+L*13+name.length*101);
   let q; try{q=MG.build(name,r,L); if(!q){fails[name+L]='NULL';bad++;continue;}}catch(e){fails[name+L]=(fails[name+L]||'THROW '+e.message);bad++;continue;}
   total++;

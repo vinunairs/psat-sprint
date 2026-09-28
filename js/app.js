@@ -194,8 +194,14 @@
     return Object.assign({}, q, { o: idx.map((i) => q.o[i]), a: idx.indexOf(q.a) });
   }
   function fromBank(domain, lv, used) {
-    const all = BANK.filter((q) => q.d === domain && !used.has("bank:" + q.id));
+    let all = BANK.filter((q) => q.d === domain && !used.has("bank:" + q.id));
     if (!all.length) return null;
+    // Craft and Structure on the real test is roughly 55% words in context, 30% purpose and structure, 15% cross-text.
+    if (domain === "cs") {
+      const x = rng.f(), grp = x < 0.55 ? /Words in context/ : x < 0.85 ? /Text purpose|Text structure/ : /Cross-text/;
+      const sub = all.filter((q) => grp.test(q.sk));
+      if (sub.length) all = sub;
+    }
     const unseen = all.filter((q) => !S.seenBank[q.id]);
     let pool = unseen.length ? unseen : all.slice().sort((x, y) => (S.seenBank[x.id] || 0) - (S.seenBank[y.id] || 0)).slice(0, Math.max(3, Math.ceil(all.length / 4)));
     const best = Math.min(...pool.map((q) => Math.abs((q.lv || 2) - lv)));
@@ -684,10 +690,16 @@
   const SUPS = { 0: "⁰", 1: "¹", 2: "²", 3: "³", 4: "⁴", 5: "⁵", 6: "⁶", 7: "⁷", 8: "⁸", 9: "⁹", "-": "⁻", "−": "⁻" };
   // x^3 → x³ (fractional exponents like ^(t/3) stay as written, the way the test shows them)
   const supify = (t) => (typeof t === "string" ? t.replace(/\^\(?([−-]?\d+)\)?(?![\w/])/g, (m, d) => [...d].map((ch) => SUPS[ch] || ch).join("")) : t);
+  // Passages may mark one sentence with <u>…</u> ("the underlined sentence"); everything else stays plain text.
+  function passageEl(t) {
+    const d = el("div", { class: "passage" });
+    String(t).split(/(<u>[\s\S]*?<\/u>)/).forEach((part) => { const m = /^<u>([\s\S]*)<\/u>$/.exec(part); d.append(m ? el("u", { text: m[1] }) : document.createTextNode(part)); });
+    return d;
+  }
   function stem(q, parts) {
     const frag = document.createDocumentFragment();
     if (parts !== "prompt") {
-      if (q.p) frag.append(el("div", { class: "passage", text: q.p }));
+      if (q.p) frag.append(passageEl(q.p));
       if (q.table) frag.append(dataTable(q.table));
       if (q.chart) frag.append(chartView(q.chart));
     }
