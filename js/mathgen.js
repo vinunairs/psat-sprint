@@ -1,4 +1,4 @@
-/* PSAT Sprint — math question generators.
+/* Test Prep Hub — math question generators.
    Numbers are random every time; answers and explanations are computed from the same numbers. */
 (function (root) {
   const C = root.PSCore || (typeof require !== "undefined" ? require("./core.js") : null);

@@ -1,4 +1,4 @@
-/* PSAT Sprint — Reading and Writing question bank, batch 2.
+/* Test Prep Hub — Reading and Writing question bank, batch 2.
    In this file the correct answer is always listed first (a: 0); the app shuffles
    answer choices every time a question is shown. Ids must stay unique. */
 (function (root) {

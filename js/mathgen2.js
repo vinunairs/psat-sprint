@@ -1,4 +1,4 @@
-/* PSAT Sprint — math question types that need a drawn graph or were missing from the first set.
+/* Test Prep Hub — math question types that need a drawn graph or were missing from the first set.
    Adds to MathGen: scatterplots with a line of best fit, frequency bar charts, sampling and
    margin of error, graphs of lines and parabolas, line–parabola systems, radians,
    and special right triangles.

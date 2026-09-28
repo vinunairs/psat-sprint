@@ -1,4 +1,4 @@
-/* PSAT Sprint — app */
+/* Test Prep Hub — app */
 (function () {
   "use strict";
   const { makeRng, checkSpr } = window.PSCore;
@@ -225,10 +225,10 @@
 
   /* ================= Header & tabs ================= */
   function renderHeader() {
-    if (GUEST) { document.title = "PSAT Sprint"; const hi = document.getElementById("hello"); if (hi) hi.textContent = ""; return; }
+    if (GUEST) { document.title = "Test Prep Hub"; const hi = document.getElementById("hello"); if (hi) hi.textContent = ""; return; }
     const n = daysLeft(), fmt = FORMATS[S.settings.kind];
     const hi = document.getElementById("hello"); if (hi) hi.textContent = greeting();
-    document.title = who() ? "PSAT Sprint · " + who() : "PSAT Sprint";
+    document.title = who() ? "Test Prep Hub · " + who() : "Test Prep Hub";
     $("#testLabel").textContent = fmt.name + " · " + fmtDay(S.settings.date).long;
     const weeks = n > 60 ? Math.round(n / 7) : null;
     $("#daysLeft").textContent = weeks ? weeks : n > 0 ? n : n === 0 ? "0" : "✓";
@@ -256,7 +256,7 @@
     document.body.classList.toggle("guest", GUEST);
     document.body.classList.toggle("holding", HOLD && !GUEST);
     if (HOLD && !GUEST) {
-      document.title = "PSAT Sprint";
+      document.title = "Test Prep Hub";
       const hi = document.getElementById("hello"); if (hi) hi.textContent = "";
       document.querySelectorAll("section.panel").forEach((x) => (x.hidden = x.id !== "p-today"));
       const p = $("#p-today"); p.textContent = "";
@@ -414,7 +414,7 @@
     p.append(el("div", { class: "card mission hero" },
       el("div", { class: "eyebrow", text: "Free practice for the digital PSAT and SAT" }),
       el("h2", { class: "hero-h", text: "Practice smarter, one skill at a time" }),
-      el("p", { class: "lede", text: "PSAT Sprint gives students fresh practice questions every time, full-length mock tests in the real adaptive format, a skill matrix that shows exactly what to work on, and a study plan built around their own test date." }),
+      el("p", { class: "lede", text: "Test Prep Hub gives students fresh practice questions every time, full-length mock tests in the real adaptive format, a skill matrix that shows exactly what to work on, and a study plan built around their own test date." }),
       el("div", { class: "row" },
         el("button", { class: "btn primary", onclick: () => acct("up") }, "Create a student account"),
         el("button", { class: "btn", onclick: () => acct("in") }, "Sign in"),
@@ -1172,7 +1172,7 @@
   /* ================= Backup, restore, settings ================= */
   $("#exportBtn").addEventListener("click", () => {
     const blob = new Blob([JSON.stringify(S, null, 1)], { type: "application/json" });
-    const a = el("a", { href: URL.createObjectURL(blob), download: "psat-sprint-backup-" + today() + ".json" });
+    const a = el("a", { href: URL.createObjectURL(blob), download: "test-prep-hub-backup-" + today() + ".json" });
     document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
     toast("Backup file saved to Downloads");
   });
@@ -1180,8 +1180,8 @@
     const file = e.target.files[0]; if (!file) return;
     const fr = new FileReader();
     fr.onload = () => {
-      let data; try { data = JSON.parse(fr.result); } catch (x) { toast("That file isn't a PSAT Sprint backup."); return; }
-      if (!data || data.v !== 2 || typeof data.xp !== "number") { toast("That file isn't a PSAT Sprint backup."); return; }
+      let data; try { data = JSON.parse(fr.result); } catch (x) { toast("That file isn't a Test Prep Hub backup."); return; }
+      if (!data || data.v !== 2 || typeof data.xp !== "number") { toast("That file isn't a Test Prep Hub backup."); return; }
       confirmPop("Replace the progress on this device with the backup from " + (data.updatedAt ? new Date(data.updatedAt).toLocaleString() : "the file") + "? (" + data.xp + " XP, " + (data.tests || []).length + " tests)", "Replace my progress", () => { S = Object.assign(blank(), data); save(); render(); toast("Progress restored", true); });
     };
     fr.readAsText(file); e.target.value = "";

@@ -1,4 +1,4 @@
-/* PSAT Sprint — authored Reading and Writing question bank.
+/* Test Prep Hub — authored Reading and Writing question bank.
    Original PSAT-style items for question types that need crafted passages.
    Add new items to the end of the list; ids must be unique. */
 (function (root) {

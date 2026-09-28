@@ -1,4 +1,4 @@
-/* PSAT Sprint — Reading and Writing generators.
+/* Test Prep Hub — Reading and Writing generators.
    Grammar (boundaries, extra-info punctuation, agreement, possessives), transitions,
    and data-table evidence questions are assembled fresh from sentence banks each time. */
 (function (root) {

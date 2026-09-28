@@ -1,4 +1,4 @@
-# PSAT Sprint
+# Test Prep Hub
 
 A PSAT/NMSQT and SAT prep site with fresh questions every time, timed adaptive mock tests, a skill matrix, and rewards.
 

@@ -1,4 +1,4 @@
-// PSAT Sprint — daily study reminders (Supabase Edge Function "send-reminders").
+// Test Prep Hub — daily study reminders (Supabase Edge Function "send-reminders").
 // POST {mode:"test"} with the signed-in user's access token → sends a test notification to that user.
 // POST {mode:"cron"} with header x-cron-secret → hourly job: sends each subscriber a personalized
 // reminder at their chosen local hour, unless they've already practiced that day.
@@ -93,7 +93,7 @@ function compose(p: any, today: string, test = false, weekday = "") {
       body = stale ? "No practice logged this week yet. New goals start tomorrow, so make it a strong week."
         : `This week: ${wsNow.q} questions, ${wsNow.done} of ${wsNow.total} goals done.` + (wsNow.done < wsNow.total ? " Tonight's a good chance to finish one more." : " Every goal met. Great week!");
     } else if (stale) {
-      title = `${until} to the ${kind}${hi}`; body = "New week, new goals. Open PSAT Sprint to see this week's focus.";
+      title = `${until} to the ${kind}${hi}`; body = "New week, new goals. Open Test Prep Hub to see this week's focus.";
     } else {
       title = streak > 0 ? `Keep your ${streak}-day streak${hi}!` : `${until} to the ${kind}${hi}`;
       body = `This week: ${wsNow.q} of ${wsNow.qTarget} questions. Focus: ${focus}.`;

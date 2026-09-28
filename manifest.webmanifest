@@ -1,6 +1,6 @@
 {
-  "name": "PSAT Sprint",
-  "short_name": "PSAT Sprint",
+  "name": "Test Prep Hub",
+  "short_name": "Test Prep Hub",
   "description": "PSAT and SAT practice with fresh questions, adaptive mock tests, and daily reminders.",
   "start_url": "./?from=app",
   "scope": "./",

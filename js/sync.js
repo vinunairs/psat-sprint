@@ -1,4 +1,4 @@
-/* PSAT Sprint — cloud sync with Supabase.
+/* Test Prep Hub — cloud sync with Supabase.
    Progress is always saved on the device first (localStorage), then uploaded to the
    signed-in account. On open, the newer copy (device or cloud) wins; the replaced
    copy is kept on the device under "psat-sprint-v2-before-sync" as a safety net. */
@@ -261,11 +261,11 @@
       const add = (...n) => panel.append(...n);
       const msg = el("p", { class: "muted", role: "status", style: "font-size:13px" });
       if (isIOS && !standalone) {
-        add(el("p", { text: "On iPhone and iPad, reminders work once PSAT Sprint is added to the Home Screen:" }),
+        add(el("p", { text: "On iPhone and iPad, reminders work once Test Prep Hub is added to the Home Screen:" }),
           el("ol", { style: "margin:0;padding-left:20px;display:grid;gap:4px;font-size:14px" },
             el("li", { text: "In Safari, tap the Share button (the square with an arrow)." }),
             el("li", { text: "Tap Add to Home Screen, then Add." }),
-            el("li", { text: "Open PSAT Sprint from the Home Screen, sign in, and tap Reminders again." })),
+            el("li", { text: "Open Test Prep Hub from the Home Screen, sign in, and tap Reminders again." })),
           el("p", { class: "muted", style: "font-size:13px", text: "Needs iOS 16.4 or later. Progress comes along after signing in." }));
         return;
       }

@@ -1,4 +1,4 @@
-/* PSAT Sprint — shared helpers for question generators.
+/* Test Prep Hub — shared helpers for question generators.
    Every generator returns a question object:
    { d: domain id, sk: skill label, lv: 1-3, q: prompt, p?: passage, table?: {head, rows},
      o: [4 options], a: correct index, spr?: number (numeric answer if it can be a grid-in),
