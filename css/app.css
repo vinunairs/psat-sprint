@@ -374,3 +374,71 @@ body.admin nav.tabs, body.admin .count, body.admin .status .stat:not(:first-chil
 .adm-skill .track i.good{background:var(--good)}.adm-skill .track i.warn{background:var(--warn)}.adm-skill .track i.bad{background:var(--bad)}
 .adm-card .muted{overflow-wrap:anywhere}
 @media (max-width:520px){.adm-card{padding:16px}.adm-bars{height:70px;gap:3px}}
+
+/* ================= Phones ================= */
+section.panel > *, .card, .split > *{min-width:0}
+@media (max-width:640px){
+
+  /* Header: one compact block instead of a tall stack */
+  .top{gap:10px;padding-block:14px 12px}
+  .hello{font-size:22px;margin:0 0 4px}
+  .count{gap:8px}
+  .count b{font-size:52px}
+  .status{display:grid;grid-template-columns:auto auto 1fr;gap:6px 18px;align-items:start}
+  .status .stat strong{font-size:18px}
+  .status .stat.xpbar{grid-column:1/-1}
+  .syncchip{min-height:36px}
+  /* Tabs: bigger touch targets and a hint that the row scrolls */
+  nav.tabs{padding-block:8px;-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
+  nav.tabs button{padding:10px 14px;min-height:42px}
+  /* Focus mode while answering: hide the header, let the tabs scroll away */
+  body.inq .top{display:none}
+  body.inq nav.tabs{position:static}
+  /* Cards and tables */
+  .card{padding:16px}
+  .tiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .tile{padding:12px}
+  .tile strong{font-size:28px}
+  table.mx{min-width:0}
+  .mx th,.mx td{padding:8px 6px}
+  table.mx-stack thead{display:none}
+  table.mx-stack, table.mx-stack tbody{display:block}
+  table.mx-stack tr{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:12px 4px;border-bottom:1px solid var(--line)}
+  table.mx-stack tr.grp{padding:0;border:0}
+  table.mx-stack tr.grp td{display:block;padding:8px 6px}
+  table.mx-stack td{border:0;padding:0;display:block}
+  table.mx-stack td.mx-name{grid-column:1}
+  table.mx-stack td.mx-status{grid-column:2;grid-row:1;align-self:start}
+  table.mx-stack td.mx-bar{grid-column:1/-1}
+  table.mx-stack td[data-label]{grid-column:1/-1;font-size:13px;display:flex;justify-content:space-between}
+  table.mx-stack td[data-label]::before{content:attr(data-label);color:var(--graphite);font-family:var(--display, inherit)}
+  /* Bigger tap targets for expandable rows */
+  .pday summary, .phguide summary, .howinline summary, .fb-steps summary, .lib summary{padding-block:8px}
+  .pday{padding:10px 12px}
+  .panelpop{right:10px;left:10px;width:auto;bottom:calc(10px + env(safe-area-inset-bottom,0px));max-height:calc(100vh - 20px);overflow:auto}
+  .panelpop.wide{width:auto}
+}
+@media (max-width:640px){
+  /* iPhone zooms into any field under 16px when tapped; keep every field at 16px */
+  input, select, textarea{font-size:16px}
+  /* Notices at the top on phones so they never cover Next / Check answer */
+  .toasts{bottom:auto;top:calc(10px + env(safe-area-inset-top,0px))}
+  .toast{padding:9px 14px;font-size:14px}
+  .toasts .toast:nth-last-child(n+3){display:none}
+  /* Calculator and reference: half-height sheet so the question stays visible above it */
+  .panelpop.toolpop{max-height:58vh}
+  .mode, .opt{min-height:48px}
+  button.btn.small{min-height:38px}
+  .reslist a, .hero a{display:inline-block;padding-block:6px}
+}
+.howto, .phsteps, .fb-body, .passage, .prompt{overflow-wrap:anywhere}
+@media (max-width:640px){.flagbtn{min-height:40px}.toggle input[type=checkbox], label input[type=checkbox]{width:22px;height:22px}}
+@media (max-width:640px){
+  .status .stat .eyebrow{font-size:10px}
+  .count b{font-size:46px}
+  .top .eyebrow#testLabel{font-size:11px}
+  /* Slim header on every tab except Today */
+  body:not([data-tab="today"]) .count, body:not([data-tab="today"]) .status .stat.xpbar, body:not([data-tab="today"]) #testLabel{display:none}
+  body:not([data-tab="today"]) .top{padding-block:10px 8px}
+  body:not([data-tab="today"]) .hello{font-size:18px}
+}

@@ -290,8 +290,10 @@
     if (ADMIN && !GUEST) t = "admin";
     TAB = t;
     document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === t)));
+    const ab = document.querySelector('nav.tabs button[data-tab="' + t + '"]'); if (ab && ab.scrollIntoView) try { ab.scrollIntoView({ inline: "center", block: "nearest" }); } catch (e) { }
     document.querySelectorAll("section.panel").forEach((p) => (p.hidden = p.id !== "p-" + t));
-    render();
+    document.body.dataset.tab = t;
+    render(); setInq();
     try { sessionStorage.setItem(KEY + "-tab", t); } catch (e) { }
     window.scrollTo({ top: 0 });
   }
@@ -946,7 +948,13 @@
     const s = (Date.now() - P.start) / 1000, target = P.qs.slice(0, P.i + 1).reduce((a, q) => a + DOM[q.d].pace, 0);
     e.textContent = mmss(s) + " · target " + mmss(target); e.classList.toggle("over", s > target);
   }
+  // While a question is on screen, phones get a compact focus layout (see body.inq in the CSS).
+  function setInq() {
+    const q = (TAB === "practice" && P && !P.finished) || (TAB === "mock" && S.mock && (S.mock.phase === "module" || S.mock.phase === "check"));
+    document.body.classList.toggle("inq", !!q && !ADMIN);
+  }
   function renderPractice() {
+    setTimeout(setInq, 0);
     const p = $("#p-practice"); p.textContent = "";
     if (P && !P.finished) return practiceQuestion(p);
     if (P && P.finished) p.append(practiceSummary());
@@ -1158,6 +1166,7 @@
   }
   let reviewFilter = "all", tool = null;
   function renderMock() {
+    setTimeout(setInq, 0);
     renderHeader();
     const p = $("#p-mock"); p.textContent = "";
     clearInterval(mTick);
@@ -1321,11 +1330,11 @@
         const map = { "÷": "/", "×": "*", "−": "-", "√": "sqrt(", "π": "pi", "x²": "^2", "±": "-" };
         return key(t, map[t], /[÷×−+^=C⌫]/.test(t) ? "op" : "");
       }));
-      host.append(el("div", { class: "panelpop", role: "dialog", "aria-label": "Calculator" }, el("header", {}, el("strong", { text: "Calculator" }), close), out, inp, keys, el("small", { class: "muted", text: "For graphing, use Desmos (opens in a new tab)." })));
+      host.append(el("div", { class: "panelpop toolpop", role: "dialog", "aria-label": "Calculator" }, el("header", {}, el("strong", { text: "Calculator" }), close), out, inp, keys, el("small", { class: "muted", text: "For graphing, use Desmos (opens in a new tab)." })));
       inp.focus();
     } else {
       const rows = [["Circle", "A = πr²,  C = 2πr"], ["Rectangle", "A = ℓw"], ["Triangle", "A = ½bh"], ["Pythagorean theorem", "c² = a² + b²"], ["Special right triangles", "30°-60°-90°: x, x√3, 2x  ·  45°-45°-90°: s, s, s√2"], ["Rectangular prism", "V = ℓwh"], ["Cylinder", "V = πr²h"], ["Sphere", "V = (4/3)πr³"], ["Cone", "V = (1/3)πr²h"], ["Pyramid", "V = (1/3)ℓwh"], ["Circle facts", "360° in a circle = 2π radians"], ["Triangle angles", "Sum of angles = 180°"]];
-      host.append(el("div", { class: "panelpop", role: "dialog", "aria-label": "Reference sheet" }, el("header", {}, el("strong", { text: "Reference sheet" }), close), el("div", { class: "ref" }, rows.map(([a, b]) => el("div", {}, el("b", { text: a }), el("span", { class: "num", text: b }))))));
+      host.append(el("div", { class: "panelpop toolpop", role: "dialog", "aria-label": "Reference sheet" }, el("header", {}, el("strong", { text: "Reference sheet" }), close), el("div", { class: "ref" }, rows.map(([a, b]) => el("div", {}, el("b", { text: a }), el("span", { class: "num", text: b }))))));
     }
   }
   function calc(expr) {
@@ -1360,14 +1369,14 @@
       tb.append(el("tr", { class: "grp" }, el("td", { colspan: "6", text: name })));
       DOMAINS.filter((d) => d.sec === sec).forEach((d) => {
         const m = mastery(d.id), [c, l] = status(m), r = S.stats[d.id], td = latestTestDom(d.id);
-        tb.append(el("tr", {}, el("td", {}, el("strong", { text: d.name }), el("div", { class: "muted", style: "font-size:12px", text: d.what })),
-          el("td", { class: "num", text: "≈" + d.n }),
-          el("td", { class: "num", text: td ? pct(td.c / td.t) + " (" + td.c + "/" + td.t + ")" : "—" }),
-          el("td", { class: "num", text: r ? pct(r.cor / r.att) + " (" + r.cor + "/" + r.att + ")" : "—" }),
-          el("td", {}, mbar(m, c)), el("td", {}, el("span", { class: "chip " + c, text: l }))));
+        tb.append(el("tr", {}, el("td", { class: "mx-name" }, el("strong", { text: d.name }), el("div", { class: "muted", style: "font-size:12px", text: d.what })),
+          el("td", { class: "num", "data-label": "On the test", text: "≈" + d.n }),
+          el("td", { class: "num", "data-label": "Latest test", text: td ? pct(td.c / td.t) + " (" + td.c + "/" + td.t + ")" : "—" }),
+          el("td", { class: "num", "data-label": "Practice", text: r ? pct(r.cor / r.att) + " (" + r.cor + "/" + r.att + ")" : "—" }),
+          el("td", { class: "mx-bar" }, mbar(m, c)), el("td", { class: "mx-status" }, el("span", { class: "chip " + c, text: l }))));
       });
     }
-    p.append(el("div", { class: "card", style: "padding:6px 8px" }, el("div", { class: "tablewrap" }, el("table", { class: "mx" }, el("thead", {}, el("tr", {}, ["Skill", "On the test", "Latest test", "Practice", "Mastery", "Status"].map((h) => el("th", { text: h })))), tb))));
+    p.append(el("div", { class: "card", style: "padding:6px 8px" }, el("div", { class: "tablewrap" }, el("table", { class: "mx mx-stack" }, el("thead", {}, el("tr", {}, ["Skill", "On the test", "Latest test", "Practice", "Mastery", "Status"].map((h) => el("th", { text: h })))), tb))));
     const subs = Object.entries(S.sub).filter(([, v]) => v.att >= 3).map(([k, v]) => ({ k: k.split("|")[0], d: k.split("|")[1], a: v.cor / v.att, n: v.att })).sort((x, y) => x.a - y.a).slice(0, 12);
     if (subs.length) p.append(el("div", { class: "card", style: "display:grid;gap:12px" }, el("h3", { text: "Question types to watch" }), el("p", { class: "muted", style: "font-size:13px", text: "The narrower question types you miss most (at least 3 attempts each)." }),
       el("div", { class: "subs" }, subs.map((s) => el("div", { class: "sub" }, el("span", {}, el("strong", { text: s.k }), el("span", { class: "muted", text: " · " + DOM[s.d].name.split(" ")[0] })), el("span", { class: "chip " + status(s.a)[0], text: pct(s.a) + " of " + s.n }))))));
