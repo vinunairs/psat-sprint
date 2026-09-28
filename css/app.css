@@ -349,3 +349,17 @@ ol.steps li span{color:var(--graphite);font-size:14px}
 .phguide summary{cursor:pointer;font-weight:700}
 .phguide[open]{display:grid;gap:8px}
 .phsteps{margin:6px 0 0;padding-left:20px;display:grid;gap:6px;font-size:14px}
+
+/* Admin dashboard */
+body.admin nav.tabs, body.admin .count, body.admin .status .stat:not(:first-child), body.admin footer .app-only{display:none}
+.adm-grid{display:grid;gap:14px;margin-top:14px}
+.adm-card{display:grid;gap:12px}
+.adm-card .btn{justify-self:start}
+.adm-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.adm-stat{display:grid;gap:2px;padding:10px 12px;background:var(--sunk);border-radius:10px}
+.adm-stat strong{font-size:20px}
+.adm-detail{display:grid;gap:10px;border-top:1px solid var(--line);padding-top:12px}
+.adm-bars{display:grid;grid-template-columns:repeat(14,1fr);gap:4px;height:90px;align-items:end}
+.adm-bar{display:grid;grid-template-rows:1fr auto;height:100%;text-align:center;font-size:11px;color:var(--graphite)}
+.adm-bar i{align-self:end;display:block;background:var(--ink);border-radius:3px 3px 0 0;min-height:2px}
+.adm-list{margin:0;padding-left:18px;display:grid;gap:4px;font-size:14px}

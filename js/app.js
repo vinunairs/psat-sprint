@@ -283,9 +283,11 @@
     $("#hXp").textContent = S.xp + " XP · " + (XP_PER_LEVEL - (S.xp % XP_PER_LEVEL)) + " to next level";
   }
   let TAB = "today";
+  const RENDERERS_OK = (t) => ["today", "practice", "mock", "review", "matrix", "log", "rewards"].includes(t);
   document.querySelectorAll("nav.tabs button").forEach((b) => b.addEventListener("click", () => show(b.dataset.tab)));
   function show(t) {
     if (GUEST && !["today", "practice", "mock"].includes(t)) t = "today";
+    if (ADMIN && !GUEST) t = "admin";
     TAB = t;
     document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === t)));
     document.querySelectorAll("section.panel").forEach((p) => (p.hidden = p.id !== "p-" + t));
@@ -295,6 +297,13 @@
   }
   function render() {
     document.body.classList.toggle("guest", GUEST);
+    document.body.classList.toggle("admin", !!ADMIN && !GUEST);
+    if (ADMIN && !GUEST) {
+      document.body.classList.remove("holding");
+      document.querySelectorAll("section.panel").forEach((x) => (x.hidden = x.id !== "p-admin"));
+      const fnA = document.getElementById("footNote"); if (fnA) fnA.textContent = "Admin view: read-only. Sign out from the Account button at the top.";
+      return renderAdmin();
+    }
     document.body.classList.toggle("holding", HOLD && !GUEST);
     if (HOLD && !GUEST) {
       document.title = "Test Prep Hub";
@@ -309,6 +318,7 @@
     const pb = document.querySelector('nav.tabs button[data-tab="practice"]'); if (pb) pb.textContent = GUEST ? "Sample practice" : "Practice";
     const mb = document.querySelector('nav.tabs button[data-tab="mock"]'); if (mb) mb.textContent = GUEST ? "Sample mock" : "Mock test";
     const fn = document.getElementById("footNote"); if (fn) fn.textContent = GUEST ? "Create a free student account to save progress and unlock the full site." : "Progress saves on this device first, then to your account.";
+    if (!RENDERERS_OK(TAB)) { TAB = "today"; document.querySelectorAll("section.panel").forEach((x) => (x.hidden = x.id !== "p-today")); }
     renderHeader(); ({ today: renderToday, practice: renderPractice, mock: renderMock, review: renderReview, matrix: renderMatrix, log: renderLog, rewards: renderRewards })[TAB](); }
 
   /* ================= Today ================= */
@@ -1553,8 +1563,102 @@
       el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => { host.textContent = ""; fn(); } }, yes), el("button", { class: "btn ghost", onclick: () => (host.textContent = "") }, "Cancel"))));
   }
 
+  /* ================= Admin: read-only dashboard of every student ================= */
+  // ADMIN is set by sync.js only when the server confirms this account is the site admin.
+  // The data comes from a server function that refuses any other account.
+  let ADMIN = null; // { load, rows, at, err, open }
+  const agoDays = (ymdStr) => (ymdStr ? Math.round((parseYmd(today()) - parseYmd(ymdStr)) / 864e5) : null);
+  const agoText = (n) => (n == null ? "never" : n <= 0 ? "today" : n === 1 ? "yesterday" : n + " days ago");
+  function studentSummary(row) {
+    const D = Object.assign(blank(), row.data || {}), st = D.settings || {};
+    const name = (row.first_name || st.name || "").trim() || (row.email || "Student").split("@")[0];
+    const actDays = Object.keys(D.activity || {}).filter((k) => (D.activity[k].q || D.activity[k].mock)).sort();
+    const lastAct = actDays[actDays.length - 1] || (D.updatedAt ? ymd(new Date(D.updatedAt)) : null);
+    const wk = { q: 0, c: 0, mock: 0, days: 0 };
+    for (let i = 0; i < 7; i++) { const a = (D.activity || {})[addDays(today(), -i)]; if (a) { wk.q += a.q || 0; wk.c += a.c || 0; wk.mock += a.mock || 0; if (a.q || a.mock) wk.days++; } }
+    const streak = D.streak && (D.streak.last === today() || D.streak.last === addDays(today(), -1)) ? D.streak.count : 0;
+    const tests = (D.tests || []).filter((t) => t.total || t.rw || t.math);
+    const latest = tests.filter((t) => t.total).pop() || null;
+    const testDom = (d) => { for (let i = (D.tests || []).length - 1; i >= 0; i--) { const t = D.tests[i]; if (t.dom && t.dom[d] && t.dom[d].t) return t.dom[d]; } return null; };
+    const dom = DOMAINS.map((d) => {
+      const r = (D.stats || {})[d.id], pa = r && r.att >= 3 ? r.cor / r.att : null, td = testDom(d.id), ta = td ? td.c / td.t : null;
+      const m = ta != null && pa != null ? 0.6 * ta + 0.4 * pa : ta != null ? ta : pa;
+      return { d, att: r ? r.att : 0, cor: r ? r.cor : 0, pa, ta, m };
+    });
+    const weakest = dom.filter((x) => x.m != null).sort((a, b) => a.m - b.m).slice(0, 2);
+    const kind = st.kind || row.test_kind || "psat", date = st.date || row.test_date;
+    const left = date ? Math.round((parseYmd(date) - parseYmd(today())) / 864e5) : null;
+    const lvl = Math.floor((D.xp || 0) / XP_PER_LEVEL) + 1;
+    return { row, D, st, name, lastAct, idle: agoDays(lastAct), wk, streak, tests, latest, dom, weakest, kind, date, left, target: st.target || row.target_score, lvl };
+  }
+  async function adminLoad() {
+    if (!ADMIN) return;
+    ADMIN.err = null; ADMIN.loading = true; renderAdmin();
+    try { ADMIN.rows = await ADMIN.load(); ADMIN.at = new Date(); } catch (e) { ADMIN.err = (e && e.message) || "Couldn't load students."; }
+    ADMIN.loading = false; if (ADMIN) render();
+  }
+  function renderAdmin() {
+    const p = $("#p-admin"); p.textContent = "";
+    document.title = "Test Prep Hub · Admin";
+    $("#hello").textContent = "Admin dashboard";
+    $("#testLabel").textContent = "Read-only view of every student";
+    p.append(el("div", { class: "row between" }, el("div", {}, el("h2", { text: "Students" }), el("p", { class: "muted", style: "font-size:14px", text: ADMIN.loading ? "Loading…" : ADMIN.at ? "Updated " + ADMIN.at.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + ". Progress syncs whenever a student uses the app." : "" })),
+      el("button", { class: "btn small", onclick: adminLoad, disabled: !!ADMIN.loading }, "Refresh")));
+    if (ADMIN.err) { p.append(el("div", { class: "card" }, el("p", { class: "err", text: ADMIN.err }))); return; }
+    if (!ADMIN.rows) return;
+    if (!ADMIN.rows.length) { p.append(el("div", { class: "card" }, el("h3", { text: "No students yet" }), el("p", { class: "muted", text: "Students appear here after they create an account with the invite code." }))); return; }
+    const list = ADMIN.rows.map(studentSummary);
+    const grid = el("div", { class: "adm-grid" });
+    for (const x of list) {
+      const idleCls = x.idle == null || x.idle > 3 ? "bad" : x.idle > 1 ? "warn" : "good";
+      const fmt = FORMATS[x.kind] || FORMATS.psat;
+      const open = ADMIN.open === x.row.user_id;
+      const card = el("div", { class: "card adm-card" + (open ? " open" : "") },
+        el("div", { class: "row between" }, el("div", {}, el("h3", { text: x.name }), el("div", { class: "muted", style: "font-size:13px", text: fmt.name + (x.date ? " · " + fmtDay(x.date).md + ", " + parseYmd(x.date).getFullYear() + (x.left != null ? (x.left > 0 ? " · " + x.left + " days away" : x.left === 0 ? " · today" : " · done") : "") : "") + (x.target ? " · target " + x.target : "") })),
+          el("span", { class: "chip " + idleCls, text: "Active " + agoText(x.idle) })),
+        el("div", { class: "adm-stats" },
+          stat("This week", x.wk.q + " questions", x.wk.q ? Math.round((x.wk.c / x.wk.q) * 100) + "% correct · " + x.wk.days + " day" + (x.wk.days === 1 ? "" : "s") : x.wk.days + " days"),
+          stat("Streak", x.streak + " day" + (x.streak === 1 ? "" : "s"), "Level " + x.lvl + " · " + (x.D.xp || 0) + " XP"),
+          stat("Latest score", x.latest ? String(x.latest.total) : "—", x.latest ? (isEst(x.latest) ? "estimated · " : "") + x.latest.name : "no test yet"),
+          stat("Answered", String(x.D.answered || 0), (x.D.mistakes || []).length + " in mistake notebook")),
+        x.weakest.length ? el("p", { style: "font-size:14px" }, el("strong", { text: "Weakest: " }), x.weakest.map((w) => w.d.name + " (" + Math.round(w.m * 100) + "%)").join(", ")) : el("p", { class: "muted", style: "font-size:14px", text: "Not enough practice yet to rank skills." }),
+        el("p", { class: "muted", style: "font-size:13px" }, (x.row.reminders ? "Reminders on (" + x.row.reminders + " device" + (x.row.reminders === 1 ? "" : "s") + (x.row.remind_hour != null ? ", " + ((x.row.remind_hour % 12) || 12) + (x.row.remind_hour < 12 ? " am" : " pm") : "") + ")" : "Reminders off") + " · " + (x.row.email || "") + (x.row.grade ? " · grade " + x.row.grade : "")),
+        el("button", { class: "btn small" + (open ? "" : " primary"), onclick: () => { ADMIN.open = open ? null : x.row.user_id; renderAdmin(); } }, open ? "Hide details" : "See details"),
+        open ? adminDetail(x) : null);
+      grid.append(card);
+    }
+    p.append(grid);
+    function stat(h, v, sub) { return el("div", { class: "adm-stat" }, el("span", { class: "eyebrow", text: h }), el("strong", { class: "num", text: v }), el("span", { class: "muted", style: "font-size:12px", text: sub })); }
+  }
+  function adminDetail(x) {
+    const box = el("div", { class: "adm-detail" });
+    // Last 14 days of activity
+    const bars = el("div", { class: "adm-bars", role: "img", "aria-label": "Questions answered per day, last 14 days" });
+    let mx = 1; const days = [];
+    for (let i = 13; i >= 0; i--) { const d = addDays(today(), -i), a = (x.D.activity || {})[d] || {}; days.push([d, a.q || 0, a.mock || 0]); mx = Math.max(mx, a.q || 0); }
+    days.forEach(([d, q, mk]) => bars.append(el("div", { class: "adm-bar", title: fmtDay(d).md + ": " + q + " questions" + (mk ? ", " + mk + " mock section(s)" : "") }, el("i", { style: "height:" + Math.round((q / mx) * 100) + "%" + (mk ? ";background:var(--pencil)" : "") }), el("span", { text: fmtDay(d).dow[0] }))));
+    box.append(el("div", { class: "eyebrow", text: "Last 14 days (questions per day; gold = mock test day)" }), bars);
+    // Skills
+    const tb = el("tbody");
+    x.dom.forEach((r) => { const [c, l] = status(r.m); tb.append(el("tr", {}, el("td", { text: r.d.name }), el("td", { class: "num", text: r.att ? r.cor + "/" + r.att + " (" + Math.round((r.cor / r.att) * 100) + "%)" : "—" }), el("td", { class: "num", text: r.ta != null ? Math.round(r.ta * 100) + "%" : "—" }), el("td", {}, el("span", { class: "chip " + c, text: l })))); });
+    box.append(el("div", { class: "eyebrow", text: "Skills" }), el("div", { class: "tablewrap" }, el("table", { class: "mx" }, el("thead", {}, el("tr", {}, ["Skill", "Practice", "Latest test", "Status"].map((h) => el("th", { text: h })))), tb)));
+    // Tests
+    const tl = x.tests.slice(-8).reverse();
+    box.append(el("div", { class: "eyebrow", text: "Tests (" + x.tests.length + ")" }), tl.length ? el("ul", { class: "adm-list" }, tl.map((t) => el("li", {}, el("strong", { text: t.name }), " · " + fmtDay(t.date).md + " · " + [t.rw ? "R&W " + t.rw : null, t.math ? "Math " + t.math : null, t.total ? "total " + t.total : null].filter(Boolean).join(", ") + (isEst(t) ? " (est.)" : "")))) : el("p", { class: "muted", style: "font-size:14px", text: "No tests yet." }));
+    // Plan & goals
+    const tasksDone = Object.keys(x.D.tasks || {}).length, ws = x.D.weekStatus;
+    const exams = ((x.st.exams) || []).map((e) => FORMATS[e.kind].name + " " + fmtDay(e.date).md + ", " + parseYmd(e.date).getFullYear() + (e.score ? " (scored " + e.score + ")" : ""));
+    box.append(el("div", { class: "eyebrow", text: "Plan" }), el("ul", { class: "adm-list" },
+      el("li", { text: "Plan tasks checked off: " + tasksDone }),
+      ws ? el("li", { text: "This week's goals: " + ws.done + " of " + ws.total + " done (" + ws.q + " of " + ws.qTarget + " questions)" }) : null,
+      el("li", { text: "Review deck: " + Object.keys(x.D.deck || {}).length + " strategy cards · badges earned: " + Object.keys(x.D.badges || {}).length }),
+      exams.length ? el("li", { text: "Tests planned: " + exams.join("; ") }) : null,
+      el("li", { text: "Joined " + (x.row.joined ? new Date(x.row.joined).toLocaleDateString() : "—") + " · last sign-in " + (x.row.last_sign_in ? new Date(x.row.last_sign_in).toLocaleDateString() : "—") })));
+    return box;
+  }
+
   /* ================= Boot ================= */
-  try { const t = sessionStorage.getItem(KEY + "-tab"); if (t && document.getElementById("p-" + t)) TAB = t; } catch (e) { }
+  try { const t = sessionStorage.getItem(KEY + "-tab"); if (t && t !== "admin" && document.getElementById("p-" + t)) TAB = t; } catch (e) { }
   if (GUEST && !["today", "practice", "mock"].includes(TAB)) TAB = "today";
   if (S.mock && S.mock.phase !== "done") TAB = "mock";
   show(TAB);
@@ -1568,13 +1672,16 @@
     // Switch between the public site (signed out) and a student's own progress (signed in).
     setGuest(g) {
       g = !!g; if (g === GUEST) return;
-      GUEST = g; HOLD = false; P = null; clearInterval(pTick); clearInterval(mTick); tool = null;
+      GUEST = g; HOLD = false; P = null; ADMIN = null; clearInterval(pTick); clearInterval(mTick); tool = null;
       const pop = document.getElementById("pop"); if (pop) pop.textContent = "";
       S = load(storeKey());
       TAB = !GUEST && S.mock && S.mock.phase !== "done" ? "mock" : "today";
       show(TAB);
     },
     onSave(fn) { saveHooks.push(fn); },
+    // Called by sync.js after the server confirms admin status (load = fetches the dashboard rows), or with null.
+    setAdmin(load) { const was = !!ADMIN; ADMIN = load && !GUEST ? { load, rows: null } : null; if (ADMIN) { show("admin"); adminLoad(); } else if (was) show("today"); },
+    get admin() { return !!ADMIN; },
     onSettings(fn) { settingsHooks.push(fn); },
     // Record which account this device's progress belongs to (does not count as a change).
     // Hide another student's copy until the signed-in student's progress arrives.

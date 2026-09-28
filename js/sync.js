@@ -93,6 +93,14 @@
       } else done();
     }
 
+    // The server decides who is admin (confirmed email on its admin list); the page only shows the dashboard.
+    async function checkAdmin() {
+      if (!user || !app.setAdmin || typeof sb.rpc !== "function") return;
+      let data = false, error = null;
+      try { ({ data, error } = await sb.rpc("is_admin")); } catch (e) { error = e; }
+      if (error || data !== true) { if (app.admin) app.setAdmin(null); return; }
+      app.setAdmin(async () => { const r = await sb.rpc("admin_dashboard"); if (r.error) throw r.error; return r.data || []; });
+    }
     async function loadProfile() {
       if (!user) return;
       const { data } = await sb.from("profiles").select("first_name, test_kind, test_date, target_score").eq("user_id", user.id).maybeSingle();
@@ -115,7 +123,7 @@
         setTimeout(async () => {
           app.setGuest(false); // load this device's student copy, then reconcile with the account
           app.expect(user.id);
-          if (user && user.id !== was) { await pull(true); await loadProfile(); }
+          if (user && user.id !== was) { await pull(true); await loadProfile(); await checkAdmin(); }
         }, 0);
       } else {
         status = "off";

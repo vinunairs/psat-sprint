@@ -65,3 +65,6 @@ node test/check-rw.js     # checks Reading and Writing generators and the bank
 ## Adding questions
 
 Append items to `js/rwbank.js` with a unique `id`, a domain `d` (`ii`, `cs`, `eoi`, `sec`), level `lv` (1–3), passage `p`, question `q`, four options `o`, correct index `a`, and explanation `e`.
+
+## Admin dashboard
+Accounts whose confirmed email is in `public.admins` (currently one) see a read-only Students dashboard instead of the student app: activity, streak, weekly questions and accuracy, latest score, weakest skills, reminders, plus per-student details (14-day activity, skills table, tests, plan). Data comes from the `admin_dashboard()` database function, which refuses any non-admin caller; `is_admin()` only tells the signed-in account whether it is an admin. To add or remove an admin, edit `public.admins` in Supabase.
