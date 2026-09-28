@@ -33,6 +33,7 @@ a{color:inherit}
 .brand{display:flex;align-items:center;gap:10px;margin-bottom:6px}
 .brand b{font-weight:800;font-stretch:75%;font-size:18px;letter-spacing:.02em}
 .brand i{width:18px;height:18px;border-radius:50%;border:2.5px solid var(--ink);background:var(--pencil)}
+.hello{font-size:clamp(20px,3.4vw,28px);font-weight:800;font-stretch:78%;line-height:1.1;margin:2px 0 8px}
 .count{display:flex;align-items:baseline;gap:12px}
 .count b{font-size:clamp(60px,13vw,108px);font-weight:800;font-stretch:62%;line-height:.85;letter-spacing:-.02em}
 .count span{font-size:15px;font-weight:600;font-stretch:87%;line-height:1.2}

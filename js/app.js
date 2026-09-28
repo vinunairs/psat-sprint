@@ -25,7 +25,7 @@
   const RW_LV = { std: [1, 2, 2, 2, 2, 3, 3], hard: [2, 2, 3, 3, 3, 3, 3], easy: [1, 1, 1, 2, 2, 2, 2] };
 
   const PLAN = [
-    { date: "2026-09-28", title: "Baseline, part 1", tasks: ["Install the Bluebook app and sign in with his College Board account", "Download PSAT/NMSQT Practice Test 1 in Bluebook", "Take the Reading and Writing section in Bluebook, timed (64 min, both modules)", "Warm up here: a 10-question practice set"] },
+    { date: "2026-09-28", title: "Baseline, part 1", tasks: ["Install the Bluebook app and sign in with your College Board account", "Download PSAT/NMSQT Practice Test 1 in Bluebook", "Take the Reading and Writing section in Bluebook, timed (64 min, both modules)", "Warm up here: a 10-question practice set"] },
     { date: "2026-09-29", title: "Baseline, part 2", tasks: ["Take the Math section of Bluebook Practice Test 1, timed (70 min)", "Open the score report and count misses in each skill domain", "Enter the results in the Log Bluebook test tab"] },
     { date: "2026-09-30", title: "Fix the biggest leak", tasks: ["Read the explanation for every missed question in Bluebook", "Practice 20 questions on the #1 skill in the Skill matrix Focus list", "Retry the Mistake notebook"] },
     { date: "2026-10-01", title: "Grammar rules day", tasks: ["Practice 20 Standard English Conventions questions", "Learn the punctuation rules: period or semicolon between full sentences, colon before a list or explanation, commas in pairs around extra info, no comma between subject and verb", "Spend 20 minutes with Desmos: graph a line, find an intersection, find a vertex"] },
@@ -65,7 +65,7 @@
       stats: {}, sub: {}, answered: 0, tests: [], mistakes: [], fixed: 0, badges: {},
       seenBank: {}, recentKeys: [], mock: null, lastMock: null,
       prefs: { sel: [], count: 10, diff: "auto", timed: true },
-      settings: { kind: "psat", date: "2026-10-07" },
+      settings: { kind: "psat", date: "2026-10-07", name: "Rishabh" },
       rewards: [
         { id: "r1", xp: 500, label: "Choose Friday dinner", claimed: false },
         { id: "r2", xp: 1000, label: "Pick the family movie night", claimed: false },
@@ -117,15 +117,19 @@
   const level = () => Math.floor(S.xp / XP_PER_LEVEL) + 1;
   const levelName = (l) => LEVELS[Math.min(l - 1, LEVELS.length - 1)];
   const uid = () => Math.random().toString(36).slice(2, 10);
+  const who = () => (S.settings.name || "").trim();
+  const withName = (msg, sep) => (who() ? msg + (sep ?? ", ") + who() : msg);
+  const possessive = () => (who() ? who() + (/s$/i.test(who()) ? "'" : "'s") + " " : "");
+  function greeting() { const h = new Date().getHours(); const part = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; return withName(part); }
 
   function toast(msg, gold) { const t = el("div", { class: "toast" + (gold ? " gold" : ""), text: msg }); $("#toasts").append(t); setTimeout(() => t.remove(), 2600); }
   function addXP(n, why) {
     const before = level(); S.xp = Math.max(0, S.xp + n);
     if (n > 0 && why) toast("+" + n + " XP · " + why);
-    const after = level(); if (after > before) toast("Level up! Level " + after + " · " + levelName(after), true);
+    const after = level(); if (after > before) toast(withName("Level up") + "! Level " + after + " · " + levelName(after), true);
     for (const r of S.rewards) if (!r.claimed && !r.notified && S.xp >= r.xp) { r.notified = true; toast("Reward unlocked: " + r.label, true); }
   }
-  function award(id) { if (S.badges[id]) return; S.badges[id] = today(); const b = BADGES.find((x) => x.id === id); if (b) toast("Badge earned: " + b.name, true); }
+  function award(id) { if (S.badges[id]) return; S.badges[id] = today(); const b = BADGES.find((x) => x.id === id); if (b) toast((who() ? who() + " earned a badge: " : "Badge earned: ") + b.name, true); }
   function bumpStreak() {
     const t = today(); if (S.streak.last === t) return;
     S.streak.count = S.streak.last === yesterday() ? S.streak.count + 1 : 1; S.streak.last = t;
@@ -198,6 +202,8 @@
   /* ================= Header & tabs ================= */
   function renderHeader() {
     const n = daysLeft(), fmt = FORMATS[S.settings.kind];
+    const hi = document.getElementById("hello"); if (hi) hi.textContent = greeting();
+    document.title = who() ? "PSAT Sprint · " + who() : "PSAT Sprint";
     $("#testLabel").textContent = fmt.name + " · " + fmtDay(S.settings.date).long;
     $("#daysLeft").textContent = n > 0 ? n : n === 0 ? "0" : "✓";
     const lab = $("#daysLabel"); lab.textContent = "";
@@ -251,7 +257,7 @@
     if (cur) {
       const f = fmtDay(cur.date), done = cur.tasks.filter((_, i) => S.tasks[cur.date + "#" + i]).length, top = focusList()[0];
       p.append(el("div", { class: "card mission" },
-        el("div", { class: "row between" }, el("div", {}, el("div", { class: "eyebrow", text: cur.date === t ? "Today's mission" : "First mission" }), el("h2", { text: cur.title })), el("span", { class: "date", text: f.dow + " " + f.md + " · " + done + "/" + cur.tasks.length + " done" })),
+        el("div", { class: "row between" }, el("div", {}, el("div", { class: "eyebrow", text: cur.date === t ? possessive() + (who() ? "mission today" : "Today's mission") : possessive() + (who() ? "first mission" : "First mission") }), el("h2", { text: cur.title })), el("span", { class: "date", text: f.dow + " " + f.md + " · " + done + "/" + cur.tasks.length + " done" })),
         taskList(cur),
         el("div", { class: "row" },
           el("button", { class: "btn primary", onclick: () => { S.prefs.sel = [top.id]; save(); show("practice"); startPractice([top.id], 10, "auto"); } }, "Practice: " + top.name),
@@ -270,7 +276,7 @@
       el("div", { class: "grid2", style: "margin-top:12px" },
         info("Reading and Writing", "54 questions in 64 minutes, split into two 32-minute modules. Short passages with one question each. About 71 seconds per question."),
         info("Math", "44 questions in 70 minutes, split into two 35-minute modules. Calculator allowed throughout. About a quarter of questions need a typed-in answer. About 95 seconds per question."),
-        info("Adaptive", "How he does on Module 1 decides whether Module 2 is the easier or the harder set. Only the harder set unlocks the top scores."),
+        info("Adaptive", "How you do on Module 1 decides whether Module 2 is the easier or the harder set. Only the harder set unlocks the top scores."),
         info("Scoring", "PSAT sections score 160–760 (total 320–1520). SAT sections score 200–800 (total 400–1600). Wrong answers cost nothing, so never leave a blank.")),
       el("p", { class: "muted", style: "font-size:13px;margin-top:14px" }, "Official practice: ", el("a", { href: "https://bluebook.collegeboard.org/", target: "_blank", rel: "noopener" }, "Bluebook app"), " · ", el("a", { href: "https://satsuitequestionbank.collegeboard.org/", target: "_blank", rel: "noopener" }, "SAT Suite Question Bank"), " · ", el("a", { href: "https://www.khanacademy.org/test-prep/dpsat-practice-test-01-22", target: "_blank", rel: "noopener" }, "Khan Academy PSAT practice"))));
     function info(h, b) { return el("div", {}, el("div", { class: "eyebrow", text: h }), el("p", { style: "margin-top:.3em", text: b })); }
@@ -399,7 +405,7 @@
   function practiceSetup(p) {
     const pr = S.prefs, top3 = focusList().slice(0, 3).map((d) => d.id);
     if (!pr.sel.length) pr.sel = [top3[0]];
-    p.append(el("div", {}, el("h2", { text: "Practice by skill" }), el("p", { class: "muted lede", text: "Pick the skills to work on (for example, the weak areas from his Bluebook score report). Every question is new: math is generated with fresh numbers each time, and reading questions don't repeat until the bank runs out. He sees the answer and explanation right after each question." })));
+    p.append(el("div", {}, el("h2", { text: "Practice by skill" }), el("p", { class: "muted lede", text: "Pick the skills to work on (for example, the weak areas from your Bluebook score report). Every question is new: math is generated with fresh numbers each time, and reading questions don't repeat until the bank runs out. You see the answer and explanation right after each question." })));
     const grid = (sec) => {
       const g = el("div", { class: "skills" });
       DOMAINS.filter((d) => d.sec === sec).forEach((d) => {
@@ -477,7 +483,7 @@
       el("div", { class: "eyebrow", text: "Set result" }),
       el("div", { class: "row", style: "gap:24px;align-items:end" }, el("span", { class: "result-big num", text: c + "/" + n }), el("span", { class: "muted", text: "Time " + mmss(P.elapsed) })),
       el("div", { class: "row" }, Object.entries(byDom).map(([d, [cc, tt]]) => el("span", { class: "chip " + status(cc / tt)[0], text: DOM[d].name + ": " + cc + "/" + tt }))),
-      el("p", { text: miss === 0 ? "Perfect set. Try Harder difficulty next." : miss + (miss === 1 ? " miss went" : " misses went") + " to the Mistake notebook. Retry them tomorrow." }),
+      el("p", { text: miss === 0 ? withName("Perfect set") + ". Try Harder difficulty next." : (c / n >= 0.8 ? withName("Nice work") + ". " : (who() ? who() + ", " : "")) + miss + (miss === 1 ? " miss went" : " misses went") + " to the Mistake notebook. Retry " + (miss === 1 ? "it" : "them") + " tomorrow." }),
       el("div", { class: "row" },
         el("button", { class: "btn primary", onclick: () => (P.notebook ? startPractice([], 0, "auto", true) : startPractice(P.doms, P.count, P.diff)) }, "Another set"),
         el("button", { class: "btn", onclick: () => { P = null; renderPractice(); } }, "Change skills")));
@@ -555,7 +561,7 @@
     if (rec.rw && rec.math) rec.total = rec.rw + rec.math;
     S.tests.push(rec);
     M.phase = "done"; M.result = res; M.showResults = true; delete M.used; S.lastMock = M; S.mock = null;
-    addXP(M.parts.length === 2 ? 200 : 100, "mock test finished"); award("mock1"); if (M.parts.length === 2) award("mockfull"); bumpStreak();
+    addXP(M.parts.length === 2 ? 200 : 100, withName("mock test finished", " · great job, ")); award("mock1"); if (M.parts.length === 2) award("mockfull"); bumpStreak();
     save(); reviewFilter = "all"; renderMock();
   }
   function tickMock() {
@@ -583,7 +589,7 @@
   }
   function mockSetup(p) {
     const fmt = S.settings.kind;
-    p.append(el("div", {}, el("h2", { text: "Mock test" }), el("p", { class: "muted lede", text: "A full-length practice test in the real digital format: two timed modules per section, and Module 2 adapts to how he did on Module 1. Answers are revealed only at the end. Every mock uses new questions, and the results feed the Skill matrix automatically." })));
+    p.append(el("div", {}, el("h2", { text: "Mock test" }), el("p", { class: "muted lede", text: "A full-length practice test in the real digital format: two timed modules per section, and Module 2 adapts to how you did on Module 1. Answers are revealed only at the end. Every mock uses new questions, and the results feed the Skill matrix automatically." })));
     const pick = { kind: fmt, timed: true };
     const kindSeg = el("div", { class: "seg", role: "group", "aria-label": "Test format" });
     const timeSeg = el("div", { class: "seg", role: "group", "aria-label": "Timing" });
@@ -603,7 +609,7 @@
       el("ul", { style: "margin:10px 0 0;padding-left:20px;display:grid;gap:6px" },
         el("li", { text: "Scores here are estimates. College Board's exact scoring isn't public, so treat them as a trend line and trust Bluebook for the official picture." }),
         el("li", { text: "The built-in calculator is basic. Bluebook has Desmos, so practice with Desmos too (there's a link in the test toolbar)." }),
-        el("li", { text: "Leaving the page is fine: the test and timer pick up where he left off." }))));
+        el("li", { text: "Leaving the page is fine: the test and timer pick up where you left off." }))));
     if (S.lastMock && S.lastMock.result) p.append(el("div", { class: "row" }, el("button", { class: "btn", onclick: () => { S.lastMock.showResults = true; renderMock(); } }, "Review the last mock test")));
   }
   function mockToolbar(M, m) {
@@ -669,13 +675,13 @@
   function mockResults(p) {
     const M = S.lastMock, R = M.result, fmt = FORMATS[M.kind];
     const rw = R.parts.rw, ma = R.parts.math;
-    p.append(el("div", { class: "row between" }, el("div", {}, el("div", { class: "eyebrow", text: "Mock test results · " + fmtDay(R.date).md }), el("h2", { text: fmt.name + " mock" })), el("button", { class: "btn", onclick: () => { M.showResults = false; save(); renderMock(); } }, "New mock test")));
+    p.append(el("div", { class: "row between" }, el("div", {}, el("div", { class: "eyebrow", text: "Mock test results · " + fmtDay(R.date).md }), el("h2", { text: possessive() + fmt.name + " mock" })), el("button", { class: "btn", onclick: () => { M.showResults = false; save(); renderMock(); } }, "New mock test")));
     const tiles = el("div", { class: "tiles" });
     if (rw && ma) tiles.append(tile("Estimated total", rw.score + ma.score, "of " + fmt.hi * 2));
     if (rw) tiles.append(tile("Reading and Writing", rw.score, rw.c + "/" + rw.t + " correct · " + (rw.route === "hard" ? "harder" : "easier") + " Module 2"));
     if (ma) tiles.append(tile("Math", ma.score, ma.c + "/" + ma.t + " correct · " + (ma.route === "hard" ? "harder" : "easier") + " Module 2"));
     p.append(tiles);
-    p.append(el("p", { class: "muted", style: "font-size:13px", text: "Estimated scores based on questions correct and which Module 2 he reached. Use them to track the trend." }));
+    p.append(el("p", { class: "muted", style: "font-size:13px", text: "Estimated scores based on questions correct and which Module 2 you reached. Use them to track the trend." }));
     const tb = el("tbody");
     DOMAINS.filter((d) => R.dom[d.id]).forEach((d) => { const x = R.dom[d.id], a = x.c / x.t, [c, l] = status(a); tb.append(el("tr", {}, el("td", { text: d.name }), el("td", { class: "num", text: x.c + "/" + x.t }), el("td", {}, mbar(a, c)), el("td", {}, el("span", { class: "chip " + c, text: l })))); });
     p.append(el("div", { class: "card", style: "padding:6px 8px" }, el("div", { class: "tablewrap" }, el("table", { class: "mx" }, el("thead", {}, el("tr", {}, ["Skill", "Correct", "Accuracy", "Status"].map((h) => el("th", { text: h })))), tb))));
@@ -727,7 +733,7 @@
   /* ================= Skill matrix ================= */
   function renderMatrix() {
     const p = $("#p-matrix"); p.textContent = "";
-    p.append(el("div", {}, el("h2", { text: "Skill matrix" }), el("p", { class: "muted lede", text: "Mastery blends the most recent test (60%) with practice accuracy (40%). Tests include Bluebook tests he logs and mock tests taken here. Practice accuracy counts once a skill has at least 3 answers. Strong is 80% or better, Building is 60–79%, Focus is below 60%." })));
+    p.append(el("div", {}, el("h2", { text: "Skill matrix" }), el("p", { class: "muted lede", text: "Mastery blends the most recent test (60%) with practice accuracy (40%). Tests include Bluebook tests you log and mock tests taken here. Practice accuracy counts once a skill has at least 3 answers. Strong is 80% or better, Building is 60–79%, Focus is below 60%." })));
     const tiles = el("div", { class: "tiles" });
     const scored = S.tests.filter((t) => t.total || t.rw || t.math);
     const last = scored[scored.length - 1], first = scored[0];
@@ -757,7 +763,7 @@
     }
     p.append(el("div", { class: "card", style: "padding:6px 8px" }, el("div", { class: "tablewrap" }, el("table", { class: "mx" }, el("thead", {}, el("tr", {}, ["Skill", "On the test", "Latest test", "Practice", "Mastery", "Status"].map((h) => el("th", { text: h })))), tb))));
     const subs = Object.entries(S.sub).filter(([, v]) => v.att >= 3).map(([k, v]) => ({ k: k.split("|")[0], d: k.split("|")[1], a: v.cor / v.att, n: v.att })).sort((x, y) => x.a - y.a).slice(0, 12);
-    if (subs.length) p.append(el("div", { class: "card", style: "display:grid;gap:12px" }, el("h3", { text: "Question types to watch" }), el("p", { class: "muted", style: "font-size:13px", text: "The narrower question types he misses most (at least 3 attempts each)." }),
+    if (subs.length) p.append(el("div", { class: "card", style: "display:grid;gap:12px" }, el("h3", { text: "Question types to watch" }), el("p", { class: "muted", style: "font-size:13px", text: "The narrower question types you miss most (at least 3 attempts each)." }),
       el("div", { class: "subs" }, subs.map((s) => el("div", { class: "sub" }, el("span", {}, el("strong", { text: s.k }), el("span", { class: "muted", text: " · " + DOM[s.d].name.split(" ")[0] })), el("span", { class: "chip " + status(s.a)[0], text: pct(s.a) + " of " + s.n }))))));
     if (S.tests.length) {
       const h = el("div", { class: "card", style: "display:grid;gap:10px" }, el("h3", { text: "Test history" }));
@@ -777,7 +783,7 @@
     kindSel.value = S.settings.kind;
     const nameIn = el("input", { type: "text", id: "tName", value: "Bluebook Practice Test " + bb, maxlength: "60" });
     const f = el("form", { class: "card form", novalidate: true });
-    f.append(el("div", {}, el("h2", { text: "Log a Bluebook test" }), el("p", { class: "muted lede", text: "After a full test in Bluebook, open the score report in My Practice. Enter the two section scores, then count how many questions he missed in each skill domain (the report labels every question with its domain). Logging a test is worth 100 XP." })));
+    f.append(el("div", {}, el("h2", { text: "Log a Bluebook test" }), el("p", { class: "muted lede", text: "After a full test in Bluebook, open the score report in My Practice. Enter the two section scores, then count how many questions you missed in each skill domain (the report labels every question with its domain). Logging a test is worth 100 XP." })));
     f.append(el("div", { class: "fields" }, el("label", { class: "f" }, "Test name", nameIn), el("label", { class: "f" }, "Test type", kindSel), el("label", { class: "f" }, "Date taken", el("input", { type: "date", id: "tDate", value: today() })),
       el("label", { class: "f" }, "Reading and Writing score", el("input", { type: "number", id: "tRw", step: "10", inputmode: "numeric", placeholder: "e.g. 580" })),
       el("label", { class: "f" }, "Math score", el("input", { type: "number", id: "tMath", step: "10", inputmode: "numeric", placeholder: "e.g. 560" }))));
@@ -846,9 +852,10 @@
     const host = $("#pop"); host.textContent = ""; tool = null;
     const kind = el("select", { id: "setKind" }, el("option", { value: "psat", text: "PSAT/NMSQT" }), el("option", { value: "sat", text: "SAT" })); kind.value = S.settings.kind;
     const date = el("input", { type: "date", id: "setDate", value: S.settings.date });
-    const f = el("form", { class: "panelpop", role: "dialog", "aria-label": "Test date" }, el("header", {}, el("strong", { text: "Test date and type" }), el("button", { type: "button", class: "btn small ghost", onclick: () => (host.textContent = "") }, "Close")),
-      el("label", { class: "f" }, "Test", kind), el("label", { class: "f" }, "Date", date), el("button", { class: "btn primary", type: "submit" }, "Save"));
-    f.addEventListener("submit", (e) => { e.preventDefault(); if (date.value) S.settings.date = date.value; S.settings.kind = kind.value; save(); host.textContent = ""; render(); toast("Test date saved"); });
+    const nm = el("input", { type: "text", id: "setName", value: S.settings.name || "", maxlength: "30", autocomplete: "off" });
+    const f = el("form", { class: "panelpop", role: "dialog", "aria-label": "Settings" }, el("header", {}, el("strong", { text: "Settings" }), el("button", { type: "button", class: "btn small ghost", onclick: () => (host.textContent = "") }, "Close")),
+      el("label", { class: "f", for: "setName" }, "Student's first name", nm), el("label", { class: "f" }, "Test", kind), el("label", { class: "f" }, "Test date", date), el("button", { class: "btn primary", type: "submit" }, "Save"));
+    f.addEventListener("submit", (e) => { e.preventDefault(); if (date.value) S.settings.date = date.value; S.settings.kind = kind.value; S.settings.name = nm.value.trim(); save(); host.textContent = ""; render(); toast("Settings saved"); });
     host.append(f);
   });
   function confirmPop(msg, yes, fn) {

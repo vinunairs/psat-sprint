@@ -63,7 +63,7 @@
         if (localMs > 0) { try { localStorage.setItem(BACKUP_KEY, JSON.stringify(local)); } catch (e) { } }
         app.replace(data.data);
         status = "synced"; lastSynced = new Date(); paint();
-        if (first) app.toast("Loaded his latest progress from the account", true);
+        if (first) app.toast("Loaded your latest progress from the account", true);
       } else if (localMs > remoteMs + 1000) {
         await pushNow();
       } else { status = "synced"; lastSynced = new Date(); paint(); }
@@ -123,7 +123,7 @@
       const submit = el("button", { class: "btn primary", type: "submit" }, mode === "up" ? "Create account" : "Sign in");
       const f = el("form", { class: "panelpop acct", role: "dialog", "aria-label": "Sign in to sync" },
         el("header", {}, el("strong", { text: mode === "up" ? "Create an account" : "Sign in to sync" }), close()),
-        el("p", { class: "muted", style: "font-size:13px", text: "Signing in saves his progress online so it shows up on every device, and you can check it from yours with the same account. Progress already on this device is kept." }),
+        el("p", { class: "muted", style: "font-size:13px", text: "Signing in saves progress online so it shows up on every device. A parent can check it by signing in with the same account. Progress already on this device is kept." }),
         el("label", { class: "f", for: "acEmail" }, "Email", email),
         el("label", { class: "f", for: "acPw" }, "Password", pw),
         msg,
