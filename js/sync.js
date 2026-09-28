@@ -131,7 +131,10 @@
     }
     app.onSettings(async (st) => {
       if (!user) return;
-      await sb.from("profiles").upsert({ user_id: user.id, first_name: st.name || "", test_kind: st.kind === "sat" ? "sat" : "psat", test_date: st.date || null, target_score: st.target || null }, { onConflict: "user_id" });
+      // Never send a blank name: a fresh device doesn't know the name until the profile loads.
+      const row = { user_id: user.id, test_kind: st.kind === "sat" ? "sat" : "psat", test_date: st.date || null, target_score: st.target || null };
+      if ((st.name || "").trim()) row.first_name = st.name.trim();
+      await sb.from("profiles").upsert(row, { onConflict: "user_id" });
     });
 
     app.onSave(() => schedulePush());
