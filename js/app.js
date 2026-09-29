@@ -295,20 +295,32 @@
     const t = S.tests.filter((x) => x.total).pop();
     $("#hScore").textContent = (t && t.total ? t.total + (isEst(t) ? " est." : "") : "—") + (S.settings.target ? " / goal " + S.settings.target : "");
     const l = level(); $("#hLevel").textContent = "Level " + l + " · " + levelName(l);
+    const as = document.getElementById("aStreak"); if (as) { as.textContent = "🔥 " + s; as.title = s + "-day streak"; }
+    const al = document.getElementById("aLevel"); if (al) { al.textContent = "Lv " + l; al.title = "Level " + l + " · " + S.xp + " XP"; }
     $("#hXpBar").style.width = ((S.xp % XP_PER_LEVEL) / XP_PER_LEVEL) * 100 + "%";
     $("#hXp").textContent = S.xp + " XP · " + (XP_PER_LEVEL - (S.xp % XP_PER_LEVEL)) + " to next level";
   }
   let TAB = "today";
+  // Five destinations; related views sit under one destination with a segmented sub-nav.
+  const GROUP = { today: "today", practice: "practice", review: "practice", mock: "mock", log: "mock", matrix: "matrix", rewards: "matrix", friends: "friends" };
+  const SUBS = { practice: [["practice", "Practice"], ["review", "Review"]], mock: [["mock", "Mock test"], ["log", "Log a test"]], matrix: [["matrix", "Skill matrix"], ["rewards", "Rewards"]] };
+  function renderSubnav(t) {
+    const sn = document.querySelector("nav.subnav"); if (!sn) return;
+    const subs = !GUEST && !ADMIN && SUBS[GROUP[t]];
+    sn.hidden = !subs; sn.textContent = "";
+    if (subs) subs.forEach(([k, label]) => { const b = el("button", { type: "button", "data-tab": k, "aria-current": k === t ? "page" : false, onclick: () => show(k) }, label); sn.append(b); });
+  }
   const RENDERERS_OK = (t) => ["today", "practice", "mock", "review", "matrix", "log", "rewards", "friends"].includes(t);
   document.querySelectorAll("nav.tabs button").forEach((b) => b.addEventListener("click", () => show(b.dataset.tab)));
   function show(t) {
     if (GUEST && !["today", "practice", "mock"].includes(t)) t = "today";
     if (ADMIN && !GUEST) t = "admin";
     TAB = t;
-    document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === t)));
-    const ab = document.querySelector('nav.tabs button[data-tab="' + t + '"]'); if (ab && ab.scrollIntoView) try { ab.scrollIntoView({ inline: "center", block: "nearest" }); } catch (e) { }
+    document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === GROUP[t])));
+    renderSubnav(t);
+    const ab = document.querySelector('nav.tabs button[data-tab="' + GROUP[t] + '"]'); if (ab && ab.scrollIntoView) try { ab.scrollIntoView({ inline: "center", block: "nearest" }); } catch (e) { }
     document.querySelectorAll("section.panel").forEach((p) => (p.hidden = p.id !== "p-" + t));
-    document.body.dataset.tab = t;
+    document.body.dataset.tab = t; document.body.dataset.group = GROUP[t] || t;
     render(); setInq();
     try { sessionStorage.setItem(KEY + "-tab", t); } catch (e) { }
     window.scrollTo({ top: 0 });
@@ -332,9 +344,8 @@
       return;
     }
     if (!GUEST && syncExams(S)) { save(); for (const fn of settingsHooks) { try { fn(S.settings); } catch (x) { } } }
-    const tb = document.querySelector('nav.tabs button[data-tab="today"]'); if (tb) tb.textContent = GUEST ? "Home" : "Today";
-    const pb = document.querySelector('nav.tabs button[data-tab="practice"]'); if (pb) pb.textContent = GUEST ? "Sample practice" : "Practice";
-    const mb = document.querySelector('nav.tabs button[data-tab="mock"]'); if (mb) mb.textContent = GUEST ? "Sample mock" : "Mock test";
+    const setLbl = (tab, txt) => { const b = document.querySelector('nav.tabs button[data-tab="' + tab + '"] .lbl'); if (b) b.textContent = txt; };
+    setLbl("practice", GUEST ? "Try practice" : "Practice"); setLbl("mock", GUEST ? "Try a test" : "Tests");
     const fn = document.getElementById("footNote"); if (fn) fn.textContent = GUEST ? "Create a free student account to save progress and unlock the full site." : "Progress saves on this device first, then to your account.";
     if (!RENDERERS_OK(TAB)) { TAB = "today"; document.querySelectorAll("section.panel").forEach((x) => (x.hidden = x.id !== "p-today")); }
     renderHeader(); ({ today: renderToday, practice: renderPractice, mock: renderMock, review: renderReview, matrix: renderMatrix, log: renderLog, rewards: renderRewards, friends: renderFriends })[TAB](); }
@@ -1645,7 +1656,8 @@
   function socialBadge() {
     const b = document.querySelector('nav.tabs button[data-tab="friends"]'); if (!b) return;
     const n = SOC ? (SOC.friends || []).filter((f) => f.status === "incoming").length + (SOC.challenges || []).filter((c) => c.mine_to_play).length : 0;
-    b.textContent = n ? "Friends (" + n + ")" : "Friends";
+    const dot = b.querySelector(".dot"); if (dot) { dot.hidden = !n; dot.textContent = n ? String(n) : ""; }
+    b.setAttribute("aria-label", n ? "Friends, " + n + " waiting" : "Friends");
   }
   async function socialLoad(full) {
     if (!SOC) return;
@@ -2073,7 +2085,7 @@
     },
     // Remove this device's copy (the account keeps its copy in the cloud).
     reset() { try { localStorage.removeItem(KEY); } catch (e) { } if (!GUEST) { P = null; S = blank(); render(); } },
-    save, render, toast,
+    save, render, toast, show: (t) => show(t),
     get busy() { return !GUEST && (!!(S.mock && S.mock.phase !== "done") || !!(P && !P.finished)); }
   };
   document.dispatchEvent(new Event("psapp-ready"));
