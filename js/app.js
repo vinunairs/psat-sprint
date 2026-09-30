@@ -262,6 +262,7 @@
     for (const [ty, [att, miss, last]] of Object.entries(S.tstat || {})) {
       if (att < 3) continue;
       const rate = miss / att;
+      if (W[ty] && W[ty].lv) W[ty].lv = Math.min(3, W[ty].lv + (rate <= 0.25 ? 1 : 0) + (att >= 8 && rate <= 0.2 ? 1 : 0)); // a starting level climbs as he gets them right
       if (W[ty]) { if (att >= 8 && rate < 0.2) { W[ty].w = 1; W[ty].why += " · now mostly right in practice"; } else W[ty].w += rate * 3; }
       else if (rate >= 0.34 && miss >= 2) W[ty] = { w: 1 + rate * 4, why: "Missed " + miss + " of " + att + " in practice" };
     }
