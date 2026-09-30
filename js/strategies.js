@@ -363,7 +363,9 @@
     psda_discount: "percent", psda_pctchange: "percent", psda_mean: "mean", psda_median: "median", psda_rate: "rates", psda_prob: "probability", psda_ratio: "ratio", psda_scatter: "scatter", psda_freq: "datadisplay", psda_sample: "sampling",
     geo_pyth: "pythag", geo_trig: "trig", geo_circle: "circle", geo_angles: "angles", geo_volume: "volume", geo_triangle: "angles", geo_similar: "similar", geo_arc: "arc", geo_radians: "radians", geo_special: "special",
     alg_literal: "literal", alg_sysineq: "sysineq", adv_poly: "polyops", adv_rational: "rational", psda_spread: "spread", geo_area: "area", geo_polygon: "polygons",
-    hard_compose: "composition", hard_circleeq: "circle", hard_perp: "perpendicular", hard_twoway: "twoway", hard_growth: "exponential", hard_quadk: "nonlinear"
+    hard_compose: "composition", hard_circleeq: "circle", hard_perp: "perpendicular", hard_twoway: "twoway", hard_growth: "exponential", hard_quadk: "nonlinear",
+    sec_fanboys: "boundaries", sec_semiphrase: "punctuation", sec_listsemi: "punctuation", sec_gerund: "agreement",
+    adv_shift: "graphs", psda_aroc: "rates", adv_vieta: "quadratic", alg_interp: "model"
   };
   const BY_SKILL = {
     "Words in context": "wic", "Text purpose": "purpose", "Text structure": "purpose", "Cross-text connections": "crosstext",

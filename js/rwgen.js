@@ -281,7 +281,81 @@
   }
   function cap(s) { return s[0].toUpperCase() + s.slice(1); }
 
-  const GENS = { sec: [sec_boundary, sec_boundary, sec_extra, sec_agree, sec_poss, sec_conjadv], eoi: [eoi_trans], ii: [ii_quant] };
+  /* ---------- Comma + and/but/so joining two complete sentences ---------- */
+  function sec_fanboys(r) {
+    const [A, B] = r.pick(PAIRS);
+    const [aHead, aLast] = lastWord(A);
+    const [bFirst, bRest] = firstWord(B.replace(/\.$/, ""));
+    const low = lc(bFirst, false), cj = "and";
+    const right = `${aLast}, ${cj} ${low}`;
+    const { o, a } = mc(r, right, [`${aLast} ${cj} ${low}`, `${aLast} ${cj}, ${low}`, `${aLast}, ${low}`], String);
+    return { d: "sec", sk: "Boundaries", lv: 2, p: `${aHead} ${BLANK} ${bRest}.`, q: SEC_Q, o, a,
+      e: `Both sides are complete sentences, joined by "and." Two complete sentences joined by and/but/so need a comma BEFORE the conjunction: "${aLast}, and ${low}." Without the comma it's a run-on; a comma after "and" or a comma alone is wrong.`,
+      t: "Complete sentence + , + and/but/so + complete sentence.", key: `fan:${aLast}:${low}` };
+  }
+
+  /* ---------- A semicolon can't introduce a phrase ---------- */
+  const SEMI = [
+    ["The festival drew musicians from more than forty countries", "among them", "the Malian singer Oumou Sangaré."],
+    ["The museum's new wing features works by several modern sculptors", "including", "Ruth Asawa and Isamu Noguchi."],
+    ["Her research has been praised by leading marine biologists", "among them", "the explorer Sylvia Earle."],
+    ["The library's collection holds rare maps from many eras", "including", "a sixteenth-century chart of the Pacific coast."],
+    ["The program has trained dozens of young engineers", "among them", "two who later designed parts for the Mars rover."],
+    ["The garden grows plants from every continent", "including", "a cactus that blooms only at night."],
+    ["The novel won several major awards", "among them", "the National Book Award for Fiction."],
+    ["The survey reached residents of many neighborhoods", "including", "several that had never been surveyed before."]
+  ];
+  function sec_semiphrase(r) {
+    const [main, lead, rest] = r.pick(SEMI);
+    const [head, last] = lastWord(main);
+    const [w1, wRest] = firstWord(lead);
+    const right = `${last}, ${w1}`;
+    const cap1 = w1[0].toUpperCase() + w1.slice(1);
+    const { o, a } = mc(r, right, [`${last}; ${w1}`, `${last}. ${cap1}`, `${last} ${w1}`], String);
+    const tail = (wRest ? wRest + " " : "") + rest;
+    return { d: "sec", sk: "Punctuation", lv: 3, p: `${head} ${BLANK} ${tail}`, q: SEC_Q, o, a,
+      e: `"${lead} ${rest.replace(/\.$/, "")}" is a phrase, not a complete sentence, so it can't follow a semicolon or stand alone after a period. Attach it with a comma: "${last}, ${lead}…"`,
+      t: "A semicolon needs a complete sentence on BOTH sides. Check the right side first.", key: `semi:${last}:${w1}` };
+  }
+
+  /* ---------- Semicolons separate list items that contain commas ---------- */
+  const LISTS = [
+    ["To serve local families, the librarian offered storytelling in two languages,", "a rare practice", "at the time", "hosted monthly craft nights; and organized a summer reading club."],
+    ["During the expedition, the team mapped the river's source,", "a task no one", "had finished before", "collected hundreds of plant samples; and recorded local oral histories."],
+    ["As mayor, she expanded the bus network,", "a project residents", "had long requested", "opened three new parks; and created a youth jobs program."],
+    ["In her first year, the coach rebuilt the training schedule,", "a change players", "welcomed immediately", "added weekly film sessions; and hired a nutrition adviser."],
+    ["Before the museum opened, the curators restored the old murals,", "a job that", "took nearly a decade", "catalogued thousands of artifacts; and designed interactive exhibits."]
+  ];
+  function sec_listsemi(r) {
+    const [start, mid, lastBit, after] = r.pick(LISTS);
+    const lw = lastBit.split(" ").pop(), before = lastBit.split(" ").slice(0, -1).join(" ");
+    const [n1, nRest] = firstWord(after);
+    const right = `${lw}; ${n1}`;
+    const { o, a } = mc(r, right, [`${lw}, ${n1}`, `${lw} ${n1}`, `${lw}: ${n1}`], String);
+    return { d: "sec", sk: "Punctuation", lv: 3, p: `${start} ${mid} ${before} ${BLANK} ${nRest}`, q: SEC_Q, o, a,
+      e: `This is a list of three actions, and the first item already contains a comma ("…, ${mid} ${lastBit}"). When list items contain commas, separate the items with semicolons, as the rest of the sentence does ("…; and…"). So: "${lw}; ${n1}."`,
+      t: "Look further along the sentence: if the later items are split by semicolons, this one is too.", key: `lsemi:${mid}` };
+  }
+
+  /* ---------- Agreement with an -ing subject ---------- */
+  const GER = [
+    ["Recording the songs of humpback whales", "was", "were", "the focus of the biologist's first field season."],
+    ["Protecting the nesting sites of endangered sea turtles", "has", "have", "become a priority for the coastal town."],
+    ["Translating the letters of early immigrants", "was", "were", "the project that made the historian well known."],
+    ["Amplifying the voices of local farmers", "is", "are", "central to the documentary's approach."],
+    ["Restoring the murals in the old train stations", "requires", "require", "years of careful work."],
+    ["Collecting the stories of the town's oldest residents", "was", "were", "the goal of the student-led project."]
+  ];
+  function sec_gerund(r) {
+    const [subj, sing, plur, rest] = r.pick(GER);
+    const others = { was: ["were", "have been", "are"], has: ["have", "are", "were"], is: ["are", "were", "have been"], requires: ["require", "have required", "were requiring"] }[sing] || [plur];
+    const { o, a } = mc(r, sing, others, String);
+    return { d: "sec", sk: "Agreement", lv: 3, p: `${subj} ${BLANK} ${rest}`, q: SEC_Q, o, a,
+      e: `The subject is the whole activity "${subj.split(" ").slice(0, 1)}…", an -ing phrase, which is always singular. The plural noun inside the phrase ("${subj.split(" ").pop()}") is not the subject. So the verb is singular: "${sing}."`,
+      t: "An -ing phrase used as a subject (Recording…, Protecting…) takes a singular verb.", key: `ger:${subj.slice(0, 18)}` };
+  }
+
+  const GENS = { sec: [sec_boundary, sec_boundary, sec_extra, sec_agree, sec_poss, sec_conjadv, sec_fanboys, sec_semiphrase, sec_listsemi, sec_gerund], eoi: [eoi_trans], ii: [ii_quant] };
   const GENS_BY_LEVEL = { sec: { 1: [sec_poss, sec_boundary, sec_agree], 3: [sec_conjadv, sec_conjadv, sec_extra, sec_agree] } };
   function build(fn, r) {
     for (let i = 0; i < 30; i++) { try { const q = fn(r); q.gen = fn.name; return q; } catch (e) { if (!e || !e.retry) throw e; } }
@@ -296,6 +370,6 @@
     return last;
   }
 
-  root.RWGen = { generate, build, fns: { sec_boundary, sec_extra, sec_agree, sec_poss, sec_conjadv, eoi_trans, ii_quant }, counts: { PAIRS: PAIRS.length, APPOS: APPOS.length, AGREE: AGREE.length, TPAIRS: TPAIRS.length } };
+  root.RWGen = { generate, build, fns: { sec_boundary, sec_extra, sec_agree, sec_poss, sec_conjadv, sec_fanboys, sec_semiphrase, sec_listsemi, sec_gerund, eoi_trans, ii_quant }, counts: { PAIRS: PAIRS.length, APPOS: APPOS.length, AGREE: AGREE.length, TPAIRS: TPAIRS.length } };
   if (typeof module !== "undefined") module.exports = root.RWGen;
 })(typeof window !== "undefined" ? window : globalThis);

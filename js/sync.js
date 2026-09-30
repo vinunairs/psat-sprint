@@ -124,6 +124,11 @@
         myCheers: () => call("my_cheers")
       });
     }
+    // Focus set targets written after a test review (read-only for the student).
+    async function loadFocus() {
+      if (!user || !app.setFocus) return;
+      try { const { data } = await sb.from("focus_targets").select("items, source, updated_at").eq("user_id", user.id).maybeSingle(); app.setFocus(data || null); } catch (e) { }
+    }
     async function loadProfile() {
       if (!user) return;
       const { data } = await sb.from("profiles").select("first_name, test_kind, test_date, target_score").eq("user_id", user.id).maybeSingle();
@@ -149,7 +154,7 @@
         setTimeout(async () => {
           app.setGuest(false); // load this device's student copy, then reconcile with the account
           app.expect(user.id);
-          if (user && user.id !== was) { await pull(true); await loadProfile(); await checkAdmin(); }
+          if (user && user.id !== was) { await pull(true); await loadProfile(); await checkAdmin(); await loadFocus(); }
         }, 0);
       } else {
         status = "off";

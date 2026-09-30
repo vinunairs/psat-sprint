@@ -261,3 +261,7 @@ body.inq section.top.hero-card{display:none}
 .pday>*,.task>*,.mission>*{min-width:0}
 .task .t{overflow-wrap:anywhere}
 @media (max-width:400px){.pday{grid-template-columns:52px minmax(0,1fr);gap:10px;padding:10px}.card{padding:18px 16px}}
+
+/* Focus set */
+.card.focus{border:1px solid color-mix(in srgb,var(--pencil) 35%,var(--line));background:linear-gradient(180deg,var(--pencil-soft),var(--surface) 70%)}
+.focus-list{margin:0;padding-left:18px;display:grid;gap:6px;font-size:14.5px}

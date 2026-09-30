@@ -251,6 +251,73 @@
     F.h.push(hk); if (F.h.length > 2500) F.h.splice(0, F.h.length - 2500);
     const cut = addDays(day, -60); for (const k of Object.keys(F.d)) if (k < cut) delete F.d[k];
   }
+  // Question "type": a generator name or a hand-written bank skill. Used for focus sets.
+  const typeOf = (q) => (q.gen ? "gen:" + q.gen : q.src === "bank" && q.sk ? "bank:" + q.sk : null);
+  // Focus set = question types chosen automatically: from test reviews (FOCUS, set on the server
+  // after a Bluebook review) plus the student's own misses in the app (S.tstat).
+  let FOCUS = null; // { items: [{type, w, why}], source, updated }
+  function focusWeights() {
+    const W = {};
+    for (const it of (FOCUS && FOCUS.items) || []) W[it.type] = { w: it.w || 3, lv: it.lv || null, why: it.why || (FOCUS.source || "Test review") };
+    for (const [ty, [att, miss, last]] of Object.entries(S.tstat || {})) {
+      if (att < 3) continue;
+      const rate = miss / att;
+      if (W[ty]) { if (att >= 8 && rate < 0.2) { W[ty].w = 1; W[ty].why += " · now mostly right in practice"; } else W[ty].w += rate * 3; }
+      else if (rate >= 0.34 && miss >= 2) W[ty] = { w: 1 + rate * 4, why: "Missed " + miss + " of " + att + " in practice" };
+    }
+    return Object.entries(W).map(([type, v]) => Object.assign({ type }, v)).filter((x) => canMake(x.type)).sort((a, b) => b.w - a.w);
+  }
+  function canMake(ty) {
+    if (ty.startsWith("gen:")) { const n = ty.slice(4); return !!(MG.G[n] || (RW.fns && RW.fns[n])); }
+    if (ty.startsWith("bank:")) return BANK.some((q) => q.sk === ty.slice(5));
+    return false;
+  }
+  function qFromType(ty, used, lvFix) {
+    let q = null;
+    if (ty.startsWith("gen:")) {
+      const n = ty.slice(4);
+      if (MG.G[n]) { const dom = n.startsWith("hard_") ? null : n.split("_")[0]; const lv = lvFix || (dom && DOM[dom] ? rng.pick([2, 2, 3]) : 3); for (let t = 0; t < 8 && (!q || used.has(q.key)); t++) q = MG.build(n, rng, lv); }
+      else if (RW.fns[n]) { for (let t = 0; t < 8 && (!q || used.has(q.key)); t++) q = RW.build(RW.fns[n], rng); }
+    } else {
+      const sk = ty.slice(5), pool = BANK.filter((b) => b.sk === sk && !used.has("bank:" + b.id));
+      const fresh = pool.filter((b) => !S.seenBank[b.id]), pick = (fresh.length ? fresh : pool);
+      if (pick.length) { q = shuffledCopy(rng.pick(pick)); q.key = "bank:" + q.id; q.src = "bank"; S.seenBank[q.id] = Date.now(); }
+    }
+    if (!q) return null;
+    q = Object.assign({}, q, { uid: uid() }); if (!q.type) q.type = "mc";
+    if (q.spr != null && rng.f() < 0.25 && DOM[q.d] && DOM[q.d].sec === "math") q.type = "spr";
+    used.add(q.key); if (!GUEST) trackFresh(q);
+    return q;
+  }
+  function buildFocusSet(n) {
+    const ws = focusWeights(); if (!ws.length) return [];
+    const total = ws.reduce((a, x) => a + x.w, 0), cnt = {}, used = new Set(), qs = [];
+    for (let i = 0; i < n * 3 && qs.length < n; i++) {
+      let r = rng.f() * total, pick = ws[0];
+      for (const x of ws) { r -= x.w; if (r <= 0) { pick = x; break; } }
+      if ((cnt[pick.type] || 0) >= Math.max(2, Math.ceil(n / Math.min(ws.length, 6)))) continue;
+      const q = qFromType(pick.type, used, pick.lv); if (!q) continue;
+      cnt[pick.type] = (cnt[pick.type] || 0) + 1; qs.push(q);
+    }
+    return rng.shuffle(qs);
+  }
+  const typeLabel = (ty) => {
+    if (ty.startsWith("bank:")) return ty.slice(5);
+    const c = STRAT.cards[STRAT.strategyFor({ gen: ty.slice(4) })];
+    const nm = { sec_fanboys: "Comma + and between sentences", sec_semiphrase: "Semicolon vs. comma before a phrase", sec_listsemi: "Semicolons in complex lists", sec_gerund: "Agreement with an -ing subject", sec_extra: "Matching commas and dashes", sec_boundary: "Joining sentences", sec_agree: "Subject-verb agreement", ii_quant: "Tables and claims", geo_trig: "Right-triangle trig", geo_polygon: "Parallel lines and angles", geo_similar: "Similar figures", psda_ratio: "Ratios", psda_sample: "Margin of error", psda_aroc: "Average rate of change", alg_interp: "Meaning of a linear model", alg_lineq: "Solving linear equations", adv_roots: "Solving quadratics", adv_shift: "Shifting a graph", adv_vieta: "Sum and product of roots" }[ty.slice(4)];
+    return nm || (c ? c.name : ty.slice(4));
+  };
+  function focusCard() {
+    if (GUEST) return null;
+    const ws = focusWeights(); if (!ws.length) return null;
+    const top = ws.slice(0, 6);
+    return el("div", { class: "card focus", style: "display:grid;gap:12px" },
+      el("div", {}, el("div", { class: "eyebrow", text: "Picked for you" }), el("h3", { text: "Your focus set" })),
+      el("p", { class: "muted", style: "font-size:14px", text: "Question types chosen from your test reviews and the questions you miss here. It updates itself as you improve." }),
+      el("ul", { class: "focus-list" }, top.map((x) => el("li", {}, el("strong", { text: typeLabel(x.type) }), el("span", { class: "muted", text: " · " + x.why })))),
+      ws.length > top.length ? el("p", { class: "muted", style: "font-size:13px", text: "+ " + (ws.length - top.length) + " more types in the mix" }) : null,
+      el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => startPractice(null, 20, "auto", false, true) }, "Start my focus set (20)")));
+  }
   const isRight = (q, ans) => (q.type === "spr" ? ans != null && ans !== "" && checkSpr(ans, q.spr) : ans === q.a);
   const answerText = (q) => (q.type === "spr" ? String(q.o[q.a]).replace(/^\$/, "") : LETTERS[q.a] + ") " + q.o[q.a]);
 
@@ -259,6 +326,7 @@
     if (!fromMock) { const st = S.stats[q.d] || (S.stats[q.d] = { att: 0, cor: 0 }); st.att++; if (ok) st.cor++; }
     if (q.sk) { const sb = S.sub[q.sk + "|" + q.d] || (S.sub[q.sk + "|" + q.d] = { att: 0, cor: 0 }); sb.att++; if (ok) sb.cor++; }
     S.answered++; if (S.answered >= 100) award("century");
+    if (!GUEST) { const ty = typeOf(q); if (ty) { const ts = (S.tstat || (S.tstat = {}))[ty] || (S.tstat[ty] = [0, 0, null]); ts[0]++; if (!ok) { ts[1]++; ts[2] = today(); } } }
     logActivity(q.d, ok);
     if (!GUEST) {
       const sid = STRAT.strategyFor(q), st2 = S.strat[sid] || (S.strat[sid] = { att: 0, miss: 0, last: null });
@@ -483,6 +551,7 @@
       p.append(el("div", { class: "card mission" }, el("div", { class: "eyebrow", text: "Mock test in progress" }), el("h2", { text: FORMATS[S.mock.kind].name + " mock" }), el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => show("mock") }, "Resume the mock test"))));
     }
     const ic = installCard(); if (ic) p.append(ic);
+    const fc0 = focusCard(); if (fc0 && mode !== "after") p.append(fc0);
     scorePrompt(p);
     if (mode === "sprint") renderSprint(p, t);
     else if (mode === "after") renderAfter(p);
@@ -952,7 +1021,7 @@
 
   /* ================= Practice ================= */
   let P = null, pTick = null;
-  function startPractice(doms, count, diff, notebook) {
+  function startPractice(doms, count, diff, notebook, focus) {
     if (GUEST) {
       if ((S.samples.practice || 0) >= SAMPLE_LIMIT) { renderPractice(); return; }
       S.samples.practice = (S.samples.practice || 0) + 1; count = 5; notebook = false; diff = "auto";
@@ -960,6 +1029,7 @@
     let qs = [];
     const used = new Set();
     if (notebook) qs = S.mistakes.slice(0, 15).map((m) => Object.assign({}, m, { uid: uid() }));
+    else if (focus) { qs = buildFocusSet(count || 20); doms = [...new Set(qs.map((q) => q.d))]; save(); }
     else {
       const order = [];
       for (let i = 0; i < count; i++) order.push(doms[i % doms.length]);
@@ -989,6 +1059,7 @@
     const p = $("#p-practice"); p.textContent = "";
     if (P && !P.finished) return practiceQuestion(p);
     if (P && P.finished) p.append(practiceSummary());
+    { const fc = focusCard(); if (fc) p.append(fc); }
     practiceSetup(p);
   }
   function practiceSetup(p) {
@@ -2054,7 +2125,7 @@
     // Switch between the public site (signed out) and a student's own progress (signed in).
     setGuest(g) {
       g = !!g; if (g === GUEST) return;
-      GUEST = g; HOLD = false; P = null; ADMIN = null; SOC = null; CH = null; clearInterval(pTick); clearInterval(mTick); tool = null;
+      GUEST = g; HOLD = false; P = null; ADMIN = null; SOC = null; CH = null; FOCUS = null; clearInterval(pTick); clearInterval(mTick); tool = null;
       const pop = document.getElementById("pop"); if (pop) pop.textContent = "";
       S = load(storeKey());
       TAB = !GUEST && S.mock && S.mock.phase !== "done" ? "mock" : "today";
@@ -2064,6 +2135,7 @@
     // Called by sync.js after the server confirms admin status (load = fetches the dashboard rows), or with null.
     setAdmin(load, api) { const was = !!ADMIN; ADMIN = load && !GUEST ? { load, api: api || null, rows: null } : null; if (ADMIN) { show("admin"); adminLoad(); } else if (was) show("today"); },
     get admin() { return !!ADMIN; },
+    setFocus(row) { FOCUS = row && Array.isArray(row.items) ? { items: row.items, source: row.source, updated: row.updated_at } : null; if (!GUEST && (TAB === "today" || TAB === "practice")) render(); },
     setSocial(api) { SOC = api && !GUEST ? { api } : null; CH = null; socialBadge(); if (SOC) socialLoad(TAB === "friends"); },
     onSettings(fn) { settingsHooks.push(fn); },
     // Record which account this device's progress belongs to (does not count as a change).

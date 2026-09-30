@@ -1,6 +1,6 @@
 global.window=undefined;
 const C=require('../js/core.js'); globalThis.PSCore=C;
-const MG=require('../js/mathgen.js');globalThis.MathGen=MG;require('../js/mathgen2.js');require('../js/mathgen3.js');
+const MG=require('../js/mathgen.js');globalThis.MathGen=MG;require('../js/mathgen2.js');require('../js/mathgen3.js');require('../js/mathgen4.js');
 let bad=0,total=0; const fails={};
 const norm=s=>C.parseAnswer(String(s).replace(/[$°%π,]/g,''));
 const ALL=Object.entries(MG.BY_DOMAIN).map(([d,l])=>[d,l.map(n=>[n,[1,2,3]])]).concat(Object.entries(MG.HARD).map(([d,l])=>[d,l.map(n=>[n,[3]])]));
