@@ -275,7 +275,10 @@
   function latestTestDom(d) { for (let i = S.tests.length - 1; i >= 0; i--) { const t = S.tests[i]; if (t.dom && t.dom[d] && t.dom[d].t) return t.dom[d]; } return null; }
   function testAcc(d) { const x = latestTestDom(d); return x ? x.c / x.t : null; }
   function pracAcc(d) { const r = S.stats[d]; return r && r.att >= 3 ? r.cor / r.att : null; }
-  function mastery(d) { const a = testAcc(d), b = pracAcc(d); if (a != null && b != null) return 0.6 * a + 0.4 * b; return a != null ? a : b; }
+  // Blend the latest test (weight 0.6) with practice (up to 0.4). Practice earns its full weight only
+  // after ~30 questions, so a handful of easy practice answers can't hide a weak test result.
+  const blend = (ta, pa, att) => { if (ta == null) return pa; if (pa == null) return ta; const w = 0.4 * Math.min(1, att / 30); return (0.6 * ta + w * pa) / (0.6 + w); };
+  function mastery(d) { const r = S.stats[d]; return blend(testAcc(d), pracAcc(d), r ? r.att : 0); }
   function status(m) { if (m == null) return ["none", "No data"]; if (m >= 0.8) return ["good", "Strong"]; if (m >= 0.6) return ["warn", "Building"]; return ["bad", "Focus"]; }
   function focusList() { return DOMAINS.map((d) => ({ d, m: mastery(d.id) })).sort((x, y) => (x.m ?? 0.62) - (y.m ?? 0.62)).map((x) => x.d); }
   function autoLevel(d) { const m = mastery(d); const pick = m == null ? [1, 2, 2] : m < 0.6 ? [1, 1, 2] : m < 0.8 ? [2, 2, 3] : [2, 3, 3]; return rng.pick(pick); }
@@ -1375,7 +1378,7 @@
   /* ================= Skill matrix ================= */
   function renderMatrix() {
     const p = $("#p-matrix"); p.textContent = "";
-    p.append(el("div", {}, el("h2", { text: "Skill matrix" }), el("p", { class: "muted lede", text: "Mastery blends the most recent test (60%) with practice accuracy (40%). Tests include Bluebook and Khan Academy tests you log and mock tests taken here. Practice accuracy counts once a skill has at least 3 answers. Strong is 80% or better, Building is 60–79%, Focus is below 60%." })));
+    p.append(el("div", {}, el("h2", { text: "Skill matrix" }), el("p", { class: "muted lede", text: "Mastery blends the most recent test with practice accuracy; practice counts fully once a skill has about 30 answers. Tests include Bluebook and Khan Academy tests you log and mock tests taken here. Practice accuracy counts once a skill has at least 3 answers. Strong is 80% or better, Building is 60–79%, Focus is below 60%." })));
     const tiles = el("div", { class: "tiles" });
     const scored = S.tests.filter((t) => t.total || t.rw || t.math);
     const last = scored[scored.length - 1], first = scored[0];
@@ -1871,7 +1874,7 @@
     const testDom = (d) => { for (let i = (D.tests || []).length - 1; i >= 0; i--) { const t = D.tests[i]; if (t.dom && t.dom[d] && t.dom[d].t) return t.dom[d]; } return null; };
     const dom = DOMAINS.map((d) => {
       const r = (D.stats || {})[d.id], pa = r && r.att >= 3 ? r.cor / r.att : null, td = testDom(d.id), ta = td ? td.c / td.t : null;
-      const m = ta != null && pa != null ? 0.6 * ta + 0.4 * pa : ta != null ? ta : pa;
+      const m = blend(ta, pa, r ? r.att : 0);
       return { d, att: r ? r.att : 0, cor: r ? r.cor : 0, pa, ta, m };
     });
     const weakest = dom.filter((x) => x.m != null).sort((a, b) => a.m - b.m).slice(0, 2);
