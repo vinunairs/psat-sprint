@@ -265,3 +265,13 @@ body.inq section.top.hero-card{display:none}
 /* Focus set */
 .card.focus{border:1px solid color-mix(in srgb,var(--pencil) 35%,var(--line));background:linear-gradient(180deg,var(--pencil-soft),var(--surface) 70%)}
 .focus-list{margin:0;padding-left:18px;display:grid;gap:6px;font-size:14.5px}
+
+/* Tip cards, warm-up, and carried-over tasks */
+.tipcard{border-top:4px solid var(--pencil)}
+.tipcard ol{margin:0;padding-left:20px;display:grid;gap:4px}
+.tip-say,.flash-say{font-family:var(--display);font-size:19px;font-weight:800;line-height:1.35;color:var(--pencil-strong);background:var(--pencil-soft);border-radius:var(--r-sm);padding:12px 14px;margin:0}
+.warm-list{display:grid;gap:12px}
+.warm{display:grid;gap:8px}
+.carried{border-top:1px dashed var(--line);padding-top:12px;display:grid;gap:8px}
+.task.moved .t{color:var(--graphite)}
+.moved-tag{display:inline-block;margin-left:6px;font-size:12px;font-weight:700;color:var(--warn);background:var(--warn-soft);border-radius:999px;padding:1px 8px}

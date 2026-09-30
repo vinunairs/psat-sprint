@@ -289,6 +289,17 @@
     used.add(q.key); if (!GUEST) trackFresh(q);
     return q;
   }
+  // Strategies behind a test review go straight into the flashcard deck, once per question type.
+  function seedDeck() {
+    if (GUEST || !FOCUS) return;
+    const seeded = S.seeded || (S.seeded = {}); let added = 0;
+    for (const it of FOCUS.items) {
+      if (seeded[it.type]) continue; seeded[it.type] = today();
+      const sid = STRAT.strategyFor(it.type.startsWith("bank:") ? { sk: it.type.slice(5) } : { gen: it.type.slice(4) });
+      if (sid !== "general" && STRAT.cards[sid] && !S.deck[sid]) { S.deck[sid] = { box: 0, due: today(), added: today() }; added++; }
+    }
+    if (added) save();
+  }
   function buildFocusSet(n) {
     const ws = focusWeights(); if (!ws.length) return [];
     const total = ws.reduce((a, x) => a + x.w, 0), cnt = {}, used = new Set(), qs = [];
@@ -299,7 +310,9 @@
       const q = qFromType(pick.type, used, pick.lv); if (!q) continue;
       cnt[pick.type] = (cnt[pick.type] || 0) + 1; qs.push(q);
     }
-    return rng.shuffle(qs);
+    const order = [], groups = {};
+    rng.shuffle(qs).forEach((q) => { const k = STRAT.strategyFor(q); if (!groups[k]) { groups[k] = []; order.push(k); } groups[k].push(q); });
+    return order.flatMap((k) => groups[k]);
   }
   const typeLabel = (ty) => {
     if (ty.startsWith("bank:")) return ty.slice(5);
@@ -316,7 +329,9 @@
       el("p", { class: "muted", style: "font-size:14px", text: "Question types chosen from your test reviews and the questions you miss here. It updates itself as you improve." }),
       el("ul", { class: "focus-list" }, top.map((x) => el("li", {}, el("strong", { text: typeLabel(x.type) }), el("span", { class: "muted", text: " · " + x.why })))),
       ws.length > top.length ? el("p", { class: "muted", style: "font-size:13px", text: "+ " + (ws.length - top.length) + " more types in the mix" }) : null,
-      el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => startPractice(null, 20, "auto", false, true) }, "Start my focus set (20)")));
+      el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => startPractice(null, 20, "auto", false, true) }, "Start my focus set (20)"),
+        (() => { const due = dueCards(); return due.length ? el("button", { class: "btn", onclick: () => { RV = { queue: due, i: 0, flipped: false }; show("review"); } }, "5-minute warm-up (" + due.length + " card" + (due.length === 1 ? "" : "s") + ")") : null; })()),
+      el("p", { class: "muted", style: "font-size:13px", text: "New question types start with a quick tip card, so he can learn the rule right before using it." }));
   }
   const isRight = (q, ans) => (q.type === "spr" ? ans != null && ans !== "" && checkSpr(ans, q.spr) : ans === q.a);
   const answerText = (q) => (q.type === "spr" ? String(q.o[q.a]).replace(/^\$/, "") : LETTERS[q.a] + ") " + q.o[q.a]);
@@ -330,7 +345,7 @@
     logActivity(q.d, ok);
     if (!GUEST) {
       const sid = STRAT.strategyFor(q), st2 = S.strat[sid] || (S.strat[sid] = { att: 0, miss: 0, last: null });
-      st2.att++;
+      st2.att++; st2.run = ok ? (st2.run || 0) + 1 : 0;
       if (!ok) { st2.miss++; st2.last = today(); S.deck[sid] = Object.assign(S.deck[sid] || { added: today() }, { box: 0, due: today() }); }
     }
     const i = S.mistakes.findIndex((m) => m.key === q.key);
@@ -422,15 +437,21 @@
     renderHeader(); ({ today: renderToday, practice: renderPractice, mock: renderMock, review: renderReview, matrix: renderMatrix, log: renderLog, rewards: renderRewards, friends: renderFriends })[TAB](); }
 
   /* ================= Today ================= */
-  function taskList(day) {
+  function taskList(day, only, moved) {
     const ul = el("ul", { class: "tasks" });
     day.tasks.forEach((t, i) => {
-      const id = day.date + "#" + i, on = !!S.tasks[id];
-      ul.append(el("li", { class: "task" + (on ? " done" : "") },
+      if (only && !only.includes(i)) return;
+      const id = day.date + "#" + i, on = !!S.tasks[id], mv = moved && !on && canCarry(t);
+      ul.append(el("li", { class: "task" + (on ? " done" : "") + (mv ? " moved" : "") },
         el("button", { class: "bubble", "aria-pressed": String(on), "aria-label": (on ? "Mark not done: " : "Mark done: ") + t, onclick: () => toggleTask(day, i) }, LETTERS[i] || String(i + 1)),
-        el("span", { class: "t" }, t, /Log a test/.test(t) ? howBox(/Khan/.test(t) ? "khan" : "bluebook", /Khan/.test(t) ? "How to log a Khan Academy section" : "How to log it: step by step") : null)));
+        el("span", { class: "t" }, t, mv ? el("span", { class: "moved-tag", text: " Moved to today" }) : null, /Log a test/.test(t) ? howBox(/Khan/.test(t) ? "khan" : "bluebook", /Khan/.test(t) ? "How to log a Khan Academy section" : "How to log it: step by step") : null)));
     });
     return ul;
+  }
+  // Unfinished tasks from earlier plan days roll forward to today (except ones tied to a specific night or morning).
+  const canCarry = (t) => !/Lights out|breakfast|Module 1|Never leave|Use Desmos and the reference/.test(t);
+  function carriedTasks(PLAN, t) {
+    return PLAN.filter((d) => d.date < t).map((d) => ({ day: d, idx: d.tasks.map((x, i) => i).filter((i) => !S.tasks[d.date + "#" + i] && canCarry(d.tasks[i])) })).filter((x) => x.idx.length).reverse();
   }
   function toggleTask(day, i) {
     const id = day.date + "#" + i;
@@ -809,6 +830,7 @@
         el("div", { class: "row between" }, el("div", {}, el("div", { class: "eyebrow", text: cur.date === t ? possessive() + (who() ? "mission today" : "Today's mission") : possessive() + (who() ? "first mission" : "First mission") }), el("h2", { text: cur.title })), el("span", { class: "date", text: f.dow + " " + f.md + " · " + done + "/" + cur.tasks.length + " done" })),
         S.settings.target ? goalLine() : null,
         taskList(cur),
+        ...(cur.date === t ? carriedTasks(PLAN, t).map((x) => { const f2 = fmtDay(x.day.date); return el("div", { class: "carried" }, el("div", { class: "eyebrow", text: "Carried over from " + f2.dow + " " + f2.md + " · " + x.day.title }), taskList(x.day, x.idx)); }) : []),
         el("div", { class: "row" },
           el("button", { class: "btn primary", onclick: () => { S.prefs.sel = [top.id]; save(); show("practice"); startPractice([top.id], 10, "auto"); } }, "Practice: " + top.name),
           el("button", { class: "btn", onclick: () => show("mock") }, "Take a mock test"))));
@@ -817,7 +839,7 @@
     PLAN.forEach((day) => {
       const f = fmtDay(day.date), isT = day.date === t, dots = el("div", { class: "dots", "aria-hidden": "true" });
       day.tasks.forEach((_, i) => dots.append(el("i", { class: S.tasks[day.date + "#" + i] ? "on" : "" })));
-      pw.append(el("div", { class: "pday" + (isT ? " today" : "") }, el("div", { class: "d" }, el("b", { text: f.md }), f.dow + (isT ? " · today" : "")), el("details", { open: isT }, el("summary", { text: day.title }), taskList(day)), dots));
+      pw.append(el("div", { class: "pday" + (isT ? " today" : "") }, el("div", { class: "d" }, el("b", { text: f.md }), f.dow + (isT ? " · today" : "")), el("details", { open: isT }, el("summary", { text: day.title }), taskList(day, null, day.date < t)), dots));
     });
     p.append(el("div", {}, el("div", { class: "row between", style: "margin-bottom:12px" }, el("h3", { text: "Final sprint: day by day" }), el("span", { class: "muted", style: "font-size:13px", text: "Each task is worth 15 XP" })), pw));
   }
@@ -969,6 +991,7 @@
         el("h3", { class: "flash-name", text: c.name }),
         el("p", { class: "muted" }, el("b", { text: "When you see: " }), c.spot),
         RV.flipped ? el("div", { class: "flash-back" },
+          c.say ? el("p", { class: "flash-say", text: c.say }) : null,
           el("p", { class: "flash-rule", text: c.rule }),
           el("ol", {}, c.steps.map((x) => el("li", { text: x }))),
           c.desmos ? el("p", {}, el("b", { text: "Desmos way: " }), c.desmos) : null,
@@ -1054,9 +1077,36 @@
     const q = (TAB === "practice" && P && !P.finished) || (TAB === "mock" && S.mock && (S.mock.phase === "module" || S.mock.phase === "check")) || (TAB === "friends" && CH && !CH.done);
     document.body.classList.toggle("inq", !!q && !ADMIN);
   }
+  // A tip is shown the first time a question type comes up in a set, until it's been answered right 3 times in a row.
+  function needsTip(sid) { if (sid === "general" || !STRAT.cards[sid]) return false; const st = S.strat[sid]; return !(st && (st.run || 0) >= 3); }
+  function tipCard(c, onGo, onSkip) {
+    return el("div", { class: "card tipcard", style: "display:grid;gap:12px" },
+      el("div", { class: "eyebrow", text: "Quick tip · " + c.area }),
+      el("h2", { text: c.name }),
+      c.say ? el("p", { class: "tip-say", text: c.say }) : null,
+      el("p", {}, el("b", { text: "When you see: " }), c.spot),
+      el("p", { text: c.rule }),
+      el("ol", {}, c.steps.map((x) => el("li", { text: x }))),
+      c.desmos ? el("p", {}, el("b", { text: "Desmos way: " }), c.desmos) : null,
+      el("p", {}, el("b", { text: "Trap: " }), c.trap),
+      el("div", { class: "row" }, el("button", { class: "btn primary", id: "tipGo", onclick: onGo }, "Got it. Show me one"),
+        onSkip ? el("button", { class: "btn ghost", onclick: onSkip }, "Skip tips this set") : null));
+  }
   function renderPractice() {
     setTimeout(setInq, 0);
     const p = $("#p-practice"); p.textContent = "";
+    if (P && !P.finished && !P.done && !P.noTips) {
+      const q = P.qs[P.i], sid = STRAT.strategyFor(q);
+      P.tipped = P.tipped || [];
+      if (!P.tipped.includes(sid) && needsTip(sid)) {
+        if (!P.tipAt) P.tipAt = Date.now();
+        const go = () => { P.tipped.push(sid); P.start += Date.now() - P.tipAt; P.tipAt = null; renderPractice(); window.scrollTo({ top: 0 }); };
+        p.append(el("div", { class: "row between" }, el("span", { class: "muted", text: "Question " + (P.i + 1) + " of " + P.qs.length + " is next" })),
+          tipCard(STRAT.cards[sid], go, () => { P.noTips = true; go(); }));
+        const b = $("#tipGo"); if (b) b.focus();
+        return;
+      }
+    }
     if (P && !P.finished) return practiceQuestion(p);
     if (P && P.finished) p.append(practiceSummary());
     { const fc = focusCard(); if (fc) p.append(fc); }
@@ -1292,8 +1342,28 @@
     p.append(el("p", { class: "muted", style: "font-size:13px", text: left + " sample mock" + (left === 1 ? "" : "s") + " left on this device." }));
     if (S.lastMock && S.lastMock.result) p.append(el("div", { class: "row" }, el("button", { class: "btn", onclick: () => { S.lastMock.showResults = true; renderMock(); } }, "Review your last sample")));
   }
+  // Top strategies for a pre-test warm-up: from the focus set (test reviews + misses here), then most-missed.
+  function topCards(n) {
+    const ids = [];
+    const add = (id) => { if (id && id !== "general" && STRAT.cards[id] && !ids.includes(id)) ids.push(id); };
+    focusWeights().forEach((x) => add(STRAT.strategyFor(x.type.startsWith("bank:") ? { sk: x.type.slice(5) } : { gen: x.type.slice(4) })));
+    Object.entries(S.strat).filter(([, v]) => v.miss > 0).sort((a, b) => b[1].miss - a[1].miss).forEach(([id]) => add(id));
+    return ids.slice(0, n);
+  }
+  let WU = null; // pending mock start, shown after the warm-up screen
+  function mockWarmup(p) {
+    const w = WU, ids = topCards(5), go = () => { WU = null; startMock(w.kind, w.parts, w.timed); };
+    if (!ids.length) { go(); return; }
+    p.append(el("div", {}, el("div", { class: "eyebrow", text: "2-minute warm-up" }), el("h2", { text: "Five rules to have in your head" }),
+      el("p", { class: "muted lede", text: "Say each one out loud. During the test there are no hints, just like the real thing. This is the same routine to use on test morning." })));
+    p.append(el("div", { class: "warm-list" }, ids.map((id, k) => { const c = STRAT.cards[id]; return el("div", { class: "card warm" },
+      el("div", { class: "eyebrow", text: (k + 1) + " · " + c.area }), el("h3", { text: c.name }), el("p", { class: "tip-say", text: c.say || c.rule }), el("p", { class: "muted", style: "font-size:14px" }, el("b", { text: "Trap: " }), c.trap)); })));
+    p.append(el("div", { class: "row" }, el("button", { class: "btn primary", id: "wuGo", onclick: go }, "I'm ready. Start the test"), el("button", { class: "btn ghost", onclick: () => { WU = null; renderMock(); } }, "Back")));
+    window.scrollTo({ top: 0 });
+  }
   function mockSetup(p) {
     if (GUEST) return guestMockSetup(p);
+    if (WU) return mockWarmup(p);
     const fmt = S.settings.kind;
     p.append(el("div", {}, el("h2", { text: "Mock test" }), el("p", { class: "muted lede", text: "A full-length practice test in the real digital format: two timed modules per section, and Module 2 adapts to how you did on Module 1. Answers are revealed only at the end. Every mock uses new questions, and the results feed the Skill matrix automatically." })));
     const pick = { kind: fmt, timed: true };
@@ -1306,7 +1376,7 @@
     };
     paint();
     p.append(el("div", { class: "row", style: "gap:22px" }, el("div", { class: "opts-row" }, el("div", { class: "eyebrow", text: "Format" }), kindSeg), el("div", { class: "opts-row" }, el("div", { class: "eyebrow", text: "Timing" }), timeSeg)));
-    const card = (title, desc, parts) => el("button", { class: "mode", onclick: () => startMock(pick.kind, parts, pick.timed) }, el("b", { text: title }), el("span", { text: desc }));
+    const card = (title, desc, parts) => el("button", { class: "mode", onclick: () => { WU = { kind: pick.kind, parts, timed: pick.timed }; renderMock(); } }, el("b", { text: title }), el("span", { text: desc }));
     p.append(el("div", { class: "mode-cards" },
       card("Full test", "Reading and Writing (2 × 32 min), a 10-minute break, then Math (2 × 35 min). About 2 hours 25 minutes.", ["rw", "math"]),
       card("Reading and Writing only", "54 questions in two 32-minute modules. Good for a weeknight.", ["rw"]),
@@ -2135,7 +2205,7 @@
     // Called by sync.js after the server confirms admin status (load = fetches the dashboard rows), or with null.
     setAdmin(load, api) { const was = !!ADMIN; ADMIN = load && !GUEST ? { load, api: api || null, rows: null } : null; if (ADMIN) { show("admin"); adminLoad(); } else if (was) show("today"); },
     get admin() { return !!ADMIN; },
-    setFocus(row) { FOCUS = row && Array.isArray(row.items) ? { items: row.items, source: row.source, updated: row.updated_at } : null; if (!GUEST && (TAB === "today" || TAB === "practice")) render(); },
+    setFocus(row) { FOCUS = row && Array.isArray(row.items) ? { items: row.items, source: row.source, updated: row.updated_at } : null; seedDeck(); if (!GUEST && (TAB === "today" || TAB === "practice")) render(); },
     setSocial(api) { SOC = api && !GUEST ? { api } : null; CH = null; socialBadge(); if (SOC) socialLoad(TAB === "friends"); },
     onSettings(fn) { settingsHooks.push(fn); },
     // Record which account this device's progress belongs to (does not count as a change).

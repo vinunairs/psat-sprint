@@ -355,6 +355,88 @@
       trap: "Answering a different question than the one asked." }
   };
 
+  /* Dedicated cards for question types added from a Bluebook review (batch 4). */
+  Object.assign(S, {
+    fanboys: { name: "Comma + FANBOYS joins two sentences", area: "Grammar",
+      spot: "The blank sits right before and, but, or so (the FANBOYS words), and the choices change the comma.",
+      rule: "If both sides of and/but/so are complete sentences, put a comma before the word. If one side can't stand alone, no comma.",
+      steps: ["Cover the and/but/so.", "Could the part before it be a sentence? Could the part after?", "Both yes: comma + and. One no: no comma at all."],
+      trap: "Leaving the comma off because the sentence 'reads fine' without it." },
+    semiphrase: { name: "Semicolon needs a sentence on BOTH sides", area: "Grammar",
+      spot: "A semicolon is offered before a short describing phrase (like 'a process that…' or 'one of the…').",
+      rule: "A semicolon works exactly like a period. If the part after it can't stand alone, use a comma (or a colon or dash), not a semicolon.",
+      steps: ["Read the part after the semicolon by itself.", "Is it a full sentence with its own subject and verb? If not, cross the semicolon out.", "Pick the comma (or dash/colon) choice."],
+      trap: "Choosing the semicolon because it looks 'more advanced'." },
+    listsemi: { name: "Commas inside? Semicolons between", area: "Grammar",
+      spot: "A list where each item already contains a comma (like 'Paris, France; Rome, Italy; …').",
+      rule: "When list items have their own commas, separate the items with semicolons, and use the same mark between every item.",
+      steps: ["Find where each whole list item starts and ends.", "Commas stay inside items (city, country).", "Semicolons go between items, every time."],
+      trap: "A comma between two items when the other breaks are semicolons: the marks must match." },
+    gerund: { name: "An -ing subject is singular", area: "Grammar",
+      spot: "The sentence starts with an -ing action (Studying…, Collecting…) and the choices are is/are or has/have.",
+      rule: "An -ing activity used as the subject counts as ONE thing, so the verb is singular, even if a plural noun follows it.",
+      steps: ["Find the real subject: the -ing word.", "Cross out the 'of…' phrase after it.", "Use the singular verb: is, has, shows."],
+      trap: "Matching the verb to the plural noun right before it ('Collecting stamps are…')." },
+    shift: { name: "Inside flips, outside doesn't", area: "Math",
+      spot: "A graph of f is moved right/left or up/down and you must pick the new equation.",
+      rule: "Right 3 → replace x with (x − 3). Left 3 → (x + 3). Up 3 → add 3 at the end. Down 3 → subtract 3.",
+      steps: ["Write the vertex (or a key point) of the original.", "Move that point the way the question says.", "Pick the choice whose vertex is the new point."],
+      desmos: "Type the original, then each choice. The right one looks like the original slid over.",
+      trap: "Writing (x + 3) for a move to the right: the sign inside the parentheses is the opposite of the direction." },
+    aroc: { name: "Rate of change = rise ÷ run", area: "Math",
+      spot: "'Average rate of change from x = a to x = b' with a table or graph.",
+      rule: "Take the two y-values at the endpoints, subtract, then divide by the change in x. Ignore everything in between.",
+      steps: ["Circle the two x-values the question names.", "Read their y-values.", "(y₂ − y₁) ÷ (x₂ − x₁), with the units 'y per x'."],
+      trap: "Dividing x by y, or using the y-value alone instead of the change." },
+    vieta: { name: "Sum −b/a, product c/a", area: "Math",
+      spot: "'The sum (or product) of the solutions' of a quadratic.",
+      rule: "For ax² + bx + c = 0, the solutions add to −b/a and multiply to c/a. No need to solve.",
+      steps: ["Get everything on one side = 0.", "Read a, b, c (with signs).", "Sum = −b ÷ a. Product = c ÷ a."],
+      desmos: "Graph it, click the two x-intercepts, and add or multiply them.",
+      trap: "Forgetting the minus sign in −b/a." },
+    interp: { name: "Match the formula to the story", area: "Math",
+      spot: "A function models a real situation and asks what a number means, or which values fit.",
+      rule: "The number next to x is the change per 1 unit. The number alone is the starting amount. No x at all means the output never changes.",
+      steps: ["Say what x and f(x) stand for, in words.", "Label each number: 'per x' or 'starting amount'.", "Pick the choice that uses the same label."],
+      trap: "Calling the one-time fee the rate, or thinking f(x) = 7 changes as x changes." }
+  });
+  // One line to say out loud from memory, shown big on tip cards and flashcards.
+  const SAY = {
+    fanboys: "Two full sentences + and? Comma before the and.",
+    semiphrase: "Semicolon = period. No full sentence after it? Use a comma.",
+    listsemi: "Commas inside the items, semicolons between them.",
+    gerund: "Running, studying, collecting… = one thing = is/has.",
+    shift: "Right = minus inside. Up = plus outside.",
+    aroc: "Change in y over change in x. Only the endpoints.",
+    vieta: "Sum = −b/a. Product = c/a.",
+    interp: "Next to x = per unit. Alone = start. No x = never changes.",
+    boundaries: "Two full sentences need a period or semicolon, never just a comma.",
+    extra: "Open with a comma, close with a comma. Open with a dash, close with a dash.",
+    agreement: "Cross out the middle, match the real subject.",
+    punctuation: "Colon only after a full sentence.",
+    evidence: "Same subject, same result as the claim, nothing extra.",
+    quant: "Read the claim first, then find its exact numbers.",
+    inference: "Pick the most careful claim the text fully supports.",
+    central: "The idea every sentence supports, not one detail.",
+    wic: "Cover the choices, say your own word, then match.",
+    purpose: "What is the author DOING, not what it's about.",
+    synthesis: "Only the goal words in the question matter.",
+    trig: "SOH-CAH-TOA. Label opposite and adjacent from the angle.",
+    similar: "Sides × k, area × k², volume × k³.",
+    polygons: "Parallel lines: angles are equal or add to 180.",
+    ratio: "Add the parts to get the whole.",
+    sampling: "Random sample → whole group. Margin of error → a range.",
+    lineq: "Undo in reverse: add/subtract first, then divide.",
+    quadratic: "Set it to 0, then factor or graph it in Desmos.",
+    model: "Next to the variable = rate. Alone = start.",
+    rates: "Write the units; they tell you what to do.",
+    graphs: "Use the easy points: intercept and vertex.",
+    conjadv: "Semicolon before however, comma after.",
+    transitions: "Name the relationship before looking at the words.",
+    crosstext: "What would Text 2 say back to Text 1?"
+  };
+  for (const k in SAY) if (S[k]) S[k].say = SAY[k];
+
   const BY_GEN = {
     sec_boundary: "boundaries", sec_conjadv: "conjadv", sec_extra: "extra", sec_agree: "agreement", sec_poss: "possessive",
     eoi_trans: "transitions", ii_quant: "quant",
@@ -364,8 +446,8 @@
     geo_pyth: "pythag", geo_trig: "trig", geo_circle: "circle", geo_angles: "angles", geo_volume: "volume", geo_triangle: "angles", geo_similar: "similar", geo_arc: "arc", geo_radians: "radians", geo_special: "special",
     alg_literal: "literal", alg_sysineq: "sysineq", adv_poly: "polyops", adv_rational: "rational", psda_spread: "spread", geo_area: "area", geo_polygon: "polygons",
     hard_compose: "composition", hard_circleeq: "circle", hard_perp: "perpendicular", hard_twoway: "twoway", hard_growth: "exponential", hard_quadk: "nonlinear",
-    sec_fanboys: "boundaries", sec_semiphrase: "punctuation", sec_listsemi: "punctuation", sec_gerund: "agreement",
-    adv_shift: "graphs", psda_aroc: "rates", adv_vieta: "quadratic", alg_interp: "model"
+    sec_fanboys: "fanboys", sec_semiphrase: "semiphrase", sec_listsemi: "listsemi", sec_gerund: "gerund",
+    adv_shift: "shift", psda_aroc: "aroc", adv_vieta: "vieta", alg_interp: "interp"
   };
   const BY_SKILL = {
     "Words in context": "wic", "Text purpose": "purpose", "Text structure": "purpose", "Cross-text connections": "crosstext",
