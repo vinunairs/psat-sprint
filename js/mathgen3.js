@@ -245,11 +245,11 @@
         const kind = r.pick(["alternate interior", "corresponding"]);
         const { o, a } = mc(r, ang, [x, 180 - ang, ang + a2, (a2 - a1) * x], (v) => fmtN(v) + "°");
         return { d: "geo", sk: "Lines and angles", q: `Parallel lines ℓ and m are cut by a transversal. Two ${kind} angles have measures (${lin(a1, c1)})° and (${lin(a2, c2)})°. What is the measure of each of these angles?`, o, a, spr: ang,
-          e: `${kind[0].toUpperCase() + kind.slice(1)} angles formed by parallel lines are equal: ${lin(a1, c1)} = ${lin(a2, c2)}, so ${fmtN(a2 - a1)}x = ${fmtN(c1 - c2)} and x = ${x}. Each angle is ${a1}(${x})${sgn(c1)} = ${ang}°.`,
+          e: `${kind[0].toUpperCase() + kind.slice(1)} angles formed by parallel lines are equal: ${lin(a1, c1)} = ${lin(a2, c2)}, so ${a2 - a1 === 1 ? "" : fmtN(a2 - a1)}x = ${fmtN(c1 - c2)} and x = ${x}. Each angle is ${a1}(${x})${sgn(c1)} = ${ang}°.`,
           t: "Parallel lines: angles are either equal or add to 180°. Solve for x, then answer the angle they asked for.", key: `pl1:${a1},${c1},${a2},${c2}`,
           fig: { type: "parallel", at: kind === "corresponding" ? [[1, "ur", "(" + lin(a1, c1) + ")°", "fg-a"], [2, "ur", "(" + lin(a2, c2) + ")°", "fg-b"]] : [[1, "lr", "(" + lin(a1, c1) + ")°", "fg-a"], [2, "ul", "(" + lin(a2, c2) + ")°", "fg-b"]], note: "ℓ ∥ m · not drawn to scale" },
           efig: { type: "parallel", th: kind === "corresponding" ? ang : 180 - ang, at: kind === "corresponding" ? [[1, "ur", ang + "°", "fg-a"], [2, "ur", ang + "°", "fg-a"]] : [[1, "lr", ang + "°", "fg-a"], [2, "ul", ang + "°", "fg-a"]], note: "Same color = equal angles" },
-          steps: [kind === "corresponding" ? "Corresponding angles sit in the same spot at each crossing (both upper right here), so they're equal." : "Alternate interior angles sit between the parallel lines, on opposite sides of the slanted line (a Z shape), so they're equal.", `Set them equal: ${lin(a1, c1)} = ${lin(a2, c2)}.`, `${fmtN(a2 - a1)}x = ${fmtN(c1 - c2)}, so x = ${x}.`, `Plug x back in: ${a1}(${x})${sgn(c1)} = ${ang}°. That's the angle, not x.`] };
+          steps: [kind === "corresponding" ? "Corresponding angles sit in the same spot at each crossing (both upper right here), so they're equal." : "Alternate interior angles sit between the parallel lines, on opposite sides of the slanted line (a Z shape), so they're equal.", `Set them equal: ${lin(a1, c1)} = ${lin(a2, c2)}.`, `${a2 - a1 === 1 ? "" : fmtN(a2 - a1)}x = ${fmtN(c1 - c2)}, so x = ${x}.`, `Plug x back in: ${a1}(${x})${sgn(c1)} = ${ang}°. That's the angle, not x.`] };
       }
       retry();
     }
