@@ -82,6 +82,9 @@ Every question served is tracked per question type in the student's progress (`f
 ## Design
 `css/theme.css` (loaded after `css/app.css`) holds the visual design: indigo→violet brand, Plus Jakarta Sans for the interface and Source Serif 4 for passages (like the real test), rounded cards, full dark mode, WCAG-AA contrast, 44px touch targets and reduced-motion support. Navigation follows mobile standards: five destinations (Home, Practice, Tests, Progress, Friends) as a bottom tab bar on phones and a side rail on larger screens; related views sit under one destination with a segmented sub-nav (Practice/Review, Mock test/Log a test, Skill matrix/Rewards). Home opens with a gradient progress card (countdown, streak, score, level).
 
+## Study time
+`S.time[date] = {f, i, a, n, by}` (kept 30 days): seconds focused (page visible, touched in the last 90 s), idle on screen, away (switched app/tab 15 s–30 min mid-activity) and the number of times away, plus focused seconds per activity. Only counts while a study activity is open. After 2 minutes untouched on a question the student gets a nudge to guess and move on; on returning from away, a "Welcome back" note. `S.qtime[domain] = [n, sec]` is time per practice question (away time excluded). Home shows today's focused minutes; set results show time per question vs. test pace; the admin detail shows a 7-day table, time by activity, and pace per section.
+
 ## Home in the final sprint
 Home shows one card for today: the date, the day's title, a progress bar, and a single numbered list of today's tasks plus up to 3 carried-over ones (tagged "from Wed"); older unfinished tasks stay in the whole plan. The day-by-day plan and everything else (official tests, my tests, reminders, how the test works) sit in two closed sections below.
 

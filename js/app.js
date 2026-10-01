@@ -922,6 +922,7 @@
         el("div", { class: "row between", style: "align-items:baseline" }, el("h2", { text: cur.title }), el("span", { class: "date", text: done + " of " + rows.length + " done" })),
         el("div", { class: "tmeter", "aria-hidden": "true" }, el("i", { style: "width:" + Math.round((100 * done) / Math.max(1, rows.length)) + "%" })),
         S.settings.target ? goalLine() : null,
+        todayTimeLine(),
         ul,
         all ? el("div", { class: "row" }, el("strong", { text: "All done for today. Nice work." }), focusWeights().length ? el("button", { class: "btn small", onclick: () => startPractice(null, 20, "auto", false, true) }, "Want more? Your focus set") : null)
           : el("p", { class: "muted hint", text: "Tap a task to start it. It ticks itself when you finish. Tasks marked ↗ open another site, so tick those yourself." + (older > 0 ? " " + older + " older unfinished task" + (older === 1 ? " is" : "s are") + " in the whole plan below." : "") })));
@@ -1247,6 +1248,7 @@
   }
   function practiceQuestion(p) {
     const q = P.qs[P.i], d = DOM[q.d];
+    if (P.qIdx !== P.i) { P.qIdx = P.i; P.qAt = Date.now(); P.qAway = 0; }
     const card = el("div", { class: "card qcard" });
     card.append(el("div", { class: "q-head" },
       el("div", {}, el("div", { class: "eyebrow", text: (P.notebook ? "Mistake notebook · " : "") + d.name + (q.sk ? " · " + q.sk : "") }), el("strong", { class: "num", text: "Question " + (P.i + 1) + " of " + P.qs.length })),
@@ -1255,7 +1257,9 @@
     const submit = () => {
       if (P.done || P.pick == null || P.pick === "") return;
       P.done = true; const ok = isRight(q, P.pick);
-      P.results.push({ q, ok, pick: P.pick }); record(q, ok);
+      const sec = Math.min(600, Math.max(0, (Date.now() - P.qAt - (P.qAway || 0)) / 1000));
+      if (!GUEST) { const qt = (S.qtime || (S.qtime = {}))[q.d] || (S.qtime[q.d] = [0, 0]); qt[0]++; qt[1] += sec; }
+      P.results.push({ q, ok, pick: P.pick, sec }); record(q, ok);
       if (ok) addXP(10, "correct"); bumpStreak(); save(); renderHeader(); renderPractice();
     };
     card.append(answerArea(q, {
@@ -1288,12 +1292,18 @@
     planEvent({ k: "practice", res: P.results, notebook: P.notebook, focus: P.focus, timed: P.timed });
     save(); render();
   }
+  // "· 1:20 per question (test pace 1:35)" for a finished set.
+  function paceText(res) {
+    const r = res.filter((x) => x.sec != null && !x.skipped); if (r.length < 3) return "";
+    const avg = r.reduce((a, x) => a + x.sec, 0) / r.length, tgt = r.reduce((a, x) => a + DOM[x.q.d].pace, 0) / r.length;
+    return " · " + mmss(avg) + " per question (test pace " + mmss(tgt) + ")";
+  }
   function practiceSummary() {
     const n = P.results.length, c = P.results.filter((r) => r.ok).length, miss = n - c;
     const byDom = {}; P.results.forEach((r) => { const b = byDom[r.q.d] || (byDom[r.q.d] = [0, 0]); b[1]++; if (r.ok) b[0]++; });
     return el("div", { class: "card", style: "display:grid;gap:14px" },
       el("div", { class: "eyebrow", text: "Set result" }),
-      el("div", { class: "row", style: "gap:24px;align-items:end" }, el("span", { class: "result-big num", text: c + "/" + n }), el("span", { class: "muted", text: "Time " + mmss(P.elapsed) })),
+      el("div", { class: "row", style: "gap:24px;align-items:end" }, el("span", { class: "result-big num", text: c + "/" + n }), el("span", { class: "muted", text: "Time " + mmss(P.elapsed) + paceText(P.results) })),
       el("div", { class: "row" }, Object.entries(byDom).map(([d, [cc, tt]]) => el("span", { class: "chip " + status(cc / tt)[0], text: DOM[d].name + ": " + cc + "/" + tt }))),
       el("p", { text: miss === 0 ? withName("Perfect set") + ". Try Harder difficulty next." : (c / n >= 0.8 ? withName("Nice work") + ". " : (who() ? who() + ", " : "")) + miss + (miss === 1 ? " miss went" : " misses went") + " to the Mistake notebook. Retry " + (miss === 1 ? "it" : "them") + " tomorrow." }),
       takeaways(P.results),
@@ -2117,6 +2127,7 @@
     const kind = st.kind || row.test_kind || "psat", date = st.date || row.test_date;
     const left = date ? Math.round((parseYmd(date) - parseYmd(today())) / 864e5) : null;
     const lvl = Math.floor((D.xp || 0) / XP_PER_LEVEL) + 1;
+    wk.f = 0; for (let i = 0; i < 7; i++) { const tm = (D.time || {})[addDays(today(), -i)]; if (tm) wk.f += tm.f || 0; }
     return { row, D, st, name, lastAct, idle: agoDays(lastAct), wk, streak, tests, latest, dom, weakest, kind, date, left, target: st.target || row.target_score, lvl };
   }
   async function adminLoad() {
@@ -2146,7 +2157,7 @@
         el("div", { class: "row between" }, el("div", {}, el("h3", { text: x.name }), el("div", { class: "muted", style: "font-size:13px", text: fmt.name + (x.date ? " · " + fmtDay(x.date).md + ", " + parseYmd(x.date).getFullYear() + (x.left != null ? (x.left > 0 ? " · " + x.left + " days away" : x.left === 0 ? " · today" : " · done") : "") : "") + (x.target ? " · target " + x.target : "") })),
           el("span", { class: "chip " + idleCls, text: "Active " + agoText(x.idle) })),
         el("div", { class: "adm-stats" },
-          stat("This week", String(x.wk.q), "questions" + (x.wk.q ? " · " + Math.round((x.wk.c / x.wk.q) * 100) + "% right" : "") + " · " + x.wk.days + " day" + (x.wk.days === 1 ? "" : "s")),
+          stat("This week", String(x.wk.q), "questions" + (x.wk.q ? " · " + Math.round((x.wk.c / x.wk.q) * 100) + "% right" : "") + " · " + x.wk.days + " day" + (x.wk.days === 1 ? "" : "s") + (x.wk.f >= 60 ? " · " + minText(x.wk.f) + " focused" : "")),
           stat("Streak", String(x.streak), "day" + (x.streak === 1 ? "" : "s") + " · level " + x.lvl),
           stat("Latest score", x.latest ? String(x.latest.total) : "—", x.latest ? (isEst(x.latest) ? "estimated · " : "") + x.latest.name : "no test yet"),
           stat("All time", String(x.D.answered || 0), "answered · " + (x.mistakes = (x.D.mistakes || []).length) + " to redo")),
@@ -2249,7 +2260,7 @@
     for (let i = 13; i >= 0; i--) { const d = addDays(today(), -i), a = (x.D.activity || {})[d] || {}; days.push([d, a.q || 0, a.mock || 0]); mx = Math.max(mx, a.q || 0); }
     days.forEach(([d, q, mk]) => bars.append(el("div", { class: "adm-bar", title: fmtDay(d).md + ": " + q + " questions" + (mk ? ", " + mk + " mock section(s)" : "") }, el("i", { style: "height:" + Math.round((q / mx) * 100) + "%" + (mk ? ";background:var(--pencil)" : "") }), el("span", { text: fmtDay(d).dow[0] }))));
     box.append(el("div", { class: "eyebrow", text: "Last 14 days (questions per day; gold = mock test day)" }), bars);
-    // Skills
+    box.append(el("div", { class: "eyebrow", text: "Study time (last 7 days)" }), adminTime(x.D));
     // Skills as a stacked list: reads well on a phone and on a desktop.
     const sk = el("div", { class: "adm-skills" });
     x.dom.forEach((r) => {
@@ -2272,6 +2283,87 @@
       el("li", { text: "Review deck: " + Object.keys(x.D.deck || {}).length + " strategy cards · badges earned: " + Object.keys(x.D.badges || {}).length }),
       exams.length ? el("li", { text: "Tests planned: " + exams.join("; ") }) : null,
       el("li", { text: "Joined " + (x.row.joined ? new Date(x.row.joined).toLocaleDateString() : "—") + " · last sign-in " + (x.row.last_sign_in ? new Date(x.row.last_sign_in).toLocaleDateString() : "—") })));
+    return box;
+  }
+
+  /* ================= Study time =================
+     Counts time only while a study activity is open (practice, focus set, notebook, mock, flashcards, challenge):
+     focused = page visible and touched in the last 90 s; idle = visible but untouched; away = switched to another
+     app or tab mid-activity (15 s to 30 min). The student sees their own numbers; the admin sees the history. */
+  const IDLE_MS = 90000, AWAY_MIN = 15, AWAY_MAX = 1800;
+  const TT = { last: Date.now(), input: Date.now(), hidAt: null, hidAct: null, saved: Date.now(), nudged: null };
+  function curAct() {
+    if (GUEST || ADMIN) return null;
+    if (TAB === "practice" && P && !P.finished) return P.focus ? "focus" : P.notebook ? "notebook" : "practice";
+    if (TAB === "mock" && S.mock && S.mock.phase !== "done") return "mock";
+    if (TAB === "review" && RV && RV.i < RV.queue.length) return "cards";
+    if (TAB === "friends" && CH && !CH.done) return "challenge";
+    return null;
+  }
+  const ACT_NAMES = { practice: "Practice sets", focus: "Focus set", notebook: "Mistake notebook", mock: "Mock tests", cards: "Flashcards", challenge: "Friend challenges" };
+  function ttDay(d) {
+    const T = S.time || (S.time = {}), k = d || today();
+    if (!T[k]) { T[k] = { f: 0, i: 0, a: 0, n: 0, by: {} }; const ks = Object.keys(T).sort(); while (ks.length > 30) delete T[ks.shift()]; }
+    return T[k];
+  }
+  function ttTick() {
+    const now = Date.now(), dt = Math.min(10, (now - TT.last) / 1000); TT.last = now;
+    if (document.hidden) return;
+    const act = curAct(); if (!act) return;
+    const d = ttDay();
+    if (now - TT.input < IDLE_MS) { d.f += dt; d.by[act] = (d.by[act] || 0) + dt; }
+    else {
+      d.i += dt;
+      // A gentle nudge after 2 minutes untouched on a question.
+      const qk = act === "mock" ? "m" + (S.mock && S.mock.cur) : P ? "p" + P.i : act;
+      if (now - TT.input > 120000 && TT.nudged !== qk && (act === "practice" || act === "focus" || act === "notebook" || act === "mock")) { TT.nudged = qk; toast("Still on this one? Pick your best guess and keep moving."); }
+    }
+    if (now - TT.saved > 60000) { TT.saved = now; save(); }
+  }
+  function ttVisibility() {
+    const now = Date.now();
+    if (document.hidden) { const act = curAct(); if (act) { TT.hidAt = now; TT.hidAct = act; } return; }
+    TT.last = now; TT.input = now;
+    if (!TT.hidAt) return;
+    const sec = (now - TT.hidAt) / 1000; TT.hidAt = null;
+    if (P && !P.finished && P.qAt) P.qAway = (P.qAway || 0) + sec * 1000; // away time doesn't count against the question
+    if (sec < AWAY_MIN || sec > AWAY_MAX || !curAct()) return;
+    const d = ttDay(); d.a += sec; d.n++;
+    toast("Welcome back. You were away " + (sec < 90 ? Math.round(sec) + " seconds" : Math.round(sec / 60) + " minutes") + ".");
+    save();
+  }
+  const ttInput = () => { TT.input = Date.now(); };
+  ["pointerdown", "keydown", "scroll", "touchstart", "input"].forEach((e) => document.addEventListener(e, ttInput, { passive: true, capture: true }));
+  let ttMove = 0; document.addEventListener("mousemove", () => { const n = Date.now(); if (n - ttMove > 2000) { ttMove = n; ttInput(); } }, { passive: true });
+  document.addEventListener("visibilitychange", ttVisibility);
+  setInterval(ttTick, 5000);
+  const mins = (sec) => Math.round(sec / 60);
+  const minText = (sec) => (sec < 60 ? (sec > 0 ? "under a minute" : "0 min") : mins(sec) >= 60 ? Math.floor(mins(sec) / 60) + " h " + (mins(sec) % 60) + " min" : mins(sec) + " min");
+  function todayTimeLine() {
+    const d = (S.time || {})[today()]; if (!d || d.f < 30) return null;
+    return el("p", { class: "muted time-line" }, el("strong", { text: "Study time today: " + minText(d.f) + " focused" }),
+      d.n ? " · stepped away " + d.n + " time" + (d.n === 1 ? "" : "s") + " (" + minText(d.a) + ")" : " · no breaks away");
+  }
+  // Admin view: last 7 days of study time plus time per question against test pace.
+  function adminTime(D) {
+    const T = D.time || {}, box = el("div", { style: "display:grid;gap:8px" });
+    const rows = []; for (let k = 6; k >= 0; k--) { const day = addDays(today(), -k); rows.push([day, T[day]]); }
+    if (!rows.some(([, x]) => x)) return el("p", { class: "muted", style: "font-size:14px", text: "No study time recorded yet (tracking started Oct 1, 2026)." });
+    const tb = el("table", { class: "adm-time" }, el("thead", {}, el("tr", {}, ["Day", "Focused", "Idle on screen", "Stepped away"].map((h) => el("th", { text: h })))));
+    const body = el("tbody"); const by = {};
+    rows.forEach(([day, x]) => {
+      if (x) for (const [a, v] of Object.entries(x.by || {})) by[a] = (by[a] || 0) + v;
+      body.append(el("tr", {}, el("td", { text: fmtDay(day).dow + " " + fmtDay(day).md }), el("td", { text: x ? minText(x.f) : "—" }), el("td", { text: x ? minText(x.i) : "—" }), el("td", { text: x ? (x.n ? x.n + "× · " + minText(x.a) : "0") : "—" })));
+    });
+    tb.append(body); box.append(tb);
+    const parts = Object.entries(by).sort((a, b) => b[1] - a[1]).map(([a, v]) => (ACT_NAMES[a] || a) + " " + minText(v));
+    if (parts.length) box.append(el("p", { style: "font-size:14px" }, el("strong", { text: "Where the time went (7 days): " }), parts.join(" · ")));
+    const qt = D.qtime || {}, pace = [];
+    for (const sec of ["rw", "math"]) {
+      let n = 0, sum = 0; DOMAINS.filter((x) => x.sec === sec).forEach((x) => { const v = qt[x.id]; if (v) { n += v[0]; sum += v[1]; } });
+      if (n >= 5) { const avg = sum / n, tgt = sec === "rw" ? 71 : 95; pace.push((sec === "rw" ? "Reading and Writing " : "Math ") + mmss(avg) + " per question (test pace " + mmss(tgt) + ")" + (avg > tgt * 1.25 ? ", slower than test pace" : "")); }
+    }
+    if (pace.length) box.append(el("p", { style: "font-size:14px" }, el("strong", { text: "Time per question in practice: " }), pace.join(" · ")));
     return box;
   }
 
