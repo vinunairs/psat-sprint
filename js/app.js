@@ -25,26 +25,50 @@
   const MATH_MIXES = { psat: { alg: 8, adv: 7, psda: 4, geo: 3 }, sat: { alg: 8, adv: 8, psda: 3, geo: 3 } };
   const RW_LV = { std: [1, 2, 2, 2, 2, 3, 3], hard: [2, 2, 3, 3, 3, 3, 3], easy: [1, 1, 1, 2, 2, 2, 2] };
 
+  // Each plan task is text, or [text, action]. Actions open the right place in the app and tick the task
+  // automatically when it's finished; "ext" links open an outside site and are ticked by hand.
+  const BB = { k: "ext", url: "https://bluebook.collegeboard.org/" }, MYP = { k: "ext", url: "https://mypractice.collegeboard.org/" };
   const PLAN_TEMPLATE = [
-    { title: "Baseline, part 1", tasks: ["Install the Bluebook app and sign in with your College Board account", "Download {TEST} Practice Test 1 in Bluebook", "Take the Reading and Writing section in Bluebook, timed (64 min, both modules)", "Warm up here: a 10-question practice set"] },
-    { title: "Baseline, part 2", tasks: ["Take the Math section of Bluebook Practice Test 1, timed (70 min)", "Open your scores at mypractice.collegeboard.org and count misses in each skill domain", "Enter the results in the Log a test tab"] },
-    { title: "Fix the biggest leak", tasks: ["Read the explanation for every missed question in Bluebook", "Practice 20 questions on the #1 skill in the Skill matrix Focus list", "Retry the Mistake notebook"] },
-    { title: "Grammar rules day", tasks: ["Practice 20 Standard English Conventions questions", "Learn the punctuation rules: period or semicolon between full sentences, colon before a list or explanation, commas in pairs around extra info, no comma between subject and verb", "Spend 20 minutes with Desmos: graph a line, find an intersection, find a vertex"] },
-    { title: "Math under the clock", tasks: ["Take a timed Math section: an in-app mock, or a Khan Academy practice test Math section", "Review every miss (Khan Academy results: log them in the Log a test tab)", "Practice 10 questions on the #2 Focus skill"] },
-    { title: "Dress rehearsal", tasks: ["Take Bluebook {TEST} Practice Test 2 in one sitting, starting at the same time as the real test", "Take only the scheduled 10-minute break", "Enter the results in the Log a test tab"] },
-    { title: "Review the rehearsal", tasks: ["Review every miss from Practice Test 2", "Compare the Skill matrix with Test 1 and note what improved", "Practice 20 questions on the lowest skill"] },
-    { title: "Reading under the clock", tasks: ["Take a timed Reading and Writing section: an in-app mock, or a Khan Academy practice test section (log it in Log a test)", "Review every miss in the results", "Retry the Mistake notebook"] },
-    { title: "Light review", tasks: ["Flip through your strategy cards and read your night-before sheet (Review tab)", "One 10-question mixed practice set, nothing more", "Charge the device, update Bluebook, and run its exam readiness check", "Pack what the school asks for: device, charger, admission info", "Lights out by 10 pm"] },
-    { title: "Test day", tasks: ["Eat a real breakfast", "Take care on Module 1: it decides whether Module 2 is the harder set", "Never leave a question blank; wrong answers cost nothing", "Use Desmos and the reference sheet to check math answers"] }
+    { title: "Baseline, part 1", tasks: [["Install the Bluebook app and sign in with your College Board account", BB], ["Download {TEST} Practice Test 1 in Bluebook", BB], ["Take the Reading and Writing section in Bluebook, timed (64 min, both modules)", BB], ["Warm up here: a 10-question practice set", { k: "practice", n: 10 }]] },
+    { title: "Baseline, part 2", tasks: [["Take the Math section of Bluebook Practice Test 1, timed (70 min)", BB], ["Open your scores at mypractice.collegeboard.org and count misses in each skill domain", MYP], ["Enter the results in the Log a test tab", { k: "log" }]] },
+    { title: "Fix the biggest leak", tasks: [["Read the explanation for every missed question in Bluebook", MYP], ["Your focus set: 20 questions picked from your misses", { k: "focus", n: 20 }], ["Retry the Mistake notebook", { k: "notebook" }]] },
+    { title: "Grammar rules day", tasks: [["Practice 20 Standard English Conventions questions", { k: "practice", doms: ["sec"], n: 20 }], ["Learn the punctuation rules: flip through the grammar rule cards (period or semicolon between full sentences, colon before a list, commas in pairs, no comma between subject and verb)", { k: "deck", area: "Grammar" }], ["Spend 20 minutes with Desmos: graph a line, find an intersection, find a vertex", { k: "ext", url: "https://www.desmos.com/calculator" }]] },
+    { title: "Math under the clock", tasks: [["Take a timed Math section: an in-app mock, or a Khan Academy practice test Math section (log it in Log a test)", { k: "mock", parts: ["math"], alt: "khan" }], ["Review every miss in the results", { k: "mockreview" }], ["Pacing drill: 10 math questions with the timer on (about 1½ minutes each)", { k: "practice", doms: ["alg", "adv", "psda", "geo"], n: 10, timed: true }]] },
+    { title: "Dress rehearsal", heavy: true, tasks: [["2-minute warm-up first: your top 5 rules", { k: "deck", top: 5 }], ["Take Bluebook {TEST} Practice Test 2 in one sitting, starting at the same time as the real test", BB], ["Take only the scheduled 10-minute break"], ["Enter the results in the Log a test tab", { k: "log", src: "bluebook" }]] },
+    { title: "Review the rehearsal", tasks: [["Review every miss from Practice Test 2", MYP], ["Compare the Skill matrix with Test 1 and note what improved", { k: "visit", tab: "matrix" }], ["Your focus set: 20 questions picked from your misses", { k: "focus", n: 20 }]] },
+    { title: "Reading under the clock", tasks: [["Take a timed Reading and Writing section: an in-app mock, or a Khan Academy practice test section (log it in Log a test)", { k: "mock", parts: ["rw"], alt: "khan" }], ["Review every miss in the results", { k: "mockreview" }], ["Retry the Mistake notebook", { k: "notebook" }]] },
+    { title: "Light review", light: true, tasks: [["Flip through your strategy cards and read your night-before sheet (Review tab)", { k: "visit", tab: "review" }], ["One 10-question mixed practice set, nothing more", { k: "practice", n: 10 }], ["Charge the device, update Bluebook, and run its exam readiness check", BB], "Pack what the school asks for: device, charger, admission info", "Lights out by 10 pm"] },
+    { title: "Test day", light: true, tasks: ["Eat a real breakfast", "Take care on Module 1: it decides whether Module 2 is the harder set", "Never leave a question blank; wrong answers cost nothing", "Use Desmos and the reference sheet to check math answers"] }
   ];
 
   // The plan counts back from the student's own test date: day 1 is 9 days before, the last day is test day.
+  // From today on, two tasks adapt to the student: daily flashcards, and extra work on their weakest practice area.
   function plan() {
-    const end = parseYmd(S.settings.date || "2026-10-07"), label = S.settings.kind === "sat" ? "SAT" : "PSAT/NMSQT";
+    const end = parseYmd(S.settings.date || "2026-10-07"), label = S.settings.kind === "sat" ? "SAT" : "PSAT/NMSQT", t = today();
+    const weak = weakArea();
     return PLAN_TEMPLATE.map((d, i) => {
       const dt = new Date(end); dt.setDate(end.getDate() - (PLAN_TEMPLATE.length - 1 - i));
-      return { date: ymd(dt), title: d.title, tasks: d.tasks.map((t) => t.replace("{TEST}", label)) };
+      const date = ymd(dt), tasks = [], go = [];
+      d.tasks.forEach((x) => { const [txt, g] = Array.isArray(x) ? x : [x, null]; tasks.push(txt.replace("{TEST}", label)); go.push(g); });
+      if (date >= t && !d.light && !GUEST) {
+        tasks.push("Flip today's flashcards (about 5 minutes)"); go.push({ k: "deck" });
+        // Today's weak area is fixed once chosen, so the task doesn't change under the student mid-day.
+        const pw = S.planWeak || (S.planWeak = {});
+        if (date === t && !pw[date] && weak) pw[date] = { d: weak.d, c: weak.c, t: weak.t };
+        const wk = pw[date] || weak;
+        if (wk && DOM[wk.d] && !d.heavy) { tasks.push("10 " + DOM[wk.d].name + " questions, starting easy (your lowest area in practice: " + wk.c + " of " + wk.t + " right)"); go.push({ k: "practice", doms: [wk.d], n: 10 }); }
+      }
+      return { date, title: d.title, tasks, go };
     });
+  }
+  // The practice area with the lowest accuracy (at least 8 tries, under 50%), if any.
+  function weakArea() {
+    let best = null;
+    for (const [d, st] of Object.entries(S.stats || {})) {
+      if (!DOM[d] || st.att < 8) continue; const a = st.cor / st.att;
+      if (a < 0.5 && (!best || a < best.a)) best = { d, a, c: st.cor, t: st.att };
+    }
+    return best;
   }
 
   const BADGES = [
@@ -331,7 +355,7 @@
       el("ul", { class: "focus-list" }, top.map((x) => el("li", {}, el("strong", { text: typeLabel(x.type) }), el("span", { class: "muted", text: " · " + x.why })))),
       ws.length > top.length ? el("p", { class: "muted", style: "font-size:13px", text: "+ " + (ws.length - top.length) + " more types in the mix" }) : null,
       el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => startPractice(null, 20, "auto", false, true) }, "Start my focus set (20)"),
-        (() => { const due = dueCards(); return due.length ? el("button", { class: "btn", onclick: () => { RV = { queue: due, i: 0, flipped: false }; show("review"); } }, "5-minute warm-up (" + due.length + " card" + (due.length === 1 ? "" : "s") + ")") : null; })()),
+        (() => { const due = dueCards().slice(0, 12); return due.length ? el("button", { class: "btn", onclick: () => { RV = { queue: due, i: 0, flipped: false, plan: { k: "deck" } }; show("review"); } }, "5-minute warm-up (" + due.length + " card" + (due.length === 1 ? "" : "s") + ")") : null; })()),
       el("p", { class: "muted", style: "font-size:13px", text: "New question types start with a quick tip card, so he can learn the rule right before using it." }));
   }
   const isRight = (q, ans) => (q.type === "spr" ? ans != null && ans !== "" && checkSpr(ans, q.spr) : ans === q.a);
@@ -444,10 +468,66 @@
       if (only && !only.includes(i)) return;
       const id = day.date + "#" + i, on = !!S.tasks[id], mv = moved && !on && canCarry(t);
       ul.append(el("li", { class: "task" + (on ? " done" : "") + (mv ? " moved" : "") },
-        el("button", { class: "bubble", "aria-pressed": String(on), "aria-label": (on ? "Mark not done: " : "Mark done: ") + t, onclick: () => toggleTask(day, i) }, LETTERS[i] || String(i + 1)),
-        el("span", { class: "t" }, t, mv ? el("span", { class: "moved-tag", text: " Moved to today" }) : null, /Log a test/.test(t) ? howBox(/Khan/.test(t) ? "khan" : "bluebook", /Khan/.test(t) ? "How to log a Khan Academy section" : "How to log it: step by step") : null)));
+        el("button", { class: "bubble", "aria-pressed": String(on), "aria-label": (on ? "Mark not done: " : "Mark done: ") + t, onclick: () => toggleTask(day, i) }, "ABCDEFGH"[i] || String(i + 1)),
+        el("span", { class: "t" }, taskText(day, i, t), mv ? el("span", { class: "moved-tag", text: " Moved to today" }) : null, /Log a test/.test(t) ? howBox(/Khan/.test(t) ? "khan" : "bluebook", /Khan/.test(t) ? "How to log a Khan Academy section" : "How to log it: step by step") : null)));
     });
     return ul;
+  }
+  // Task text: a link that opens the right place (and ticks itself when finished), or plain text.
+  function taskText(day, i, t) {
+    const g = day.go && day.go[i];
+    if (!g) return t;
+    if (g.k === "ext") return el("a", { class: "tlink", href: g.url, target: "_blank", rel: "noopener" }, el("span", { class: "tl-text", text: t }), el("span", { class: "tgo", text: " ↗" }));
+    const done = !!S.tasks[day.date + "#" + i];
+    return el("button", { class: "tlink", onclick: () => runTask(day, i) }, el("span", { class: "tl-text", text: t }), el("span", { class: "tgo", text: done ? "" : " →" }),
+      done || ["visit", "mockreview"].includes(g.k) ? null : el("span", { class: "tauto", text: "Ticks itself when you finish" }));
+  }
+  function runTask(day, i) {
+    const g = day.go[i];
+    PT = { date: day.date, i };
+    if (g.k === "practice") { startPractice(g.doms || DOMAINS.map((d) => d.id), g.n, "auto"); if (P && g.timed) { P.timed = true; renderPractice(); } }
+    else if (g.k === "focus") { if (focusWeights().length) startPractice(null, g.n, "auto", false, true); else { const top = focusList()[0]; startPractice([top.id], g.n, "auto"); } }
+    else if (g.k === "notebook") { if (!S.mistakes.length) { completeTask(day, i); toast("Your Mistake notebook is empty. Nothing to retry.", true); save(); render(); } else startPractice([], 0, "auto", true); }
+    else if (g.k === "deck") {
+      let q = g.top ? topCards(g.top) : g.area ? Object.keys(STRAT.cards).filter((k) => STRAT.cards[k].area === g.area && (S.deck[k] || STRAT.cards[k].say)) : dueCards().slice(0, 12);
+      if (!q.length) { completeTask(day, i); toast("No flashcards due today. Nice.", true); save(); render(); return; }
+      RV = { queue: q, i: 0, flipped: false, plan: g }; show("review");
+    }
+    else if (g.k === "mock") { S.lastMock && (S.lastMock.showResults = false); show("mock"); }
+    else if (g.k === "mockreview") { completeTask(day, i); save(); if (S.lastMock && S.lastMock.result) S.lastMock.showResults = true; show("mock"); }
+    else if (g.k === "log") show("log");
+    else if (g.k === "visit") { completeTask(day, i); save(); show(g.tab); }
+    window.scrollTo({ top: 0 });
+  }
+  let PT = null; // the plan task the student opened most recently
+  function completeTask(day, i) {
+    const id = day.date + "#" + i; if (S.tasks[id]) return false;
+    S.tasks[id] = true; addXP(15, "task done"); bumpStreak();
+    if (day.tasks.every((_, k) => S.tasks[day.date + "#" + k])) { S.daysDone[day.date] = true; toast("Day complete: " + day.title, true); if (Object.keys(S.daysDone).length >= 3) award("keeper"); }
+    else toast("Plan task done ✓ " + day.tasks[i].replace(/:.*$/, ""), true);
+    return true;
+  }
+  // Called when something finishes; ticks at most one matching plan task (the one just opened, else today's, else a carried one).
+  function planEvent(ev) {
+    if (GUEST || planMode() !== "sprint") return;
+    const PLAN = plan(), t = today(), cands = [];
+    PLAN.filter((d) => d.date <= t).sort((a, b) => (a.date === t ? -1 : b.date === t ? 1 : b.date.localeCompare(a.date)))
+      .forEach((d) => d.go.forEach((g, i) => { if (g && !S.tasks[d.date + "#" + i] && taskMatches(g, ev)) cands.push([d, i]); }));
+    if (!cands.length) return;
+    const pick = cands.find(([d, i]) => PT && PT.date === d.date && PT.i === i) || cands[0];
+    completeTask(pick[0], pick[1]); PT = null; save();
+  }
+  function taskMatches(g, ev) {
+    if (ev.k === "practice") {
+      const ans = ev.res.filter((r) => !r.skipped);
+      if (g.k === "notebook") return ev.notebook && ans.length >= Math.min(5, ev.res.length);
+      if (g.k === "focus") return ev.focus && ans.length >= Math.ceil(g.n * 0.75);
+      if (g.k === "practice") return ans.filter((r) => !g.doms || g.doms.includes(r.q.d)).length >= g.n && (!g.timed || ev.timed);
+    }
+    if (ev.k === "mock") return g.k === "mock" && g.parts.every((x) => ev.parts.includes(x));
+    if (ev.k === "log") return (g.k === "log" && (!g.src || g.src === ev.src)) || (g.k === "mock" && g.alt && g.alt === ev.src);
+    if (ev.k === "deck") return g.k === "deck" && (g.area || "") === (ev.spec.area || "") && !!g.top === !!ev.spec.top;
+    return false;
   }
   // Unfinished tasks from earlier plan days roll forward to today (except ones tied to a specific night or morning).
   const canCarry = (t) => !/Lights out|breakfast|Module 1|Never leave|Use Desmos and the reference/.test(t);
@@ -457,10 +537,7 @@
   function toggleTask(day, i) {
     const id = day.date + "#" + i;
     if (S.tasks[id]) { delete S.tasks[id]; addXP(-15); delete S.daysDone[day.date]; }
-    else {
-      S.tasks[id] = true; addXP(15, "task done"); bumpStreak();
-      if (day.tasks.every((_, k) => S.tasks[day.date + "#" + k])) { S.daysDone[day.date] = true; toast("Day complete: " + day.title, true); if (Object.keys(S.daysDone).length >= 3) award("keeper"); }
-    }
+    else completeTask(day, i);
     save(); render();
   }
   /* ================= Long-range plan ================= */
@@ -1039,7 +1116,9 @@
       d.box = ok ? Math.min(BOX_DAYS.length - 1, (d.box || 0) + 1) : 0;
       d.due = addDays(today(), ok ? BOX_DAYS[d.box] : 1);
       if (ok) addXP(2); bumpStreak();
-      RV.i++; RV.flipped = false; save(); renderReview();
+      RV.i++; RV.flipped = false;
+      if (RV.i >= RV.queue.length && RV.plan) planEvent({ k: "deck", spec: RV.plan });
+      save(); renderReview();
     }
   }
 
@@ -1064,7 +1143,7 @@
       save();
     }
     if (!qs.length) { toast("Nothing to practice here yet."); return; }
-    P = { qs, i: 0, pick: null, done: false, results: [], start: Date.now(), timed: S.prefs.timed, notebook: !!notebook, doms, count, diff, strikes: new Set() };
+    P = { qs, i: 0, pick: null, done: false, results: [], start: Date.now(), timed: S.prefs.timed, notebook: !!notebook, focus: !!focus, doms, count, diff, strikes: new Set() };
     clearInterval(pTick); pTick = setInterval(tickPractice, 1000);
     if (TAB !== "practice") show("practice"); else renderPractice();
   }
@@ -1193,6 +1272,7 @@
       if (c === n && n >= 10) { award("clean"); const ds = [...new Set(P.results.map((r) => r.q.d))]; if (ds.every((x) => x === "sec")) award("comma"); if (ds.every((x) => DOM[x].sec === "math")) award("math"); }
       if (DOMAINS.every((d) => S.stats[d.id] && S.stats[d.id].att > 0)) award("cover");
     }
+    planEvent({ k: "practice", res: P.results, notebook: P.notebook, focus: P.focus, timed: P.timed });
     save(); render();
   }
   function practiceSummary() {
@@ -1302,6 +1382,7 @@
     M.phase = "done"; M.result = res; M.showResults = true; delete M.used; S.lastMock = M; S.mock = null;
     logMock(M.parts.length); checkGoalScore(rec.total);
     addXP(M.parts.length === 2 ? 200 : 100, withName("mock test finished", " · great job, ")); award("mock1"); if (M.parts.length === 2) award("mockfull"); bumpStreak();
+    planEvent({ k: "mock", parts: M.parts });
     save(); reviewFilter = "all"; renderMock();
   }
   function tickMock() {
@@ -1682,7 +1763,7 @@
       logMock(sec === "both" ? 2 : 1); if (rec.total && src === "bluebook") checkGoalScore(rec.total);
       addXP(100, (src === "bluebook" ? "Bluebook" : src === "khan" ? "Khan Academy" : "Practice") + " test logged"); award("baseline");
       if (S.tests.filter((t) => t.source === "bluebook" && t.total).length >= 2) award("rehearsal");
-      bumpStreak(); save(); toast("Test saved. Your Skill matrix is updated.", true); show("matrix");
+      bumpStreak(); planEvent({ k: "log", src }); save(); toast("Test saved. Your Skill matrix is updated.", true); show("matrix");
     });
     p.append(f);
   }

@@ -275,3 +275,12 @@ body.inq section.top.hero-card{display:none}
 .carried{border-top:1px dashed var(--line);padding-top:12px;display:grid;gap:8px}
 .task.moved .t{color:var(--graphite)}
 .moved-tag{display:inline-block;margin-left:6px;font-size:12px;font-weight:700;color:var(--warn);background:var(--warn-soft);border-radius:999px;padding:1px 8px}
+
+/* Plan tasks that link to the activity */
+.tlink{all:unset;cursor:pointer;color:var(--ink);line-height:1.45}
+.tl-text{text-decoration:underline;text-decoration-color:var(--pencil);text-decoration-thickness:2px;text-underline-offset:3px}
+.tlink:hover{color:var(--pencil-strong)}
+.tlink:focus-visible{outline:2px solid var(--pencil);outline-offset:2px;border-radius:4px}
+.task.done .tl-text{text-decoration:none;color:var(--graphite)}
+.tgo{color:var(--pencil);font-weight:800;text-decoration:none;display:inline-block}
+.tauto{display:block;font-size:12px;color:var(--graphite);text-decoration:none;margin-top:2px}
