@@ -32,7 +32,7 @@
     { title: "Baseline, part 1", tasks: [["Install the Bluebook app and sign in with your College Board account", BB], ["Download {TEST} Practice Test 1 in Bluebook", BB], ["Take the Reading and Writing section in Bluebook, timed (64 min, both modules)", BB], ["Warm up here: a 10-question practice set", { k: "practice", n: 10 }]] },
     { title: "Baseline, part 2", tasks: [["Take the Math section of Bluebook Practice Test 1, timed (70 min)", BB], ["Open your scores at mypractice.collegeboard.org and count misses in each skill domain", MYP], ["Enter the results in the Log a test tab", { k: "log" }]] },
     { title: "Fix the biggest leak", tasks: [["Read the explanation for every missed question in Bluebook", MYP], ["Your focus set: 20 questions picked from your misses", { k: "focus", n: 20 }], ["Retry the Mistake notebook", { k: "notebook" }]] },
-    { title: "Grammar rules day", tasks: [["Practice 20 Standard English Conventions questions", { k: "practice", doms: ["sec"], n: 20 }], ["Learn the punctuation rules: flip through the grammar rule cards (period or semicolon between full sentences, colon before a list, commas in pairs, no comma between subject and verb)", { k: "deck", area: "Grammar" }], ["Spend 20 minutes with Desmos: graph a line, find an intersection, find a vertex", { k: "ext", url: "https://www.desmos.com/calculator" }]] },
+    { title: "Grammar rules day", tasks: [["Practice 20 Standard English Conventions questions", { k: "practice", doms: ["sec"], n: 20 }], ["Learn the grammar rules: flip through the rule cards", { k: "deck", area: "Grammar" }], ["Spend 20 minutes with Desmos: graph a line, find an intersection, find a vertex", { k: "ext", url: "https://www.desmos.com/calculator" }]] },
     { title: "Math under the clock", tasks: [["Take a timed Math section: an in-app mock, or a Khan Academy practice test Math section (log it in Log a test)", { k: "mock", parts: ["math"], alt: "khan" }], ["Review every miss in the results", { k: "mockreview" }], ["Pacing drill: 10 math questions with the timer on (about 1½ minutes each)", { k: "practice", doms: ["alg", "adv", "psda", "geo"], n: 10, timed: true }]] },
     { title: "Dress rehearsal", heavy: true, tasks: [["2-minute warm-up first: your top 5 rules", { k: "deck", top: 5 }], ["Take Bluebook {TEST} Practice Test 2 in one sitting, starting at the same time as the real test", BB], ["Take only the scheduled 10-minute break"], ["Enter the results in the Log a test tab", { k: "log", src: "bluebook" }]] },
     { title: "Review the rehearsal", tasks: [["Review every miss from Practice Test 2", MYP], ["Compare the Skill matrix with Test 1 and note what improved", { k: "visit", tab: "matrix" }], ["Your focus set: 20 questions picked from your misses", { k: "focus", n: 20 }]] },
@@ -464,14 +464,16 @@
   /* ================= Today ================= */
   function taskList(day, only, moved) {
     const ul = el("ul", { class: "tasks" });
-    day.tasks.forEach((t, i) => {
-      if (only && !only.includes(i)) return;
-      const id = day.date + "#" + i, on = !!S.tasks[id], mv = moved && !on && canCarry(t);
-      ul.append(el("li", { class: "task" + (on ? " done" : "") + (mv ? " moved" : "") },
-        el("button", { class: "bubble", "aria-pressed": String(on), "aria-label": (on ? "Mark not done: " : "Mark done: ") + t, onclick: () => toggleTask(day, i) }, "ABCDEFGH"[i] || String(i + 1)),
-        el("span", { class: "t" }, taskText(day, i, t), mv ? el("span", { class: "moved-tag", text: " Moved to today" }) : null, /Log a test/.test(t) ? howBox(/Khan/.test(t) ? "khan" : "bluebook", /Khan/.test(t) ? "How to log a Khan Academy section" : "How to log it: step by step") : null)));
-    });
+    day.tasks.forEach((t, i) => { if (!only || only.includes(i)) ul.append(taskRow(day, i, i, null, moved && canCarry(t))); });
     return ul;
+  }
+  // One checklist row: a tick circle, then the task (tappable when the app can open it).
+  function taskRow(day, i, n, from, moved) {
+    const t = day.tasks[i], id = day.date + "#" + i, on = !!S.tasks[id], mv = moved && !on;
+    return el("li", { class: "task" + (on ? " done" : "") + (mv ? " moved" : "") },
+      el("button", { class: "bubble", "aria-pressed": String(on), "aria-label": (on ? "Mark not done: " : "Mark done: ") + t, onclick: () => toggleTask(day, i) }, on ? "✓" : String(n + 1)),
+      el("span", { class: "t" }, taskText(day, i, t), from ? el("span", { class: "moved-tag", text: "from " + from.dow }) : null, mv ? el("span", { class: "moved-tag", text: "Moved to today" }) : null,
+        /Log a test/.test(t) && !on ? howBox(/Khan/.test(t) ? "khan" : "bluebook", /Khan/.test(t) ? "How to log a Khan Academy section" : "How to log it: step by step") : null));
   }
   // Task text: a link that opens the right place (and ticks itself when finished), or plain text.
   function taskText(day, i, t) {
@@ -479,8 +481,7 @@
     if (!g) return t;
     if (g.k === "ext") return el("a", { class: "tlink", href: g.url, target: "_blank", rel: "noopener" }, el("span", { class: "tl-text", text: t }), el("span", { class: "tgo", text: " ↗" }));
     const done = !!S.tasks[day.date + "#" + i];
-    return el("button", { class: "tlink", onclick: () => runTask(day, i) }, el("span", { class: "tl-text", text: t }), el("span", { class: "tgo", text: done ? "" : " →" }),
-      done || ["visit", "mockreview"].includes(g.k) ? null : el("span", { class: "tauto", text: "Ticks itself when you finish" }));
+    return el("button", { class: "tlink", onclick: () => runTask(day, i) }, el("span", { class: "tl-text", text: t }), el("span", { class: "tgo", text: done ? "" : " →" }));
   }
   function runTask(day, i) {
     const g = day.go[i];
@@ -650,17 +651,21 @@
       p.append(el("div", { class: "card mission" }, el("div", { class: "eyebrow", text: "Mock test in progress" }), el("h2", { text: FORMATS[S.mock.kind].name + " mock" }), el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => show("mock") }, "Resume the mock test"))));
     }
     const ic = installCard(); if (ic) p.append(ic);
-    const fc0 = focusCard(); if (fc0 && mode !== "after") p.append(fc0);
+    const sprint = mode === "sprint";
+    const fc0 = sprint ? null : focusCard(); if (fc0 && mode !== "after") p.append(fc0);
     scorePrompt(p);
-    if (mode === "sprint") renderSprint(p, t);
+    if (sprint) renderSprint(p, t);
     else if (mode === "after") renderAfter(p);
     else renderLongPlan(p, mode);
-    p.append(officialCard());
-    p.append(myTestsCard());
-    p.append(el("div", { class: "card row between", style: "padding:14px 18px" },
+    // In the final sprint, Home is just today's list; the rest sits in one closed section.
+    const more = sprint ? el("div", { style: "display:grid;gap:16px;margin-top:12px" }) : p;
+    if (sprint) p.append(el("details", { class: "card more-home" }, el("summary", { text: "More: practice tests, reminders, and how the PSAT works" }), more));
+    more.append(officialCard());
+    more.append(myTestsCard());
+    more.append(el("div", { class: "card row between", style: "padding:14px 18px" },
       el("span", {}, el("strong", { text: "Reminders on your phone" }), el("span", { class: "muted", text: mode === "sprint" ? " · a nudge each evening with the skill to work on" : " · an evening nudge with this week's goals, plus a Sunday check-in" })),
       el("button", { class: "btn small", onclick: () => { const b = document.getElementById("remindBtn"); if (b) b.click(); } }, "Set up reminders")));
-    p.append(el("div", { class: "card" }, el("h3", { text: "How the digital PSAT and SAT work" }),
+    more.append(el("div", { class: "card" }, el("h3", { text: "How the digital PSAT and SAT work" }),
       el("div", { class: "grid2", style: "margin-top:12px" },
         info("Reading and Writing", "54 questions in 64 minutes, split into two 32-minute modules. Short passages with one question each. About 71 seconds per question."),
         info("Math", "44 questions in 70 minutes, split into two 35-minute modules. Calculator allowed throughout. About a quarter of questions need a typed-in answer. About 95 seconds per question."),
@@ -903,23 +908,31 @@
     const PLAN = plan();
     const cur = PLAN.find((d) => d.date === t) || (t < PLAN[0].date ? PLAN[0] : null);
     if (cur) {
-      const f = fmtDay(cur.date), done = cur.tasks.filter((_, i) => S.tasks[cur.date + "#" + i]).length, top = focusList()[0];
-      p.append(el("div", { class: "card mission" },
-        el("div", { class: "row between" }, el("div", {}, el("div", { class: "eyebrow", text: cur.date === t ? possessive() + (who() ? "mission today" : "Today's mission") : possessive() + (who() ? "first mission" : "First mission") }), el("h2", { text: cur.title })), el("span", { class: "date", text: f.dow + " " + f.md + " · " + done + "/" + cur.tasks.length + " done" })),
+      // Everything for today in one list: today's tasks, then anything carried over from earlier days.
+      const rows = cur.tasks.map((_, i) => ({ day: cur, i }));
+      // Carried tasks: the 3 most recent, so a missed day or two never buries today's list.
+      const carry = []; if (cur.date === t) carriedTasks(PLAN, t).forEach((x) => x.idx.forEach((i) => carry.push({ day: x.day, i, from: fmtDay(x.day.date) })));
+      carry.slice(0, 3).forEach((r) => rows.push(r)); const older = carry.length - 3;
+      const done = rows.filter((r) => S.tasks[r.day.date + "#" + r.i]).length, all = done === rows.length;
+      const when = parseYmd(cur.date).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+      const ul = el("ul", { class: "tasks today-list" });
+      rows.forEach((r, k) => ul.append(taskRow(r.day, r.i, k, r.from)));
+      p.append(el("div", { class: "card mission today-card" },
+        el("div", { class: "eyebrow", text: (cur.date === t ? "Today · " : "Starts ") + when }),
+        el("div", { class: "row between", style: "align-items:baseline" }, el("h2", { text: cur.title }), el("span", { class: "date", text: done + " of " + rows.length + " done" })),
+        el("div", { class: "tmeter", "aria-hidden": "true" }, el("i", { style: "width:" + Math.round((100 * done) / Math.max(1, rows.length)) + "%" })),
         S.settings.target ? goalLine() : null,
-        taskList(cur),
-        ...(cur.date === t ? carriedTasks(PLAN, t).map((x) => { const f2 = fmtDay(x.day.date); return el("div", { class: "carried" }, el("div", { class: "eyebrow", text: "Carried over from " + f2.dow + " " + f2.md + " · " + x.day.title }), taskList(x.day, x.idx)); }) : []),
-        el("div", { class: "row" },
-          el("button", { class: "btn primary", onclick: () => { S.prefs.sel = [top.id]; save(); show("practice"); startPractice([top.id], 10, "auto"); } }, "Practice: " + top.name),
-          el("button", { class: "btn", onclick: () => show("mock") }, "Take a mock test"))));
+        ul,
+        all ? el("div", { class: "row" }, el("strong", { text: "All done for today. Nice work." }), focusWeights().length ? el("button", { class: "btn small", onclick: () => startPractice(null, 20, "auto", false, true) }, "Want more? Your focus set") : null)
+          : el("p", { class: "muted hint", text: "Tap a task to start it. It ticks itself when you finish. Tasks marked ↗ open another site, so tick those yourself." + (older > 0 ? " " + older + " older unfinished task" + (older === 1 ? " is" : "s are") + " in the whole plan below." : "") })));
     }
     const pw = el("div", { class: "plan" });
     PLAN.forEach((day) => {
       const f = fmtDay(day.date), isT = day.date === t, dots = el("div", { class: "dots", "aria-hidden": "true" });
       day.tasks.forEach((_, i) => dots.append(el("i", { class: S.tasks[day.date + "#" + i] ? "on" : "" })));
-      pw.append(el("div", { class: "pday" + (isT ? " today" : "") }, el("div", { class: "d" }, el("b", { text: f.md }), f.dow + (isT ? " · today" : "")), el("details", { open: isT }, el("summary", { text: day.title }), taskList(day, null, day.date < t)), dots));
+      pw.append(el("div", { class: "pday" + (isT ? " today" : "") }, el("div", { class: "d" }, el("b", { text: f.md }), f.dow + (isT ? " · today" : "")), el("details", {}, el("summary", { text: day.title }), taskList(day, null, day.date < t)), dots));
     });
-    p.append(el("div", {}, el("div", { class: "row between", style: "margin-bottom:12px" }, el("h3", { text: "Final sprint: day by day" }), el("span", { class: "muted", style: "font-size:13px", text: "Each task is worth 15 XP" })), pw));
+    p.append(el("details", { class: "card week-plan" }, el("summary", { text: "See the whole plan, day by day" }), el("div", { style: "margin-top:12px" }, pw)));
   }
 
   /* ================= Shared question rendering ================= */
