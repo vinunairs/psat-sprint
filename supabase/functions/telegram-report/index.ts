@@ -4,7 +4,8 @@
 // POST {mode:"cron"}  + x-cron-secret → hourly: daily summary at 9 pm New York time, plus alerts for newly logged tests.
 // Telegram webhook (header X-Telegram-Bot-Api-Secret-Token) → commands:
 //   /link CODE  connect this chat (CODE is app_secrets.telegram_link_code; nothing is shared without it)
-//   /report     today's summary now      /stop  stop messages to this chat      /help
+//   /report     today's summary now      /brief  latest Daily Brief coach reports      /stop  pause      /help
+// The evening summary also includes each Daily Brief learner's day (brief_* tables, same project).
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 
@@ -77,10 +78,39 @@ function summary(s: any, date: string) {
   return L.join("\n");
 }
 
+// Daily Brief: one line per active learner for the given day.
+async function briefLines(date: string) {
+  const [{ data: learners }, { data: feeds }, { data: ev }] = await Promise.all([
+    admin.from("brief_learners").select("user_id, display_name").eq("active", true),
+    admin.from("brief_feeds").select("user_id, cards").eq("feed_date", date),
+    admin.from("brief_events").select("user_id, kind, card_id, correct, points").eq("feed_date", date)]);
+  const out: Record<string, { name: string; line: string }> = {};
+  for (const l of learners || []) {
+    const f = (feeds || []).find((x: { user_id: string }) => x.user_id === l.user_id), mine = (ev || []).filter((e: { user_id: string }) => e.user_id === l.user_id);
+    const total = f && Array.isArray(f.cards) ? f.cards.length : 0;
+    const read = new Set(mine.filter((e: { kind: string }) => e.kind === "read").map((e: { card_id: string }) => e.card_id)).size;
+    const graded = mine.filter((e: { correct: boolean | null }) => e.correct !== null && e.correct !== undefined), cor = graded.filter((e: { correct: boolean }) => e.correct).length;
+    const pts = mine.reduce((a: number, e: { points: number | null }) => a + (e.points || 0), 0);
+    out[l.user_id] = { name: l.display_name, line: !total ? "📰 Daily Brief: no brief today" : !mine.length ? "📰 Daily Brief: not opened yet" :
+      `📰 Daily Brief: ${read}/${total} cards read${read >= total ? " ✓" : ""}${graded.length ? ` · ${cor}/${graded.length} checks right` : ""} · ${pts} pts` };
+  }
+  return out;
+}
+async function briefCoach(chat: number) {
+  const { data } = await admin.from("brief_reports").select("user_id, report_date, summary").order("report_date", { ascending: false }).limit(20);
+  const { data: learners } = await admin.from("brief_learners").select("user_id, display_name").eq("active", true);
+  const parts: string[] = [];
+  for (const l of learners || []) { const r = (data || []).find((x: { user_id: string }) => x.user_id === l.user_id); if (r) parts.push(`📰 <b>${esc(l.display_name)}</b> · Daily Brief report, ${dayLabel(r.report_date)}\n${esc(r.summary)}`); }
+  for (const chunk of (parts.length ? parts : ["No Daily Brief reports yet."])) await send(chat, chunk.slice(0, 4000));
+}
+
 async function chats() { const { data } = await admin.from("telegram_chats").select("chat_id").eq("enabled", true); return (data || []).map((c: { chat_id: number }) => c.chat_id); }
 async function reportTo(chat_ids: number[], date: string) {
-  const list = await students();
-  const text = list.length ? list.map((s) => summary(s, date)).join("\n\n") + `\n\n<a href="${SITE}">Open Test Prep Hub</a>` : "No students yet.";
+  const [list, brief] = await Promise.all([students(), briefLines(date).catch(() => ({} as Record<string, { name: string; line: string }>))]);
+  const blocks = list.map((s) => summary(s, date) + (brief[s.id] ? "\n" + brief[s.id].line : ""));
+  const ids = new Set(list.map((s) => s.id));
+  for (const [id, b] of Object.entries(brief)) if (!ids.has(id)) blocks.push(`👤 <b>${esc(b.name)}</b>\n${b.line}`);
+  const text = blocks.length ? blocks.join("\n\n") + `\n\n<a href="${SITE}">Open Test Prep Hub</a> · /brief for the Daily Brief coach reports` : "No students yet.";
   for (const c of chat_ids) await send(c, text);
 }
 
@@ -119,8 +149,9 @@ Deno.serve(async (req) => {
         await send(chat, "Linked ✅ You'll get a study summary every evening at 9 pm, plus a note whenever a test is logged.\n\nCommands: /report (summary now) · /stop (pause messages)");
       } else await send(chat, "That link code isn't right. Ask the person who runs Test Prep Hub for the code.");
     } else if (row && row.enabled && cmd === "/report") await reportTo([chat], localDate());
+    else if (row && row.enabled && cmd === "/brief") await briefCoach(chat);
     else if (row && cmd === "/stop") { await admin.from("telegram_chats").update({ enabled: false }).eq("chat_id", chat); await send(chat, "Paused. Send /link CODE again to restart."); }
-    else if (row && row.enabled) await send(chat, "Commands: /report (today's summary now) · /stop (pause messages)");
+    else if (row && row.enabled) await send(chat, "Commands: /report (today's summary now) · /brief (Daily Brief coach reports) · /stop (pause messages)");
     else await send(chat, "Hi! To connect, send: /link YOURCODE");
     return json({ ok: true });
   }
