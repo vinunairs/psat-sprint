@@ -213,7 +213,9 @@
       const w = r.int(3, 15), l = r.int(w + 1, 25), P = 2 * (l + w);
       const { o, a } = mc(r, l * w, [P, l + w, 2 * l * w, l * l], fmtN);
       return { d: "geo", sk: "Area and perimeter", q: `A rectangle has a perimeter of ${P} meters. Its length is ${l} meters. What is the area of the rectangle, in square meters?`, o, a, spr: l * w,
-        e: `Perimeter: 2(${l}) + 2w = ${P}, so 2w = ${P - 2 * l} and w = ${w}. Area = length × width = ${l} × ${w} = ${l * w}.`, t: "Find the missing side from the perimeter first, then multiply.", key: `area1:${l},${w}` };
+        e: `Perimeter: 2(${l}) + 2w = ${P}, so 2w = ${P - 2 * l} and w = ${w}. Area = length × width = ${l} × ${w} = ${l * w}.`, t: "Find the missing side from the perimeter first, then multiply.", key: `area1:${l},${w}`,
+        fig: { type: "rect", ratio: w / l, l: l + " m", w: "w", note: "Perimeter = " + P + " m" }, efig: { type: "rect", ratio: w / l, l: l + " m", w: w + " m", inside: "area = " + l + " × " + w + " = " + l * w },
+        steps: ["Perimeter = all four sides: two lengths + two widths.", `2(${l}) + 2w = ${P}, so 2w = ${P - 2 * l} and w = ${w}.`, `Area = length × width = ${l} × ${w} = ${l * w}.`] };
     }
     if (L === 2) {
       const k = r.pick([2, 3, 4, 5]), shape = r.pick(["square", "circle", "equilateral triangle", "rectangle"]);
@@ -244,7 +246,10 @@
         const { o, a } = mc(r, ang, [x, 180 - ang, ang + a2, (a2 - a1) * x], (v) => fmtN(v) + "°");
         return { d: "geo", sk: "Lines and angles", q: `Parallel lines ℓ and m are cut by a transversal. Two ${kind} angles have measures (${lin(a1, c1)})° and (${lin(a2, c2)})°. What is the measure of each of these angles?`, o, a, spr: ang,
           e: `${kind[0].toUpperCase() + kind.slice(1)} angles formed by parallel lines are equal: ${lin(a1, c1)} = ${lin(a2, c2)}, so ${fmtN(a2 - a1)}x = ${fmtN(c1 - c2)} and x = ${x}. Each angle is ${a1}(${x})${sgn(c1)} = ${ang}°.`,
-          t: "Parallel lines: angles are either equal or add to 180°. Solve for x, then answer the angle they asked for.", key: `pl1:${a1},${c1},${a2},${c2}` };
+          t: "Parallel lines: angles are either equal or add to 180°. Solve for x, then answer the angle they asked for.", key: `pl1:${a1},${c1},${a2},${c2}`,
+          fig: { type: "parallel", at: kind === "corresponding" ? [[1, "ur", "(" + lin(a1, c1) + ")°", "fg-a"], [2, "ur", "(" + lin(a2, c2) + ")°", "fg-b"]] : [[1, "lr", "(" + lin(a1, c1) + ")°", "fg-a"], [2, "ul", "(" + lin(a2, c2) + ")°", "fg-b"]], note: "ℓ ∥ m · not drawn to scale" },
+          efig: { type: "parallel", th: kind === "corresponding" ? ang : 180 - ang, at: kind === "corresponding" ? [[1, "ur", ang + "°", "fg-a"], [2, "ur", ang + "°", "fg-a"]] : [[1, "lr", ang + "°", "fg-a"], [2, "ul", ang + "°", "fg-a"]], note: "Same color = equal angles" },
+          steps: [kind === "corresponding" ? "Corresponding angles sit in the same spot at each crossing (both upper right here), so they're equal." : "Alternate interior angles sit between the parallel lines, on opposite sides of the slanted line (a Z shape), so they're equal.", `Set them equal: ${lin(a1, c1)} = ${lin(a2, c2)}.`, `${fmtN(a2 - a1)}x = ${fmtN(c1 - c2)}, so x = ${x}.`, `Plug x back in: ${a1}(${x})${sgn(c1)} = ${ang}°. That's the angle, not x.`] };
       }
       retry();
     }
@@ -254,7 +259,9 @@
       const { o, a } = mc(r, A + B, [180 - A - B, 180 - A, Math.abs(A - B), 360 - A - B], (v) => fmtN(v) + "°");
       return { d: "geo", sk: "Lines and angles", q: `In triangle PQR, the measure of angle P is ${A}° and the measure of angle Q is ${B}°. Side QR is extended past R to point S. What is the measure of exterior angle PRS?`, o, a, spr: A + B,
         e: `An exterior angle equals the sum of the two remote interior angles: ${A}° + ${B}° = ${A + B}°. (Check: angle R = 180° − ${A + B}° = ${180 - A - B}°, and ${180 - A - B}° + ${A + B}° = 180° on the straight line.)`,
-        t: "Exterior angle = the two far interior angles added together.", key: `pl2:${A},${B}` };
+        t: "Exterior angle = the two far interior angles added together.", key: `pl2:${A},${B}`,
+        fig: { type: "tri", ext: true, lab: { P: A + "°", Q: B + "°", x: "?" } }, efig: { type: "tri", deg: [A, B, 180 - A - B], ext: true, lab: { P: A + "°", Q: B + "°", R: 180 - A - B + "°", x: A + B + "°" }, col: { P: "fg-a", Q: "fg-a", x: "fg-a", R: "fg-dim" } },
+        steps: ["The exterior angle PRS sits on the straight line QRS.", "It equals the two inside angles that are NOT next to it (at P and Q) added together.", `${A}° + ${B}° = ${A + B}°.`, `Check: angle R = 180° − ${A + B}° = ${180 - A - B}°, and ${180 - A - B}° + ${A + B}° = 180° on the line.`] };
     }
     const n = r.pick([5, 6, 8, 9, 10, 12, 15, 18, 20]), interior = 180 - 360 / n;
     if (r.f() < 0.5) {

@@ -210,12 +210,18 @@
       const right = ask === "short" ? fmtN(s) : s + "√3";
       const { o, a } = mc(r, right, [ask === "short" ? s + "√3" : fmtN(s), s + "√2", fmtN(2 * s), (2 * s) + "√3"], String);
       return { d: "geo", sk: "Right triangles", q: `In a 30°-60°-90° triangle, the hypotenuse has length ${2 * s}. What is the length of the side opposite the ${ask === "short" ? "30°" : "60°"} angle?`, o, a, spr: ask === "short" ? s : undefined,
-        e: `The sides of a 30°-60°-90° triangle are x, x√3, and 2x. The hypotenuse 2x = ${2 * s}, so x = ${s}. The side opposite ${ask === "short" ? "30° is x = " + s : "60° is x√3 = " + s + "√3"}.`, t: "30-60-90: x, x√3, 2x. It's on the reference sheet.", key: `sp1:${s}:${ask}` };
+        e: `The sides of a 30°-60°-90° triangle are x, x√3, and 2x. The hypotenuse 2x = ${2 * s}, so x = ${s}. The side opposite ${ask === "short" ? "30° is x = " + s : "60° is x√3 = " + s + "√3"}.`, t: "30-60-90: x, x√3, 2x. It's on the reference sheet.", key: `sp1:${s}:${ask}`,
+        fig: { type: "rtri", adj: Math.sqrt(3), opp: 1, angA: "30°", angB: "60°", lab: ask === "short" ? { h: 2 * s, o: "?" } : { h: 2 * s, a: "?" } },
+        efig: { type: "rtri", adj: Math.sqrt(3), opp: 1, angA: "30°", angB: "60°", lab: { o: "x = " + s, a: "x√3 = " + s + "√3", h: "2x = " + 2 * s }, col: { o: "fg-a", a: "fg-b", h: "fg-c" } },
+        steps: ["In a 30°-60°-90° triangle the sides are always x, x√3, and 2x.", "Short leg x is across from 30°. Long leg x√3 is across from 60°. Hypotenuse 2x is across from 90°.", `2x = ${2 * s}, so x = ${s}.`, ask === "short" ? `Across from 30°: x = ${s}.` : `Across from 60°: x√3 = ${s}√3.`] };
     }
     const right = s + "√2";
     const { o, a } = mc(r, right, [fmtN(2 * s), s + "√3", fmtN(s)], String);
     return { d: "geo", sk: "Right triangles", q: `An isosceles right triangle has legs of length ${s}. What is the length of its hypotenuse?`, o, a,
-      e: `An isosceles right triangle is a 45°-45°-90° triangle with sides x, x, and x√2. The hypotenuse is ${s}√2.`, t: "45-45-90: x, x, x√2.", key: `sp2:${s}` };
+      e: `An isosceles right triangle is a 45°-45°-90° triangle with sides x, x, and x√2. The hypotenuse is ${s}√2.`, t: "45-45-90: x, x, x√2.", key: `sp2:${s}`,
+      fig: { type: "rtri", adj: 1, opp: 1, angA: "45°", angB: "45°", lab: { o: s, a: s, h: "?" } },
+      efig: { type: "rtri", adj: 1, opp: 1, angA: "45°", angB: "45°", lab: { o: "x = " + s, a: "x = " + s, h: "x√2 = " + s + "√2" }, col: { o: "fg-a", a: "fg-a", h: "fg-c" } },
+      steps: ["Isosceles right triangle = 45°-45°-90°: the two legs are equal.", "Its sides are always x, x, and x√2 (the hypotenuse).", `x = ${s}, so the hypotenuse is ${s}√2.`] };
   };
 
   MG.BY_DOMAIN.psda.push("psda_scatter", "psda_freq", "psda_sample");

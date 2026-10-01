@@ -376,7 +376,7 @@
     const i = S.mistakes.findIndex((m) => m.key === q.key);
     if (ok && i > -1) { S.mistakes.splice(i, 1); S.fixed++; if (S.fixed >= 5) award("fixer"); }
     if (!ok && i === -1) {
-      const slim = { key: q.key, d: q.d, sk: q.sk, gen: q.gen, p: q.p, q: q.q, o: q.o, a: q.a, type: q.type, spr: q.spr, e: q.e, t: q.t, table: q.table, chart: q.chart, id: q.id, src: q.src, added: today() };
+      const slim = { key: q.key, d: q.d, sk: q.sk, gen: q.gen, p: q.p, q: q.q, o: q.o, a: q.a, type: q.type, spr: q.spr, e: q.e, t: q.t, table: q.table, chart: q.chart, fig: q.fig, efig: q.efig, steps: q.steps, id: q.id, src: q.src, added: today() };
       S.mistakes.unshift(slim); if (S.mistakes.length > 80) S.mistakes.length = 80;
     }
   }
@@ -946,12 +946,15 @@
     String(t).split(/(<u>[\s\S]*?<\/u>)/).forEach((part) => { const m = /^<u>([\s\S]*)<\/u>$/.exec(part); d.append(m ? el("u", { text: m[1] }) : document.createTextNode(part)); });
     return d;
   }
+  // Geometry and trig figures (drawn by js/figures.js from plain data on the question).
+  function figView(f) { const d = el("div", { class: "fig" }); d.innerHTML = window.Figures ? Figures.svg(f) : ""; return d; }
   function stem(q, parts) {
     const frag = document.createDocumentFragment();
     if (parts !== "prompt") {
       if (q.p) frag.append(passageEl(q.p));
       if (q.table) frag.append(dataTable(q.table));
       if (q.chart) frag.append(chartView(q.chart));
+      if (q.fig) frag.append(figView(q.fig));
     }
     if (parts !== "passage") frag.append(el("div", { class: "prompt", text: supify(q.q) }));
     return frag;
@@ -1038,6 +1041,7 @@
       el("strong", { class: "fb-verdict", text: ok ? "Correct." : blank ? "No answer. The answer is " + answerText(q).replace(/[.!?]$/, "") + "." : "Not quite. The answer is " + answerText(q).replace(/[.!?]$/, "") + "." }),
       chose ? el("p", { class: "muted", style: "font-size:14px", text: "You chose " + supify(chose) + "." }) : null,
       row("Spot it", el("strong", { text: c.name }), el("span", { text: " · " + c.spot })),
+      q.efig || q.steps ? row("See it", el("div", { class: "seeit" }, q.efig || q.fig ? figView(q.efig || q.fig) : null, q.steps ? el("ol", { class: "seeit-steps" }, q.steps.map((x) => el("li", { text: supify(x) }))) : null)) : null,
       row("Solve it", el("p", { text: supify(q.e) }), el("details", { class: "fb-steps" }, el("summary", { text: "The method for every question like this" }), el("ol", {}, c.steps.map((x) => el("li", { text: x }))))),
       isMath && c.desmos ? row("Desmos way", el("p", { text: c.desmos })) : null,
       row(ok ? "Watch for" : "The trap", el("p", { text: c.trap })),
@@ -1515,7 +1519,7 @@
       onPick: (v) => { m.ans[i] = v === "" ? null : v; save(); if (q.type !== "spr") renderMock(); },
       onStrike: (k) => { const s = new Set(m.strikes[i]); s.has(k) ? s.delete(k) : s.add(k); m.strikes[i] = [...s]; save(); renderMock(); }
     });
-    const hasLeft = !!(q.p || q.table || q.chart);
+    const hasLeft = !!(q.p || q.table || q.chart || q.fig);
     const split = el("div", { class: "split" + (hasLeft ? "" : " single") });
     if (hasLeft) split.append(el("div", { style: "display:grid;gap:12px" }, stem(q, "passage")));
     split.append(el("div", { style: "display:grid;gap:16px" }, head, stem(q, "prompt"), ans));
@@ -2083,7 +2087,7 @@
     CH.qs.forEach((q, k) => { const ok = isRight(q, CH.picks[k]); if (ok) correct++; record(q, ok); });
     addXP(10 * correct + 20, "challenge"); bumpStreak(); save();
     CH.done = true; CH.result = { headline: "Sending…", detail: "" }; renderFriends();
-    const slim = (q) => ({ key: q.key, d: q.d, sk: q.sk, gen: q.gen, p: q.p, q: q.q, o: q.o, a: q.a, e: q.e, t: q.t, table: q.table, chart: q.chart, id: q.id, src: q.src });
+    const slim = (q) => ({ key: q.key, d: q.d, sk: q.sk, gen: q.gen, p: q.p, q: q.q, o: q.o, a: q.a, e: q.e, t: q.t, table: q.table, chart: q.chart, fig: q.fig, efig: q.efig, steps: q.steps, id: q.id, src: q.src });
     try {
       if (CH.mode === "create") {
         await SOC.api.createChallenge(CH.friend.user_id, CH.topic, CH.qs.map(slim), correct, ms);

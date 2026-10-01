@@ -384,7 +384,10 @@
     const { o, a } = mc(r, ans, askLeg ? [H - A, H + A, Math.round(Math.sqrt(H * H + A * A) * 100) / 100] : [A + B, A * A + B * B, H + k], fmtN);
     return { d: "geo", sk: "Right triangles", q: askLeg ? `A right triangle has a hypotenuse of length ${H} and one leg of length ${A}. What is the length of the other leg?` : `A right triangle has legs of length ${A} and ${B}. What is the length of the hypotenuse?`, o, a, spr: ans,
       e: askLeg ? `${A}² + b² = ${H}², so b² = ${H * H} − ${A * A} = ${B * B} and b = ${B}.` : `${A}² + ${B}² = ${A * A} + ${B * B} = ${H * H}, and √${H * H} = ${H}.`,
-      t: `Spot Pythagorean triples: ${p}-${q}-${h}${k > 1 ? " (here multiplied by " + k + ")" : ""}.`, key: `pyth:${A},${B},${askLeg}` };
+      t: `Spot Pythagorean triples: ${p}-${q}-${h}${k > 1 ? " (here multiplied by " + k + ")" : ""}.`, key: `pyth:${A},${B},${askLeg}`,
+      fig: { type: "rtri", adj: B, opp: A, lab: askLeg ? { o: A, h: H, a: "?" } : { o: A, a: B, h: "?" } },
+      efig: { type: "rtri", adj: B, opp: A, lab: { o: "a = " + A, a: "b = " + B, h: "c = " + H }, col: { o: "fg-a", a: "fg-b", h: "fg-c" } },
+      steps: ["The two legs (a and b) make the right angle. The hypotenuse (c) is across from it, and it's always the longest side.", askLeg ? `a² + b² = c²: ${A}² + b² = ${H}², so b² = ${H * H} − ${A * A} = ${B * B}.` : `a² + b² = c²: ${A}² + ${B}² = ${A * A} + ${B * B} = ${H * H}.`, askLeg ? `b = √${B * B} = ${B}.` : `c = √${H * H} = ${H}.`, `Shortcut: ${p}-${q}-${h} is a Pythagorean triple${k > 1 ? ", here times " + k : ""}.`] };
   };
 
   G.geo_trig = (r, L) => {
@@ -394,14 +397,19 @@
       const { o, a } = mc(r, val, [frac(q, h), frac(p, q), frac(h, p)], String);
       return { d: "geo", sk: "Trigonometry", q: `In right triangle ABC, angle C is a right angle and ${fn === "sin" ? "sin" : "cos"} A = ${val}. What is the value of ${other} B?`, o, a,
         e: `Angles A and B are complementary (they add to 90°), so ${fn === "sin" ? "sin A = cos B" : "cos A = sin B"}. The value is ${val}.`,
-        t: "sin x° = cos(90° − x°). This shows up often.", key: `trig3:${p},${h},${fn}` };
+        t: "sin x° = cos(90° − x°). This shows up often.", key: `trig3:${p},${h},${fn}`,
+        efig: { type: "rtri", adj: Math.sqrt(h * h - p * p), opp: p, lab: { o: "BC", h: "AB", a: "AC" }, col: { o: "fg-a", h: "fg-c" }, angA: "A", angB: "B" },
+        steps: ["Mark both acute angles, A and B. Together they make 90°.", "From A, side BC is OPPOSITE. From B, the same side BC is ADJACENT.", `So ${fn === "sin" ? "sin A = BC/AB and cos B = BC/AB" : "cos A = AC/AB and sin B = AC/AB"}: the same fraction.`, `${other} B = ${val}.`] };
     }
     const ratio = fn === "sin" ? [p, h] : fn === "cos" ? [q, h] : [p, q];
     const right = frac(...ratio);
     const { o, a } = mc(r, right, [frac(q, h), frac(p, h), frac(p, q), frac(q, p), frac(h, p)], String);
     return { d: "geo", sk: "Trigonometry", q: `In right triangle ABC, angle C is the right angle. The side opposite angle A has length ${p}, the side adjacent to angle A has length ${q}, and the hypotenuse has length ${h}. What is ${fn} A?`, o, a,
       e: `${fn === "sin" ? "Sine = opposite ÷ hypotenuse" : fn === "cos" ? "Cosine = adjacent ÷ hypotenuse" : "Tangent = opposite ÷ adjacent"} = ${ratio[0]}/${ratio[1]}.`,
-      t: "SOH-CAH-TOA: Sine=Opp/Hyp, Cosine=Adj/Hyp, Tangent=Opp/Adj.", key: `trig:${p},${q},${fn}` };
+      t: "SOH-CAH-TOA: Sine=Opp/Hyp, Cosine=Adj/Hyp, Tangent=Opp/Adj.", key: `trig:${p},${q},${fn}`,
+      fig: { type: "rtri", adj: q, opp: p, lab: { o: p, a: q, h: h }, angA: true },
+      efig: { type: "rtri", adj: q, opp: p, lab: { o: "opposite " + p, a: "adjacent " + q, h: "hypotenuse " + h }, col: { o: "fg-a", a: "fg-b", h: "fg-c" }, dim: fn === "sin" ? ["a"] : fn === "cos" ? ["o"] : ["h"], angA: "A" },
+      steps: ["Stand at angle A, the marked corner.", `Opposite = across from A (BC = ${p}). Adjacent = touches A but isn't the hypotenuse (AC = ${q}). Hypotenuse = across from the right angle (AB = ${h}).`, fn === "sin" ? `SOH: sin = opposite ÷ hypotenuse = ${p}/${h}.` : fn === "cos" ? `CAH: cos = adjacent ÷ hypotenuse = ${q}/${h}.` : `TOA: tan = opposite ÷ adjacent = ${p}/${q}.`, `Simplify if possible: ${right}.`] };
   };
 
   G.geo_circle = (r, L) => {
@@ -411,13 +419,17 @@
       const { o, a } = mc(r, rad, [rad * rad, Math.abs(F), h * h + k * k, rad * 2], fmtN);
       return { d: "geo", sk: "Circles", q: `x² + y² ${D < 0 ? M : "+"} ${Math.abs(D)}x ${E < 0 ? M : "+"} ${Math.abs(E)}y${F ? (F < 0 ? " " + M + " " : " + ") + Math.abs(F) : ""} = 0\n\nWhat is the radius of the circle defined by the equation above?`, o, a, spr: rad,
         e: `Complete the square: (x ${h > 0 ? M : "+"} ${Math.abs(h)})² + (y ${k > 0 ? M : "+"} ${Math.abs(k)})² = ${h * h} + ${k * k}${sgn(-F)} = ${rad * rad}. The radius is √${rad * rad} = ${rad}.`,
-        t: "Complete the square: half the x-coefficient, squared, gets added to both sides.", key: `circ3:${h},${k},${rad}` };
+        t: "Complete the square: half the x-coefficient, squared, gets added to both sides.", key: `circ3:${h},${k},${rad}`,
+        efig: { type: "circle", h, k, r: rad },
+        steps: ["Group the x terms and the y terms.", `Complete the square: half of ${D} is ${D / 2}, squared is ${h * h}; half of ${E} is ${E / 2}, squared is ${k * k}. Add both to each side.`, `That gives (x ${h > 0 ? M : "+"} ${Math.abs(h)})² + (y ${k > 0 ? M : "+"} ${Math.abs(k)})² = ${rad * rad}.`, `r² = ${rad * rad}, so the radius is ${rad}. The center is (${fmtN(h)}, ${fmtN(k)}).`] };
     }
     const c = (hh, kk, rr) => `Center (${fmtN(hh)}, ${fmtN(kk)}), radius ${rr}`;
     const { o, a } = mc(r, c(h, k, rad), [c(-h, -k, rad), c(h, k, rad * rad), c(-h, -k, rad * rad)], String);
     return { d: "geo", sk: "Circles", q: `(${xMinus(h)})² + (${xMinus(k, "y")})² = ${rad * rad}\n\nWhat are the center and radius of the circle defined by the equation above?`, o, a,
       e: `Standard form is (x − h)² + (y − k)² = r². So the center is (${fmtN(h)}, ${fmtN(k)}) and r = √${rad * rad} = ${rad}.`,
-      t: "The signs inside the parentheses flip for the center.", key: `circ:${h},${k},${rad}` };
+      t: "The signs inside the parentheses flip for the center.", key: `circ:${h},${k},${rad}`,
+      efig: { type: "circle", h, k, r: rad },
+      steps: ["Match the pattern (x − h)² + (y − k)² = r².", `x ${h > 0 ? M + " " + h : "+ " + -h} means h = ${fmtN(h)}; y ${k > 0 ? M + " " + k : "+ " + -k} means k = ${fmtN(k)}. The sign flips.`, `r² = ${rad * rad}, so r = ${rad} (not ${rad * rad}).`] };
   };
 
   G.geo_angles = (r, L) => {
@@ -432,7 +444,10 @@
     const word = total === 180 ? "supplementary" : "complementary";
     return { d: "geo", sk: "Lines and angles", q: `Two angles are ${word}. The measure of one angle is x°, and the measure of the other is (${lin(m, c)})°. What is the measure of the ${askSmall ? "smaller" : "larger"} angle?`, o, a, spr: ans,
       e: `${word[0].toUpperCase() + word.slice(1)} angles sum to ${total}°. x + ${lin(m, c)} = ${total}, so ${m + 1}x = ${total - c} and x = ${x}. The angles are ${x}° and ${big}°.`,
-      t: "Supplementary = 180°, complementary = 90°.", key: `ang:${total},${m},${c}` };
+      t: "Supplementary = 180°, complementary = 90°.", key: `ang:${total},${m},${c}`,
+      fig: { type: "angles", total, ray: total === 180 ? 70 : 40, l1: "x°", l2: "(" + lin(m, c) + ")°", note: "Figure not drawn to scale" },
+      efig: { type: "angles", total, ray: x, l1: x + "°", l2: big + "°" },
+      steps: [total === 180 ? "Supplementary angles fit together on a straight line, so they add to 180°." : "Complementary angles fit together in a right angle, so they add to 90°.", `x + (${lin(m, c)}) = ${total}, so ${m + 1}x ${c ? (c > 0 ? "+ " + c : M + " " + -c) + " " : ""}= ${total}.`, `x = ${x}, and the other angle is ${big}°.`, `The question asks for the ${askSmall ? "smaller" : "larger"} one: ${ans}°.`] };
   };
 
   G.geo_volume = (r, L) => {
@@ -453,18 +468,24 @@
       const A = r.int(25, 80), B = r.int(25, 150 - A), ans = 180 - A - B;
       const { o, a } = mc(r, ans, [360 - A - B, 90 - A, A + B, ans + 10], (v) => fmtN(v) + "°");
       return { d: "geo", sk: "Triangles", q: `In triangle PQR, the measure of angle P is ${A}° and the measure of angle Q is ${B}°. What is the measure of angle R?`, o, a, spr: ans,
-        e: `The angles of a triangle sum to 180°: 180 − ${A} − ${B} = ${ans}.`, key: `tri1:${A},${B}` };
+        e: `The angles of a triangle sum to 180°: 180 − ${A} − ${B} = ${ans}.`, key: `tri1:${A},${B}`,
+        fig: { type: "tri", lab: { P: A + "°", Q: B + "°", R: "?" } }, efig: { type: "tri", deg: [A, B, ans], lab: { P: A + "°", Q: B + "°", R: ans + "°" } },
+        steps: ["The three angles inside any triangle add to 180°.", `180 − ${A} − ${B} = ${ans}.`] };
     }
     if (L === 2) {
       const V = r.int(10, 70) * 2, ans = (180 - V) / 2;
       const { o, a } = mc(r, ans, [180 - V, V / 2, 90 - V / 2 + 10, V], (v) => fmtN(v) + "°");
       return { d: "geo", sk: "Triangles", q: `In isosceles triangle ABC, AB = AC and the measure of angle A is ${V}°. What is the measure of angle B?`, o, a, spr: ans,
-        e: `The base angles B and C are equal. (180 − ${V}) ÷ 2 = ${ans}.`, t: "Equal sides are opposite equal angles.", key: `tri2:${V}` };
+        e: `The base angles B and C are equal. (180 − ${V}) ÷ 2 = ${ans}.`, t: "Equal sides are opposite equal angles.", key: `tri2:${V}`,
+        fig: { type: "tri", names: ["A", "B", "C"], ticks: true, lab: { P: V + "°", Q: "?" } }, efig: { type: "tri", deg: [V, ans, ans], names: ["A", "B", "C"], ticks: true, lab: { P: V + "°", Q: ans + "°", R: ans + "°" }, col: { R: "fg-b" } },
+        steps: ["The tick marks show AB = AC. Equal sides sit across from equal angles, so angle B = angle C.", `The two base angles share what's left of 180°: 180 − ${V} = ${180 - V}.`, `${180 - V} ÷ 2 = ${ans}°.`] };
     }
     const A = r.int(30, 70), B = r.int(30, 70), ans = A + B;
     const { o, a } = mc(r, ans, [180 - ans, 180 - A, 360 - ans], (v) => fmtN(v) + "°");
     return { d: "geo", sk: "Triangles", q: `In triangle JKL, angle J measures ${A}° and angle K measures ${B}°. Side KL is extended past L to point M. What is the measure of angle JLM?`, o, a, spr: ans,
-      e: `An exterior angle equals the sum of the two remote interior angles: ${A} + ${B} = ${ans}. (Or: angle L = ${180 - ans}°, and 180 − ${180 - ans} = ${ans}.)`, key: `tri3:${A},${B}` };
+      e: `An exterior angle equals the sum of the two remote interior angles: ${A} + ${B} = ${ans}. (Or: angle L = ${180 - ans}°, and 180 − ${180 - ans} = ${ans}.)`, key: `tri3:${A},${B}`,
+      fig: { type: "tri", names: ["J", "K", "L"], ext: true, extName: "M", lab: { P: A + "°", Q: B + "°", x: "?" } }, efig: { type: "tri", deg: [A, B, 180 - ans], names: ["J", "K", "L"], ext: true, extName: "M", lab: { P: A + "°", Q: B + "°", x: ans + "°" }, col: { P: "fg-a", Q: "fg-a", x: "fg-a" } },
+      steps: ["The exterior angle at L sits on the straight line KLM.", "It equals the two inside angles that are NOT next to it (at J and K) added together.", `${A} + ${B} = ${ans}°.`] };
   };
 
   G.geo_similar = (r, L) => {
@@ -474,13 +495,17 @@
       const { o, a } = mc(r, ans, [areaSmall * k, areaSmall * k * 2, areaSmall + k], fmtN);
       return { d: "geo", sk: "Similar figures", q: `Triangle ABC is similar to triangle DEF. Each side of triangle DEF is ${fmtN(k)} times as long as the corresponding side of triangle ABC. The area of triangle ABC is ${areaSmall} square units. What is the area of triangle DEF?`, o, a, spr: ans,
         e: `Lengths scale by ${fmtN(k)}, so areas scale by ${fmtN(k)}² = ${fmtN(k * k)}. ${areaSmall} × ${fmtN(k * k)} = ${fmtN(ans)}.`,
-        t: "Length scale k → area scale k² → volume scale k³.", key: `sim3:${k},${areaSmall}` };
+        t: "Length scale k → area scale k² → volume scale k³.", key: `sim3:${k},${areaSmall}`,
+        efig: { type: "similar", k, fill: true, lab: { AB: "1", DE: fmtN(k), in1: "area " + areaSmall, in2: "area " + fmtN(ans) } },
+        steps: [`Every side of DEF is ${fmtN(k)} times the matching side of ABC.`, `Area uses two lengths multiplied together, so it grows by ${fmtN(k)} × ${fmtN(k)} = ${fmtN(k * k)}.`, `${areaSmall} × ${fmtN(k * k)} = ${fmtN(ans)}.`] };
     }
     const ans = t * k;
     const { o, a } = mc(r, ans, [t + (s * k - s), s * k, t / k, ans + k], fmtN);
     return { d: "geo", sk: "Similar figures", q: `Triangle ABC is similar to triangle DEF, with A corresponding to D, B to E, and C to F. AB = ${s}, DE = ${fmtN(s * k)}, and BC = ${t}. What is the length of EF?`, o, a, spr: ans,
       e: `The scale factor is DE ÷ AB = ${fmtN(s * k)} ÷ ${s} = ${fmtN(k)}. So EF = ${t} × ${fmtN(k)} = ${fmtN(ans)}.`,
-      t: "Set up a proportion with matching sides.", key: `sim:${s},${k},${t}` };
+      t: "Set up a proportion with matching sides.", key: `sim:${s},${k},${t}`,
+      fig: { type: "similar", k, lab: { AB: s, BC: t, DE: fmtN(s * k), EF: "?" } }, efig: { type: "similar", k, lab: { AB: s, BC: t, DE: fmtN(s * k), EF: fmtN(ans) } },
+      steps: ["Matching sides have the same color: AB matches DE, BC matches EF.", `Scale factor = big ÷ small = DE ÷ AB = ${fmtN(s * k)} ÷ ${s} = ${fmtN(k)}.`, `EF = BC × ${fmtN(k)} = ${t} × ${fmtN(k)} = ${fmtN(ans)}.`] };
   };
 
   G.geo_arc = (r, L) => {
@@ -493,7 +518,9 @@
     const { o, a } = mc(r, right, wrongs, String);
     return { d: "geo", sk: "Circles", q: `A circle has a radius of ${R}. What is the ${sector ? "area of a sector" : "length of an arc"} with a central angle of ${th}°?`, o, a,
       e: sector ? `Sector area = (${th}/360) × πr² = (${frac(th, 360)}) × ${R * R}π = ${right}.` : `Arc length = (${th}/360) × 2πr = (${frac(th, 360)}) × ${2 * R}π = ${right}.`,
-      t: "The fraction of the circle is the central angle ÷ 360°.", key: `arc:${th},${R},${sector}` };
+      t: "The fraction of the circle is the central angle ÷ 360°.", key: `arc:${th},${R},${sector}`,
+      efig: { type: "sector", th, r: R },
+      steps: [`The shaded slice is ${th}° out of 360°, which is ${frac(th, 360)} of the circle.`, sector ? `Whole circle's area = πr² = ${R * R}π.` : `Whole circle's distance around = 2πr = ${2 * R}π.`, `Take ${frac(th, 360)} of it: ${right}.`] };
   };
 
   /* ============ Registry ============ */
