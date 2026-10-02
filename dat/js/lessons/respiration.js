@@ -2,17 +2,6 @@
    DAT Biology › Cell and Molecular Biology (cell metabolism). Numbers are per glucose,
    eukaryotic cell, using current textbook values (about 30–32 ATP total). */
 (function () {
-  const STAGES = [
-    { n: 1, name: "Glycolysis", where: "Cytosol", o2: "No", inn: "Glucose (6C), 2 ATP invested, 2 NAD⁺", out: "2 pyruvate (3C), 4 ATP made (net 2), 2 NADH", co2: "0",
-      more: "Works with or without oxygen. ATP is made by substrate-level phosphorylation: an enzyme moves a phosphate straight onto ADP." },
-    { n: 2, name: "Pyruvate oxidation", where: "Mitochondrial matrix", o2: "Indirectly", inn: "2 pyruvate, 2 NAD⁺, coenzyme A", out: "2 acetyl-CoA, 2 NADH, 2 CO₂", co2: "2",
-      more: "Pyruvate is carried into the mitochondrion and loses one carbon as CO₂. The pyruvate dehydrogenase complex does this; it's the link between glycolysis and the cycle." },
-    { n: 3, name: "Citric acid (Krebs) cycle", where: "Mitochondrial matrix", o2: "Indirectly", inn: "2 acetyl-CoA (one per turn)", out: "6 NADH, 2 FADH₂, 2 ATP (or GTP), 4 CO₂", co2: "4",
-      more: "Two turns per glucose. Acetyl-CoA joins oxaloacetate to make citrate; the cycle regenerates oxaloacetate. Most of the energy leaves as NADH and FADH₂, not ATP." },
-    { n: 4, name: "Electron transport chain + oxidative phosphorylation", where: "Inner mitochondrial membrane (cristae)", o2: "Yes: O₂ is the final electron acceptor", inn: "10 NADH, 2 FADH₂, O₂", out: "About 26–28 ATP, H₂O", co2: "0",
-      more: "Electrons pass down complexes I–IV; complexes I, III and IV pump H⁺ from the matrix into the intermembrane space. H⁺ flows back through ATP synthase, which makes ATP. FADH₂ enters at complex II, skipping complex I, so it yields less ATP than NADH." }
-  ];
-
   const BANK = [
     { q: "Where in a eukaryotic cell does glycolysis take place?", o: ["Cytosol", "Mitochondrial matrix", "Inner mitochondrial membrane", "Intermembrane space"], e: "Glycolysis happens in the cytosol, outside the mitochondria. That's why it works in every cell, including bacteria and red blood cells (which have no mitochondria)." },
     { q: "Where does the citric acid (Krebs) cycle take place in a eukaryotic cell?", o: ["Mitochondrial matrix", "Cytosol", "Inner mitochondrial membrane", "Outer mitochondrial membrane"], e: "The cycle's enzymes are in the matrix. The membrane is home to the electron transport chain and ATP synthase." },
@@ -40,18 +29,11 @@
     onTest: "Cell metabolism is part of Cell and Molecular Biology, one of the five Biology areas on the DAT. Respiration also connects to photosynthesis and enzyme questions.",
     intro: "One of the most tested pathways on the DAT. Know where each stage happens, what goes in and out, and what breaks when something is blocked.",
     explore(box, ctx) {
-      const { el } = ctx;
-      const detail = el("div", { class: "readout", "aria-live": "polite" });
-      const btns = STAGES.map((s) => el("button", { type: "button", "aria-pressed": "false", onclick: () => pick(s) },
-        el("span", { class: "n", text: String(s.n) }), el("b", { text: s.name }), el("span", { class: "where", text: s.where })));
-      function pick(s) {
-        btns.forEach((b, i) => b.setAttribute("aria-pressed", String(STAGES[i] === s)));
-        detail.innerHTML = "<b>" + s.name + "</b> · " + s.where + "<br><b>Needs O₂?</b> " + s.o2 + "<br><b>In:</b> " + s.inn + "<br><b>Out:</b> " + s.out + "<br><b>CO₂ released:</b> " + s.co2 + "<p style='margin:8px 0 0' class='muted'>" + s.more + "</p>";
-      }
-      box.append(el("p", { text: "Tap each stage, in order, to follow one glucose molecule through the cell. Watch where the carbons leave and where the ATP is really made." }),
-        el("div", { class: "pathway" }, btns), detail);
-      pick(STAGES[0]);
+      box.append(ctx.el("p", { text: "First, follow one glucose molecule through the cell. Tap through the stages; each one explains itself. Then watch the electron transport chain at work. No questions yet." }));
+      DATViz.mito(box, ctx, "tour");
     },
+    lab(box, ctx) { DATViz.mito(box, ctx, "lab"); },
+    labIntro: "Jam the chain. Pick a blocker, predict what happens to O₂ use and ATP, then watch the animation play it out.",
     ruleTitle: "The big table",
     rule: {
       html: "<p>Per glucose, in a eukaryotic cell:</p><div class='tbl'><table><thead><tr><th>Stage</th><th>Where</th><th>ATP</th><th>NADH</th><th>FADH₂</th><th>CO₂</th></tr></thead><tbody>" +

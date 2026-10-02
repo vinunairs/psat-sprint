@@ -73,6 +73,15 @@
     intro: "Nearly every stoichiometry question on the DAT is the same three-step trip through moles. Learn the map once and you can do them by hand, fast.",
     explore(box, ctx) {
       const { el } = ctx;
+      const holder = el("div");
+      const views = [["1 · Molecules", (h) => DATViz.mixer(h, ctx)], ["2 · The mole map", (h) => this.moleMap(h, ctx)]];
+      const seg = el("div", { class: "seg", role: "group", "aria-label": "View", style: "margin-bottom:10px" }, views.map(([t, fn], i) =>
+        el("button", { type: "button", "aria-pressed": String(i === 0), onclick: (e) => { seg.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b === e.currentTarget))); holder.textContent = ""; fn(holder); } }, t)));
+      box.append(el("p", { text: "Start with molecules you can see: mix two reactants and watch them pair up. Then switch to the mole map to see the same idea in grams and moles." }), seg, holder);
+      views[0][1](holder);
+    },
+    moleMap(box, ctx) {
+      const { el } = ctx;
       const sel = el("select", { "aria-label": "Reaction" }, RX.map((r, i) => el("option", { value: String(i), text: r.eq })));
       const giv = el("select", { "aria-label": "Starting substance" });
       const tgt = el("select", { "aria-label": "Substance to find" });

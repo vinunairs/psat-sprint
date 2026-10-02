@@ -71,7 +71,10 @@
         const keys = el("div", { class: "keys" }, el("div", { class: "eyebrow", text: "Key points" }),
           lesson.rule.keys.map((k) => el("div", { class: "keypt" }, el("span", { text: k }),
             el("button", { type: "button", class: "btn small ghost", "aria-label": "Save to notes: " + k, onclick: (e) => { ctx.notes.append(lesson.id, "• " + k); e.currentTarget.textContent = "Saved ✓"; e.currentTarget.disabled = true; } }, "＋ Notes"))));
-        return el("div", {}, body, keys, p.st >= 2 ? null : el("button", { type: "button", class: "btn primary", style: "margin-top:12px", onclick: () => unlock(2) }, "Got it, walk me through one"));
+        // Optional hands-on check that uses what the rule just taught: predict, then watch.
+        let lab = null;
+        if (lesson.lab) { const lb = el("div"); lesson.lab(lb, ctx); lab = el("div", { class: "lab" }, el("h3", { text: "Try it: predict, then watch" }), el("p", { class: "small muted", text: lesson.labIntro || "Use what you just learned. Make your prediction, then see what happens." }), lb); }
+        return el("div", {}, body, keys, lab, p.st >= 2 ? null : el("button", { type: "button", class: "btn primary", style: "margin-top:12px", onclick: () => unlock(2) }, "Got it, walk me through one"));
       }));
 
       // 3. Walk through it
@@ -102,6 +105,7 @@
             const fb = el("p", { class: "fb", role: "status" });
             steps.append(el("div", { class: "wstep cur" },
               el("p", { class: "p", html: "<b>Step " + (k + 1) + " of " + W.steps.length + ".</b> " + x.p }),
+              x.tool ? (() => { const tb = el("div", { class: "tool" }); x.tool(tb, ctx); return tb; })() : null,
               el("div", { class: "opts" }, x.o.map((o, i) => el("button", { type: "button", class: "opt", html: o, onclick: (e) => {
                 if (i === x.a) { p.walk++; miss = 0; if (p.walk >= W.steps.length) { save(); unlock(3); } else { save(); paint(); } }
                 else { miss++; e.currentTarget.classList.add("no"); e.currentTarget.disabled = true; fb.innerHTML = (x.why && x.why[i]) || x.hint || "Not quite. Look at what the step asks for and try again."; }

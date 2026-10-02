@@ -289,3 +289,73 @@ table.t td.n, table.t th.n { text-align: right; font-variant-numeric: tabular-nu
 .overview ul.outcomes li { position: relative; padding-left: 26px; }
 .overview ul.outcomes li::before { content: "✓"; position: absolute; left: 0; top: 0; width: 18px; height: 18px; border-radius: 50%; background: var(--good-soft); color: var(--good); font-size: 11px; font-weight: 800; display: grid; place-items: center; margin-top: 2px; }
 .notes-fab[hidden] { display: none; }
+
+/* Interactive: mitochondrion */
+.mito { width: 100%; max-width: 520px; height: auto; font-family: var(--font); }
+.mito text { fill: var(--ink); text-anchor: middle; font-size: 11px; font-weight: 700; }
+.mito .lbl { font-size: 12.5px; font-weight: 800; fill: var(--ink-2); }
+.mito .lbl.s { font-size: 10.5px; } .mito .lbl.xs, .mito .t.xs { font-size: 9px; } .mito .t.xxs { font-size: 8px; font-weight: 800; }
+.mito .cyto { fill: var(--surface-2); stroke: var(--line); }
+.mito .zone { fill: transparent; stroke: transparent; stroke-width: 2.5; stroke-dasharray: 6 5; transition: all .3s; }
+.mito .zone.on { fill: color-mix(in srgb, var(--brand) 12%, transparent); stroke: var(--brand); }
+.mito path.inner.zone.on { fill: none; stroke: var(--brand); stroke-width: 4; stroke-dasharray: none; }
+.mito .outer { fill: color-mix(in srgb, var(--bio) 12%, var(--surface)); stroke: var(--bio); stroke-width: 2.5; }
+.mito .inner { fill: color-mix(in srgb, var(--bio) 22%, var(--surface)); stroke: var(--bio); stroke-width: 2; }
+.mito .crista { fill: none; stroke: var(--bio); stroke-width: 2; }
+.mito .hex { fill: color-mix(in srgb, var(--pat) 25%, var(--surface)); stroke: var(--pat); stroke-width: 1.5; }
+.mito .tri { fill: color-mix(in srgb, var(--qr) 25%, var(--surface)); stroke: var(--qr); stroke-width: 1.5; }
+.mito .arr { fill: none; stroke: var(--ink-3); stroke-width: 2; stroke-dasharray: 4 3; }
+.mito .cycle { fill: none; stroke: var(--oc); stroke-width: 3; }
+.mito .head { fill: var(--oc); }
+.mito .spin .head { transform-origin: 254px 132px; animation: spin 2.4s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.mito .co2 { fill: var(--surface); stroke: var(--ink-3); }
+.mito .bubbles { opacity: 0; transition: opacity .4s; } .mito .bubbles.show { opacity: 1; }
+.mito .dim { opacity: .12; transition: opacity .4s; } .mito .mol, .mito .arr { transition: opacity .4s; }
+.mito.etc .ims { fill: color-mix(in srgb, var(--rc) 8%, var(--surface)); }
+.mito.etc .memb { fill: color-mix(in srgb, var(--warn) 18%, var(--surface)); }
+.mito.etc .matrix { fill: color-mix(in srgb, var(--bio) 12%, var(--surface)); }
+.mito.etc .cx { fill: color-mix(in srgb, var(--oc) 30%, var(--surface)); stroke: var(--oc); stroke-width: 1.5; }
+.mito.etc .carrier { fill: var(--surface); stroke: var(--oc); stroke-width: 1.5; }
+.mito.etc .syn { fill: color-mix(in srgb, var(--good) 28%, var(--surface)); stroke: var(--good); stroke-width: 1.5; }
+.mito.etc .block { display: none; } .mito.etc .block.show { display: inline; }
+.mito.etc .block path { stroke: var(--bad); stroke-width: 6; stroke-linecap: round; }
+.mito.etc .hp { fill: color-mix(in srgb, var(--rc) 35%, var(--surface)); stroke: var(--rc); stroke-width: 1; }
+.mito.etc .e circle { fill: #FACC15; stroke: #A16207; stroke-width: 1; }
+.mito.etc .h circle { fill: color-mix(in srgb, var(--rc) 55%, var(--surface)); stroke: var(--rc); }
+.mito.etc .h.leak circle { fill: color-mix(in srgb, var(--bad) 45%, var(--surface)); stroke: var(--bad); }
+.mito.etc.leaky .memb { fill: color-mix(in srgb, var(--bad) 18%, var(--surface)); }
+.mito .pop { font-size: 12px; font-weight: 800; animation: pop .9s ease-out forwards; }
+.mito .pop.atp { fill: var(--good); } .mito .pop.w { fill: var(--rc); font-size: 10px; } .mito .pop.heat { fill: var(--bad); font-size: 16px; }
+@keyframes pop { from { opacity: 0; transform: translateY(6px); } 30% { opacity: 1; } to { opacity: 0; transform: translateY(-14px); } }
+.tally .tl { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 6px 0 10px; }
+.tally .tk { background: var(--surface-2); border-radius: 12px; padding: 8px; text-align: center; }
+.tally .tk b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+.tally .tk span { font-size: 12px; color: var(--ink-2); font-weight: 700; }
+.stepper { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin: 4px 0 10px; }
+@media (min-width: 640px) { .stepper { grid-template-columns: repeat(4, 1fr); } }
+.stepper button { display: flex; gap: 6px; align-items: center; text-align: left; border: 1.5px solid var(--line); background: var(--surface); border-radius: 10px; padding: 8px 10px; font-size: 13px; font-weight: 700; cursor: pointer; min-height: 44px; color: var(--ink); }
+.stepper button b { width: 22px; height: 22px; border-radius: 50%; background: var(--surface-2); display: grid; place-items: center; font-size: 12px; flex: none; }
+.stepper button[aria-pressed="true"] { border-color: var(--brand); background: var(--brand-soft); }
+.gauges { display: grid; gap: 8px; margin: 8px 0; }
+.gauge .gl { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+.gauge.grad { --c: var(--rc); } .gauge.o2 { --c: var(--gc); } .gauge.atp { --c: var(--good); }
+.gauge .bar i { transition: width .6s; }
+.predq { display: grid; gap: 6px; margin: 8px 0; font-weight: 700; font-size: 14px; }
+.lab { margin-top: 16px; padding: 14px; border: 1.5px dashed var(--brand); border-radius: 14px; }
+.lab h3 { margin-bottom: 2px; }
+
+/* Interactive: molecule mixer */
+:root { --atom-h: #E2E8F0; --atom-o: #EF4444; --atom-n: #3B82F6; }
+.mixer { width: 100%; max-width: 520px; height: auto; }
+.mixer .pan { fill: var(--surface-2); stroke: var(--line); }
+.mixer .lbl { fill: var(--ink-2); font: 800 12px var(--font); text-anchor: middle; }
+.mixer .lbl.arrow { font-size: 22px; }
+.mixer .mz { transition: opacity .35s; }
+.mixer .mz.used { opacity: .12; }
+.mixer .mz.left circle { stroke: var(--warn); stroke-width: 2.5; }
+.mixer .mz.new { animation: fadein .4s ease-out both; }
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+.tool { background: var(--surface-2); border-radius: 12px; padding: 10px 12px; }
+.mito text[text-anchor="start"] { text-anchor: start; } .mito text[text-anchor="end"] { text-anchor: end; }
+.mixer .mz circle { stroke: #475569; }

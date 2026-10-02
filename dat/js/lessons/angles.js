@@ -52,6 +52,34 @@
   // Fixed walk-through set: angle 1 = 53°, 2 = 44°, 3 = 60°, 4 = 49°.
   const WALK = { vals: [53, 44, 60, 49], looks: [{ rot: 200, l1: 66, l2: 50 }, { rot: 15, l1: 52, l2: 70 }, { rot: 110, l1: 50, l2: 64 }, { rot: 300, l1: 70, l2: 55 }] };
 
+  // Walk-through helper: rotate angle 4 onto angle 1 (shared vertex and first ray, equal ray lengths).
+  function rotateTool(box, ctx) {
+    const { el } = ctx;
+    const A = WALK.looks[0], B = WALK.looks[3], a = WALK.vals[0], b = WALK.vals[3];
+    const fig = el("div", { class: "fig" });
+    const s = el("input", { type: "range", min: "0", max: "100", step: "1", value: "0", "aria-label": "Rotate both angles so one ray lies flat" });
+    const msg = el("p", { class: "small muted", "aria-live": "polite" });
+    const lerp = (x, y, t) => x + (y - x) * t;
+    const flat = (r) => ((0 - r + 540) % 360) - 180; // shortest turn that lays the first ray flat, pointing right
+    const t1 = flat(A.rot), t4 = flat(B.rot);
+    function paint() {
+      const t = +s.value / 100;
+      const v1 = [lerp(80, 40, t), lerp(70, 172, t)], v4 = [lerp(230, 40, t), lerp(70, 172, t)];
+      const L = (x) => lerp(x, 200, t);
+      let out = "<svg viewBox='0 0 300 190' width='300' role='img' aria-label='Angle 1 and angle 4 being rotated so one ray lies flat'>" +
+        "<rect width='300' height='190' rx='12' fill='var(--surface)'/>";
+      out += "<g style='color:var(--ink)'>" + angleSvg(a, A.rot + t1 * t, L(A.l1), L(A.l2), "", 300, v1) + "</g>";
+      out += "<g style='color:var(--brand)'>" + angleSvg(b, B.rot + t4 * t, L(B.l1), L(B.l2), "", 300, v4) + "</g>";
+      if (t < 0.6) out += "<text x='80' y='150' font-size='13' font-weight='700' fill='var(--ink)' text-anchor='middle'>1</text><text x='230' y='150' font-size='13' font-weight='700' fill='var(--brand)' text-anchor='middle'>4</text>";
+      else out += "<text x='166' y='16' font-size='13' font-weight='700' fill='var(--ink)'>1</text><text x='196' y='32' font-size='13' font-weight='700' fill='var(--brand)'>4</text>";
+      fig.innerHTML = out + "</svg>";
+      msg.textContent = t < 0.98 ? "Keep sliding: both angles turn until one ray lies flat, and the rays grow to the same length." : "Same vertex, flat first ray, equal ray lengths. Angle 4's teal ray sits below angle 1's: angle 4 opens less, so it's smaller.";
+    }
+    s.addEventListener("input", paint);
+    box.append(fig, el("label", { class: "ctrl" }, "Rotate both so one ray lies flat", s), msg);
+    paint();
+  }
+
   DATLessons.add({
     id: "pat-angles-1", topic: "pat-ang", section: "pat", minutes: 10,
     title: "Angle Discrimination: rank four angles",
@@ -109,7 +137,7 @@
         { p: "First, the easy end: which angle is the <b>smallest</b>? (Look past the long rays.)", o: ["Angle 1", "Angle 2", "Angle 3", "Angle 4"], a: 1, ok: "Angle 2 is the narrowest opening, even though one of its rays is long.", why: { 3: "Close: 4 is narrow too. Line them up in your head: 2's opening is tighter. Keep 4 for later.", 0: "Angle 1's long ray makes it look bigger, not smaller. Compare the gap near the vertex: 2 is tighter." } },
         { p: "Which angle is the <b>largest</b>?", o: ["Angle 1", "Angle 2", "Angle 3", "Angle 4"], a: 2, ok: "Angle 3 has the widest opening." },
         { p: "Look at the answer choices above. Which ones survive \"starts with 2, ends with 3\"?", o: ["2 – 1 – 4 – 3 and 2 – 4 – 1 – 3", "4 – 2 – 1 – 3 and 2 – 1 – 4 – 3", "2 – 4 – 3 – 1 and 2 – 4 – 1 – 3", "All four choices"], a: 0, ok: "Two choices left. They differ only in the middle pair: 1 and 4." },
-        { p: "Now just compare angles 1 and 4. Which is smaller?", o: ["Angle 1", "Angle 4", "They're equal"], a: 1, ok: "Angle 4 is slightly smaller (49° vs 53°). Angle 1's long ray makes it look bigger than it is.", why: { 0: "Rotate angle 1 so one ray is flat: its long ray exaggerates it. Angle 4's opening is a little tighter.", 2: "On the DAT the four angles are always different sizes. Look again at the gap near the vertex." } },
+        { p: "Now just compare angles 1 and 4. Try the mental move with the slider first: rotate both so one ray lies flat and they share a vertex. Which is smaller?", tool: rotateTool, o: ["Angle 1", "Angle 4", "They're equal"], a: 1, ok: "Angle 4 is slightly smaller (49° vs 53°). Angle 1's long ray makes it look bigger than it is.", why: { 0: "Rotate angle 1 so one ray is flat: its long ray exaggerates it. Angle 4's opening is a little tighter.", 2: "On the DAT the four angles are always different sizes. Look again at the gap near the vertex." } },
         { p: "So the full order, smallest to largest, is:", o: ["2 – 1 – 4 – 3", "2 – 4 – 1 – 3", "4 – 2 – 1 – 3", "2 – 4 – 3 – 1"], a: 1, ok: "2 (44°) – 4 (49°) – 1 (53°) – 3 (60°). Ends first, then one close pair: that's the whole method." }
       ],
       wrap: "<b>Walk-through done.</b> Your turn: three new sets, each a little closer than the last. The last one is test-level, with only about 2° between neighbors."
