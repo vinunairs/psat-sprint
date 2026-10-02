@@ -57,7 +57,8 @@ function summary(s: any, date: string) {
   const L: string[] = [`📚 <b>${esc(name)}</b> · ${dayLabel(date)}${left != null && left >= 0 ? ` · ${left === 0 ? kind + " is today" : left + " day" + (left === 1 ? "" : "s") + " to the " + kind}` : ""}`];
   const tasks = Object.keys(D.tasks || {}).filter((k) => k.startsWith(date + "#")).length;
   const a = (D.activity || {})[date] || {}, t = (D.time || {})[date];
-  if (!tasks && !a.q && !a.mock && !(t && t.f > 60)) { L.push("⚠️ No study activity yet today."); return L.join("\n"); }
+  const labToday = D.lab && Object.values(D.lab.log || {}).includes(date);
+  if (!tasks && !a.q && !a.mock && !(t && t.f > 60) && !labToday) { L.push("⚠️ No study activity yet today."); return L.join("\n"); }
   L.push(`✅ Plan tasks done today: ${tasks}`);
   if (t) {
     const by = Object.entries(t.by || {}).sort((x, y) => (y[1] as number) - (x[1] as number)).map(([k, v]) => `${ACT[k] || k} ${mins(v as number)}`).join(", ");
@@ -75,6 +76,10 @@ function summary(s: any, date: string) {
     .map(([d, v]) => { const avg = (v as number[])[1] / (v as number[])[0]; return `${DOMAINS[d] || d} ${mmss(avg)}/q (test ${mmss(PACE[d] || 95)})${avg > (PACE[d] || 95) * 1.25 ? " ⚠️" : ""}`; });
   if (pace.length) L.push("⚡ Pace: " + pace.join(" · "));
   const nb = (D.mistakes || []).length; if (nb) L.push(`📌 ${nb} questions waiting in the Mistake notebook`);
+  if (D.lab && D.lab.done) {
+    const todayM = Object.entries(D.lab.log || {}).filter(([, d]) => d === date).map(([n]) => n);
+    L.push(`🧩 Geometry Lab: ${D.lab.done.length} of 7 missions done${todayM.length ? " (today: Mission " + todayM.join(", ") + ")" : ""}`);
+  }
   return L.join("\n");
 }
 

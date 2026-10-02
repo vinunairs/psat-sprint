@@ -33,11 +33,11 @@
     { title: "Baseline, part 2", tasks: [["Take the Math section of Bluebook Practice Test 1, timed (70 min)", BB], ["Open your scores at mypractice.collegeboard.org and count misses in each skill domain", MYP], ["Enter the results in the Log a test tab", { k: "log" }]] },
     { title: "Fix the biggest leak", tasks: [["Read the explanation for every missed question in Bluebook", MYP], ["Your focus set: 20 questions picked from your misses", { k: "focus", n: 20 }], ["Retry the Mistake notebook", { k: "notebook" }]] },
     { title: "Grammar rules day", tasks: [["Practice 20 Standard English Conventions questions", { k: "practice", doms: ["sec"], n: 20 }], ["Learn the grammar rules: flip through the rule cards", { k: "deck", area: "Grammar" }], ["Spend 20 minutes with Desmos: graph a line, find an intersection, find a vertex", { k: "ext", url: "https://www.desmos.com/calculator" }]] },
-    { title: "Math under the clock", tasks: [["Take a timed Math section: an in-app mock, or a Khan Academy practice test Math section (log it in Log a test)", { k: "mock", parts: ["math"], alt: "khan" }], ["Review every miss in the results", { k: "mockreview" }], ["Pacing drill: 10 math questions with the timer on (about 1½ minutes each)", { k: "practice", doms: ["alg", "adv", "psda", "geo"], n: 10, timed: true }]] },
+    { title: "Math under the clock", tasks: [["Take a timed Math section: an in-app mock, or a Khan Academy practice test Math section (log it in Log a test)", { k: "mock", parts: ["math"], alt: "khan" }], ["Review every miss in the results", { k: "mockreview" }], ["Pacing drill: 10 math questions with the timer on (about 1½ minutes each)", { k: "practice", doms: ["alg", "adv", "psda", "geo"], n: 10, timed: true }], ["Geometry Lab: Missions 1 and 2 (parallel lines, triangle angles)", { k: "lab", m: [1, 2] }]] },
     { title: "Dress rehearsal", heavy: true, tasks: [["2-minute warm-up first: your top 5 rules", { k: "deck", top: 5 }], ["Take Bluebook {TEST} Practice Test 2 in one sitting, starting at the same time as the real test", BB], ["Take only the scheduled 10-minute break"], ["Enter the results in the Log a test tab", { k: "log", src: "bluebook" }]] },
-    { title: "Review the rehearsal", tasks: [["Review every miss from Practice Test 2", MYP], ["Compare the Skill matrix with Test 1 and note what improved", { k: "visit", tab: "matrix" }], ["Your focus set: 20 questions picked from your misses", { k: "focus", n: 20 }]] },
-    { title: "Reading under the clock", tasks: [["Take a timed Reading and Writing section: an in-app mock, or a Khan Academy practice test section (log it in Log a test)", { k: "mock", parts: ["rw"], alt: "khan" }], ["Review every miss in the results", { k: "mockreview" }], ["Retry the Mistake notebook", { k: "notebook" }]] },
-    { title: "Light review", light: true, tasks: [["Flip through your strategy cards and read your night-before sheet (Review tab)", { k: "visit", tab: "review" }], ["One 10-question mixed practice set, nothing more", { k: "practice", n: 10 }], ["Charge the device, update Bluebook, and run its exam readiness check", BB], "Pack what the school asks for: device, charger, admission info", "Lights out by 10 pm"] },
+    { title: "Review the rehearsal", tasks: [["Review every miss from Practice Test 2", MYP], ["Compare the Skill matrix with Test 1 and note what improved", { k: "visit", tab: "matrix" }], ["Your focus set: 20 questions picked from your misses", { k: "focus", n: 20 }], ["Geometry Lab: Missions 3 and 4 (Pythagoras, SOH CAH TOA)", { k: "lab", m: [3, 4] }]] },
+    { title: "Reading under the clock", tasks: [["Take a timed Reading and Writing section: an in-app mock, or a Khan Academy practice test section (log it in Log a test)", { k: "mock", parts: ["rw"], alt: "khan" }], ["Review every miss in the results", { k: "mockreview" }], ["Retry the Mistake notebook", { k: "notebook" }], ["Geometry Lab: Missions 5 and 6 (similar triangles, area and volume)", { k: "lab", m: [5, 6] }]] },
+    { title: "Light review", light: true, tasks: [["Flip through your strategy cards and read your night-before sheet (Review tab)", { k: "visit", tab: "review" }], ["One 10-question mixed practice set, nothing more", { k: "practice", n: 10 }], ["Charge the device, update Bluebook, and run its exam readiness check", BB], "Pack what the school asks for: device, charger, admission info", "Lights out by 10 pm", ["Geometry Lab: Mission 7 (test-day shortcuts) and the cheat sheet", { k: "lab", m: [7] }]] },
     { title: "Test day", light: true, tasks: ["Eat a real breakfast", "Take care on Module 1: it decides whether Module 2 is the harder set", "Never leave a question blank; wrong answers cost nothing", "Use Desmos and the reference sheet to check math answers"] }
   ];
 
@@ -498,8 +498,31 @@
     else if (g.k === "mockreview") { completeTask(day, i); save(); if (S.lastMock && S.lastMock.result) S.lastMock.showResults = true; show("mock"); }
     else if (g.k === "log") show("log");
     else if (g.k === "visit") { completeTask(day, i); save(); show(g.tab); }
+    else if (g.k === "lab") { const lab = labState(), next = g.m.find((n) => !(lab[n] && lab[n].s)) || g.m[0]; location.href = "geometry.html#l" + next; return; }
     window.scrollTo({ top: 0 });
   }
+  // Geometry Lab (geometry.html) keeps its own progress in this browser: {1: {g, r, w, s}, ...}; s = mission finished.
+  function labState() { try { return JSON.parse(localStorage.getItem("gtlab-v2") || "{}") || {}; } catch (e) { return {}; } }
+  // Copy Lab progress into the synced state (admin view, Telegram) and tick Lab plan tasks that are finished.
+  // Missions done on any device add up (the account keeps the union), and a finished mission ticks its plan
+  // task even if the plan schedules it for a later day, so doing the Lab outside the plan still counts.
+  function labSync() {
+    if (GUEST) return;
+    const lab = labState(), cur = S.lab || {}, log = Object.assign({}, cur.log || {});
+    const local = [1, 2, 3, 4, 5, 6, 7].filter((n) => lab[n] && lab[n].s);
+    local.forEach((n) => { if (!log[n]) log[n] = today(); });
+    const done = [...new Set([...(cur.done || []), ...local])].sort((a, b) => a - b);
+    const starSet = new Set([...(cur.starList || []), ...local.filter((n) => lab[n].s === 2)]);
+    let changed = false;
+    if ((cur.done || []).join() !== done.join() || (cur.starList || []).length !== starSet.size) { S.lab = { done, stars: starSet.size, starList: [...starSet], log, at: today() }; changed = true; }
+    if (planMode() === "sprint") {
+      plan().forEach((d) => d.go.forEach((g, i) => {
+        if (g && g.k === "lab" && !S.tasks[d.date + "#" + i] && g.m.every((n) => done.includes(n))) { completeTask(d, i); changed = true; }
+      }));
+    }
+    if (changed) save();
+  }
+  window.addEventListener("focus", () => { try { labSync(); if (TAB === "today") render(); } catch (e) { } });
   let PT = null; // the plan task the student opened most recently
   function completeTask(day, i) {
     const id = day.date + "#" + i; if (S.tasks[id]) return false;
@@ -662,7 +685,8 @@
     const sprint = mode === "sprint";
     const fc0 = sprint ? null : focusCard(); if (fc0 && mode !== "after") p.append(fc0);
     scorePrompt(p);
-    p.append(labCard());
+    try { labSync(); } catch (e) { }
+    if (!sprint) p.append(labCard());
     if (sprint) renderSprint(p, t);
     else if (mode === "after") renderAfter(p);
     else renderLongPlan(p, mode);
@@ -2295,6 +2319,7 @@
       el("li", { text: "Plan tasks checked off: " + tasksDone }),
       ws ? el("li", { text: "This week's goals: " + ws.done + " of " + ws.total + " done (" + ws.q + " of " + ws.qTarget + " questions)" }) : null,
       el("li", { text: "Review deck: " + Object.keys(x.D.deck || {}).length + " strategy cards · badges earned: " + Object.keys(x.D.badges || {}).length }),
+      el("li", { text: "Geometry Lab: " + ((x.D.lab && x.D.lab.done) || []).length + " of 7 missions" + (x.D.lab && x.D.lab.done && x.D.lab.done.length ? " (" + x.D.lab.done.join(", ") + ")" + (x.D.lab.stars ? ", " + x.D.lab.stars + " first try" : "") : "") }),
       exams.length ? el("li", { text: "Tests planned: " + exams.join("; ") }) : null,
       el("li", { text: "Joined " + (x.row.joined ? new Date(x.row.joined).toLocaleDateString() : "—") + " · last sign-in " + (x.row.last_sign_in ? new Date(x.row.last_sign_in).toLocaleDateString() : "—") })));
     return box;
