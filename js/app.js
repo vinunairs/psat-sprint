@@ -648,7 +648,7 @@
     return el("div", { class: "card mission" },
       el("div", { class: "eyebrow", text: "Learn it first · Geometry & Trig" }),
       el("h2", { text: "Geometry & Trig Lab" }),
-      el("p", { class: "muted", style: "margin-top:.3em", text: "Six short missions with moving figures: parallel lines, triangles, Pythagoras, SOH CAH TOA, similar triangles, area and volume. Each one walks you through a real PSAT problem step by step. Do these before the geometry practice sets." }),
+      el("p", { class: "muted", style: "margin-top:.3em", text: "Seven short missions with moving figures: parallel lines, triangles, Pythagoras, SOH CAH TOA (with calculator problems), similar triangles, area and volume, and test-day shortcuts. Each one walks you through a real PSAT problem step by step. Do these before the geometry practice sets." }),
       el("div", { class: "row", style: "margin-top:12px" }, el("a", { class: "btn primary", href: "geometry.html" }, "Open the Lab")));
   }
   function renderToday() {

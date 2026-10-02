@@ -177,7 +177,7 @@ body{margin:0}
     <h1>Geometry &amp; Trig Lab</h1>
     <div class="statrow">
       <span class="pill" id="countdown">PSAT: Oct 7</span>
-      <span class="pill">Missions done: <b id="prog">0</b> / 6</span>
+      <span class="pill">Missions done: <b id="prog">0</b> / 7</span>
       <span class="pill">First-try stars: <b id="stars">0</b></span>
     </div>
   </header>
@@ -190,6 +190,7 @@ body{margin:0}
     <a href="#l4" data-v="l4" data-l="4"><span class="n">4</span>SOH CAH TOA</a>
     <a href="#l5" data-v="l5" data-l="5"><span class="n">5</span>Similar triangles</a>
     <a href="#l6" data-v="l6" data-l="6"><span class="n">6</span>Area &amp; volume</a>
+    <a href="#l7" data-v="l7" data-l="7"><span class="n">7</span>Shortcuts</a>
     <span class="sep"></span>
     <a href="#sheet" data-v="sheet"><span class="n">★</span>Cheat sheet</a>
     <a href="#bonus" data-v="bonus"><span class="n">SAT</span>Bonus</a>
@@ -197,7 +198,7 @@ body{margin:0}
 
   <!-- START -->
   <section class="view" id="start">
-    <h2>Six missions. Everything the PSAT asks in geometry and trig.</h2>
+    <h2>Seven missions. Everything the PSAT asks in geometry and trig.</h2>
     <div class="how">
       <h3>How each mission works · about 8 minutes</h3>
       <ol>
@@ -302,7 +303,7 @@ body{margin:0}
 
   <!-- MISSION 4 -->
   <section class="view" id="l4" hidden>
-    <div class="lhead"><span class="lnum">Mission 4</span><h2>SOH CAH TOA depends on where you stand</h2><span class="time">≈ 10 min</span></div>
+    <div class="lhead"><span class="lnum">Mission 4</span><h2>SOH CAH TOA depends on where you stand</h2><span class="time">≈ 13 min</span></div>
     <div class="grid">
       <div class="figcol"><div class="fig">
         <svg id="fig5" viewBox="0 0 360 330" role="img" aria-label="Right triangle showing opposite, adjacent and hypotenuse"></svg>
@@ -323,9 +324,10 @@ body{margin:0}
           <p><span class="c-opp">Opposite</span> = the side across from you. <span class="c-adj">Adjacent</span> = the side touching you that isn't the hypotenuse. <span class="c-hyp">Hypotenuse</span> never changes.</p>
           <p>When you switch corners, opposite and adjacent <b>swap</b>. That's why, when the two small angles add to 90°:</p>
           <p class="key">sin A = cos B &nbsp;·&nbsp; sin(x°) = cos(90 − x)°</p>
-          <p class="trap"><b>Trap:</b> SOH CAH TOA is <b>not</b> on the reference sheet. And tan never uses the hypotenuse.</p></div></div>
+          <p><b>With a calculator:</b> know an angle and a side? <span class="m">side = 12 × sin(35°)</span>. Know two sides and need the angle? Undo it: <span class="m">angle = sin⁻¹(12/13)</span>.</p>
+          <p class="trap"><b>Trap:</b> SOH CAH TOA is <b>not</b> on the reference sheet, and tan never uses the hypotenuse. Before any trig on Desmos, check it's in <b>degrees</b>: <span class="m">sin(30)</span> must give <span class="m">0.5</span>. If it gives −0.988, it's in radians.</p></div></div>
         <div class="stage locked" data-st="w"><div class="sh"><span class="sn">3</span><h3>Walk through it</h3></div><p class="lockmsg">Finish step 2 to unlock.</p><div class="body">
-          <p class="q">Right triangle ABC has its right angle at C. AB = <span class="m">13</span>, BC = <span class="m">5</span>, AC = <span class="m">12</span>. Find tan A and cos B.</p>
+          <p class="q"><b>Part 1</b> (steps 1–5): Right triangle ABC has its right angle at C. AB = <span class="m">13</span>, BC = <span class="m">5</span>, AC = <span class="m">12</span>. Find tan A and cos B.<br><b>Part 2</b> (steps 6–10): the same ideas with a calculator, the way the PSAT usually asks.</p>
           <div data-walk></div></div></div>
         <div class="stage locked" data-st="s"><div class="sh"><span class="sn">4</span><h3>Your turn</h3></div><p class="lockmsg">Finish step 3 to unlock.</p><div class="body" data-solo></div></div>
       </div>
@@ -395,6 +397,39 @@ body{margin:0}
     </div>
   </section>
 
+  <!-- MISSION 7 -->
+  <section class="view" id="l7" hidden>
+    <div class="lhead"><span class="lnum">Mission 7</span><h2>Test-day shortcuts</h2><span class="time">≈ 9 min</span></div>
+    <div class="grid">
+      <div class="figcol"><div class="fig">
+        <svg id="fig10" viewBox="0 0 360 260" role="img" aria-label="Rectangle before and after changing its length and width by percentages"></svg>
+        <div class="controls">
+          <label for="s10p">Length <input id="s10p" type="range" min="-50" max="50" step="5" value="20"><span id="v10p"></span></label>
+          <label for="s10q">Width <input id="s10q" type="range" min="-50" max="50" step="5" value="-20"><span id="v10q"></span></label>
+        </div>
+        <div class="readout" id="r10"></div>
+      </div></div>
+      <div class="stages" data-lesson="7">
+        <div class="stage" data-st="g"><div class="sh"><span class="sn">1</span><h3>Play</h3></div><div class="body">
+          <p class="goal">Right now the length goes up 20% and the width goes down 20%. Most people guess the area stays the same. Check the readout. Then find a setting where the <b>length goes up</b> and the <b>area changes by exactly 0%</b>.</p>
+          <div class="status" data-status>Not there yet.</div>
+          <button class="linkbtn" data-skip>Skip this step</button></div></div>
+        <div class="stage locked" data-st="r"><div class="sh"><span class="sn">2</span><h3>The shortcuts</h3></div><p class="lockmsg">Finish step 1 to unlock.</p><div class="body rule">
+          <p><b>1. Pick easy numbers.</b> When a question has no numbers ("a rectangle's length grows 20%…"), make some up. Use 10 or 100. Then compare before and after.</p>
+          <p class="key">+20% → ×1.2 &nbsp; −20% → ×0.8 &nbsp; 1.2 × 0.8 = 0.96</p>
+          <p><b>2. Whole minus part.</b> A shaded region is usually the big shape's area minus the cut-out's area.</p>
+          <p><b>3. Similar triangles share trig ratios.</b> Same angles means same sin, cos and tan, no matter the size.</p>
+          <p><b>4. Sketch it.</b> No figure given? Draw one and label every number from the question on it before doing any math.</p>
+          <p><b>5. Try the answers.</b> Stuck setting up an equation? Plug each answer choice back in and see which one works.</p>
+          <p class="trap"><b>Trap:</b> percent changes don't add. +20% then −20% is not 0%. Multiply the multipliers.</p></div></div>
+        <div class="stage locked" data-st="w"><div class="sh"><span class="sn">3</span><h3>Walk through it</h3></div><p class="lockmsg">Finish step 2 to unlock.</p><div class="body">
+          <p class="q">Three quick problems, one per shortcut: a percent change, a shaded region, and similar triangles.</p>
+          <div data-walk></div></div></div>
+        <div class="stage locked" data-st="s"><div class="sh"><span class="sn">4</span><h3>Your turn</h3></div><p class="lockmsg">Finish step 3 to unlock.</p><div class="body" data-solo></div></div>
+      </div>
+    </div>
+  </section>
+
   <!-- CHEAT SHEET -->
   <section class="view" id="sheet" hidden>
     <div class="lhead"><span class="lnum">★</span><h2>Cheat sheet for the night before</h2></div>
@@ -415,7 +450,11 @@ body{margin:0}
         <li>SOH CAH TOA</li>
         <li><span class="m">sin x° = cos(90 − x)°</span></li>
         <li>Similar: <span class="m">AD/AB = DE/BC</span>; lengths ×k, area ×k², volume ×k³</li>
-        <li>Surface area = add every face</li></ul></div>
+        <li>Surface area = add every face</li>
+        <li>Desmos in <b>degrees</b>: sin(30) = 0.5</li>
+        <li>Missing angle: <span class="m">sin⁻¹</span>, <span class="m">cos⁻¹</span>, <span class="m">tan⁻¹</span></li>
+        <li>Percent changes multiply: ×1.2 × 0.8 = 0.96</li>
+        <li>Shaded = whole − part; no figure → sketch one</li></ul></div>
     </div>
   </section>
 
@@ -549,11 +588,11 @@ function solo(n,d){const host=document.querySelector(`.stages[data-lesson="${n}"
     else{miss++;b.classList.add('wrong');b.disabled=true;fb.innerHTML=`<p class="hint"><b>Hint:</b> ${d.hint}</p>`}}));
   if(s.s){host.querySelectorAll('.chips button').forEach((x,j)=>{x.disabled=true;if(j===d.a)x.classList.add('right')});
     fb.innerHTML=`<div class="why"><ol>${d.why.map(w=>`<li>${w}</li>`).join('')}</ol></div>${nextBar(n)}`;bindNext(fb)}}
-function nextBar(n){const nn=+n+1;return nn<=6?`<div class="nextbar" style="margin-top:12px"><p>Mission ${n} complete. Short break, then:</p><button data-next="l${nn}">Mission ${nn}: ${TITLES[nn]}</button></div>`
-  :`<div class="nextbar" style="margin-top:12px"><p>All six missions done. You're ready for the practice test.</p><button data-next="sheet">Open the cheat sheet</button></div>`}
+function nextBar(n){const nn=+n+1;return nn<=7?`<div class="nextbar" style="margin-top:12px"><p>Mission ${n} complete. Short break, then:</p><button data-next="l${nn}">Mission ${nn}: ${TITLES[nn]}</button></div>`
+  :`<div class="nextbar" style="margin-top:12px"><p>All seven missions done. You're ready for the practice test.</p><button data-next="sheet">Open the cheat sheet</button></div>`}
 function bindNext(el){el.querySelectorAll('[data-next]').forEach(b=>b.addEventListener('click',()=>show(b.dataset.next)))}
-const TITLES={1:'Parallel lines',2:'Triangle angles',3:'Pythagoras',4:'SOH CAH TOA',5:'Similar triangles',6:'Area & volume'};
-const BLURB={1:'Two angle sizes, one question to ask.',2:'180°, and the outside-angle shortcut.',3:'Squares on the sides. Know your triples.',4:'Opposite and adjacent depend on where you stand.',5:'One scale factor runs everything.',6:'Count cubes. Doubling is not ×2.'};
+const TITLES={1:'Parallel lines',2:'Triangle angles',3:'Pythagoras',4:'SOH CAH TOA',5:'Similar triangles',6:'Area & volume',7:'Test-day shortcuts'};
+const BLURB={1:'Two angle sizes, one question to ask.',2:'180°, and the outside-angle shortcut.',3:'Squares on the sides. Know your triples.',4:'Opposite and adjacent depend on where you stand.',5:'One scale factor runs everything.',6:'Count cubes. Doubling is not ×2.',7:'Pick numbers, whole minus part, try the answers.'};
 
 /* ===== views ===== */
 const views=[...document.querySelectorAll('section.view')].map(s=>s.id);
@@ -563,14 +602,14 @@ function show(id){if(!views.includes(id))id='start';document.querySelectorAll('s
   if(id==='start')renderPath();window.scrollTo({top:0,behavior:'auto'});
   const on=document.querySelector('nav.lessons a.on');if(on)on.scrollIntoView({block:'nearest',inline:'center'})}
 document.querySelectorAll('nav.lessons a').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();show(a.dataset.v)}));
-function nextMission(){for(let n=1;n<=6;n++)if(!st(n).s)return 'l'+n;return 'sheet'}
+function nextMission(){for(let n=1;n<=7;n++)if(!st(n).s)return 'l'+n;return 'sheet'}
 $('#go').addEventListener('click',()=>show(nextMission()));
-function renderPath(){$('#path').innerHTML=[1,2,3,4,5,6].map(n=>{const s=st(n);const stat=s.s?(s.s===2?'✓ done · ★ first try':'✓ done'):s.g?'in progress':'not started';
+function renderPath(){$('#path').innerHTML=[1,2,3,4,5,6,7].map(n=>{const s=st(n);const stat=s.s?(s.s===2?'✓ done · ★ first try':'✓ done'):s.g?'in progress':'not started';
   return `<button class="mcard" data-next="l${n}"><span class="k">Mission ${n}</span><span class="t">${TITLES[n]}</span><span class="s">${BLURB[n]}</span><span class="st" style="color:${s.s?'var(--good)':'var(--muted)'}">${stat}</span></button>`}).join('');bindNext($('#path'))}
-function syncProg(){let d=0,stars=0;for(let n=1;n<=6;n++){const s=st(n);if(s.s)d++;if(s.s===2)stars++}
+function syncProg(){let d=0,stars=0;for(let n=1;n<=7;n++){const s=st(n);if(s.s)d++;if(s.s===2)stars++}
   $('#prog').textContent=d;$('#stars').textContent=stars;
   document.querySelectorAll('nav.lessons a[data-l]').forEach(a=>a.classList.toggle('done',!!st(a.dataset.l).s));
-  $('#go').textContent=d===6?'Review the cheat sheet':d===0?'Start Mission 1':'Continue: '+TITLES[+nextMission().slice(1)]}
+  $('#go').textContent=d===7?'Review the cheat sheet':d===0?'Start Mission 1':'Continue: '+TITLES[+nextMission().slice(1)]}
 
 /* ===== slider sweeps ===== */
 const anims={};
@@ -777,7 +816,12 @@ walk(4,[
  {p:'Still at A. tan A = opposite / adjacent. Which is it?',o:['5/13','12/5','5/12','12/13'],a:2,show:'tan A = 5/12',hint:'Tan has no hypotenuse. Opposite is 5. Adjacent is the side touching A that isn\'t 13.',ok:'Opposite 5, adjacent 12.'},
  {p:'Walk over to B. Which side is adjacent to B now?',o:['BC','AC','AB'],a:0,show:'BC = 5',hint:'Adjacent = touching B, but not the hypotenuse.',ok:'BC touches B. It was opposite when you stood at A. The sides swapped.'},
  {p:'cos B = adjacent / hypotenuse. Which is it?',o:['12/13','5/12','5/13','13/5'],a:2,show:'cos B = 5/13',hint:'Adjacent to B is 5. The hypotenuse is always 13.',ok:''},
- {p:'Compare: sin A is also 5/13. Why does sin A = cos B?',o:['Because the triangle is isosceles','Because A + B = 90°, so the side opposite A is adjacent to B','All trig values are equal'],a:1,show:'A + B = 90°, so opposite to A = adjacent to B',hint:'Think about what happened to side BC when you switched corners.',ok:'This is the PSAT\'s favorite trig fact: sin(x°) = cos(90 − x)°.'}]);
+ {p:'Compare: sin A is also 5/13. Why does sin A = cos B?',o:['Because the triangle is isosceles','Because A + B = 90°, so the side opposite A is adjacent to B','All trig values are equal'],a:1,show:'A + B = 90°, so opposite to A = adjacent to B',hint:'Think about what happened to side BC when you switched corners.',ok:'This is the PSAT\'s favorite trig fact: sin(x°) = cos(90 − x)°. <b>Part 1 done.</b>'},
+ {p:'<b>Part 2, with a calculator.</b> A ramp 12 feet long makes a 35° angle with the ground. How high does it rise? Sketch it: ground, ramp, height. Standing at the 35° angle, the height is the ___ side and the ramp is the ___.',o:['adjacent, hypotenuse','opposite, hypotenuse','opposite, adjacent'],a:1,show:'height = opposite, ramp = hypotenuse',hint:'The height is across from the 35° angle. The ramp is the longest side, across from the right angle.',ok:''},
+ {p:'Opposite and hypotenuse. Which ratio connects them?',o:['tan','cos','sin'],a:2,show:'sin(35°) = h / 12',hint:'SOH: Sine = Opposite / Hypotenuse.',ok:'Multiply both sides by 12: h = 12 × sin(35°).'},
+ {p:'Before typing it in Desmos, what do you check?',o:['That Desmos is in degrees: sin(30) should give 0.5','Nothing, calculators always use degrees','Switch Desmos to radians'],a:0,show:'Degrees mode: sin(30) = 0.5',hint:'If sin(30) gives −0.988, the calculator is reading 30 as radians.',ok:'In Desmos the setting is under the wrench icon. One wrong mode makes every trig answer wrong.'},
+ {p:'Type h = 12 × sin(35°), rounded to two decimals.',a:6.88,tol:0.02,show:'h ≈ 6.88 ft',hint:'sin(35°) ≈ 0.5736. Multiply by 12.',ok:''},
+ {p:'Now reverse it. A 13-foot ladder reaches 12 feet up a wall. What angle does it make with the ground? sin θ = 12/13, so θ = sin⁻¹(12/13). Type θ to the nearest degree.',a:67,tol:0.6,show:'θ ≈ 67°',hint:'In Desmos type arcsin(12/13), in degrees mode.',ok:'sin⁻¹ undoes sin: it turns a ratio back into an angle. Same idea for cos⁻¹ and tan⁻¹.'}]);
 walk(5,[
  {p:'k compares whole sides. First find the whole side AB. Type it.',a:10,show:'AB = 10',hint:'AB = AD + DB',ok:'4 + 6 = 10.'},
  {p:'Which is the scale factor k?',o:['AD/DB = 4/6','AD/AB = 4/10','DB/AB = 6/10'],a:1,show:'k = 4/10 = 0.4',hint:'Small triangle side over the matching big triangle side. The small triangle is ADE.',ok:'Small over big: AD over AB.'},
@@ -802,15 +846,42 @@ solo(5,{q:'Two triangles are similar. Their sides are in the ratio 2 : 3. The sm
 solo(6,{q:'A cube has a surface area of 54 square inches. What is its volume in cubic inches?',o:['9','18','27','81'],a:2,
   hint:'A cube has 6 equal square faces. Find the area of one face first.',why:['54 ÷ 6 = 9 per face.','Each face is s², so s = 3.','Volume = 3³ = 27.']});
 
+
+/* ===== M7 shortcuts: percent change ===== */
+function d10(){const p=+$('#s10p').value,q=+$('#s10q').value;const fmt=v=>(v>0?'+':'')+v+'%';$('#v10p').textContent=fmt(p);$('#v10q').textContent=fmt(q);
+  const O=P(30,240),L0=150,W0=90,L1=L0*(1+p/100),W1=W0*(1+q/100);
+  let s=`<rect x="${O.x}" y="${r1(O.y-W1)}" width="${r1(L1)}" height="${r1(W1)}" class="w-adj" stroke-width="2"/>`;
+  s+=`<rect x="${O.x}" y="${O.y-W0}" width="${L0}" height="${W0}" class="k-ink" stroke-width="2" stroke-dasharray="6 5"/>`;
+  const l1=10*(1+p/100),w1=6*(1+q/100);
+  s+=T(P(O.x+L1/2,O.y+14),'length '+r2(l1),'t-opp',13)+T(P(O.x+L1+8,O.y-W1/2),'width '+r2(w1),'t-adj',13,'start');
+  s+=T(P(O.x+4,O.y-W0-10),'before: 10 × 6 (dashed)','lbl-m',12,'start');
+  $('#fig10').innerHTML=s;
+  const m=(1+p/100)*(1+q/100),ch=Math.round((m-1)*10000)/100;
+  $('#r10').innerHTML=`length ×${r2(1+p/100)}, width ×${r2(1+q/100)}<br><span class="big">area ×${r3(m)} → 60 becomes ${r2(60*m)}, a change of ${ch>0?'+':''}${ch}%</span><br>${p+q===0&&p!==0?'Same percent up and down still shrinks the area.':''}`;
+  if(p>0&&Math.abs(m-1)<1e-9)goalHit(7,`Length ×1.25 and width ×0.8: 1.25 × 0.8 = 1, so the area is unchanged. Percent changes multiply, they don't add.`);
+  else goalStatus(7,`Area change: <b>${ch>0?'+':''}${ch}%</b>. ${p<=0?'Make the length go up first.':'Adjust the width.'}`)}
+['#s10p','#s10q'].forEach(id=>$(id).addEventListener('input',d10));
+walk(7,[
+ {p:'<b>Percent change.</b> A rectangle\'s length grows 20% and its width shrinks 20%. Pick easy numbers: start with a 10 by 10 square. Type the new length.',a:12,show:'12',hint:'20% of 10 is 2.',ok:''},
+ {p:'Type the new width.',a:8,show:'8',hint:'10 − 20% of 10',ok:''},
+ {p:'Old area 100, new area 12 × 8 = 96. How did the area change?',o:['0%','+4%','−4%','−40%'],a:2,show:'−4%',hint:'96 compared with 100.',ok:'Not 0%. In multipliers: 1.2 × 0.8 = 0.96.'},
+ {p:'<b>Whole minus part.</b> A 10 × 6 rectangle has a right triangle with legs 4 and 6 cut out of it. First, the whole rectangle\'s area?',a:60,show:'60',hint:'10 × 6',ok:''},
+ {p:'Area of the cut-out triangle?',a:12,show:'12',hint:'Triangle area = ½ × base × height = ½ × 4 × 6',ok:''},
+ {p:'Type the shaded area.',a:48,show:'48',hint:'Whole minus part.',ok:'60 − 12 = 48.'},
+ {p:'<b>Similar triangles share trig ratios.</b> Triangle DEF is similar to triangle ABC, with angle D matching angle A. sin A = 3/5, and DEF is three times bigger. What is sin D?',o:['3/5, the same','9/5','1/5','Can\'t tell without side lengths'],a:0,show:'sin D = 3/5',hint:'Scaling multiplies the top and bottom of the ratio by the same number.',ok:'Same angle, same ratio. Size never changes sin, cos or tan.'}]);
+solo(7,{q:'Each edge of a cube is increased by 10%. By what percent does the volume increase?',o:['10%','21%','30%','33.1%'],a:3,
+  hint:'Pick a number: edge 10 becomes 11. Compare 10³ and 11³.',why:['Pick numbers: edge 10 → 11.','Volume 1,000 → 1,331.','That\'s a 33.1% increase. (In multipliers: 1.1³ = 1.331.) 30% is the trap from adding 10% three times.']});
+
 /* ===== countdown ===== */
 (function(){const now=new Date(),t=new Date(now.getFullYear(),now.getMonth(),now.getDate()),d=Math.round((new Date(2026,9,7)-t)/864e5);
   $('#countdown').innerHTML=d>1?`PSAT in <b>${d}</b> days`:d===1?'PSAT is <b>tomorrow</b>':d===0?'PSAT is <b>today</b>':'PSAT: Oct 7, 2026'})();
 
 /* ===== boot ===== */
-d1();d2();d3();d5();d6();d9();setMode4('45');d7();d8();
-for(let n=1;n<=6;n++)refreshStages(n);
-for(let n=1;n<=6;n++)if(st(n).g){const el=document.querySelector(`.stages[data-lesson="${n}"] [data-status]`);if(el){el.classList.add('win');el.innerHTML='Done. Play with the figure any time.'}}
+d1();d2();d3();d5();d6();d9();d10();setMode4('45');d7();d8();
+for(let n=1;n<=7;n++)refreshStages(n);
+for(let n=1;n<=7;n++)if(st(n).g){const el=document.querySelector(`.stages[data-lesson="${n}"] [data-status]`);if(el){el.classList.add('win');el.innerHTML='Done. Play with the figure any time.'}}
 show((location.hash||'').slice(1)||'start');
+window.addEventListener('hashchange',()=>{const id=(location.hash||'').slice(1);if(id&&!document.getElementById(id)?.hidden===false)show(id)});
 })();
 </script>
 </body>
