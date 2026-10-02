@@ -67,6 +67,9 @@
   DATLessons.add({
     id: "gc-stoich-1", topic: "gc-stoich", section: "gc", minutes: 15,
     title: "Grams to grams: the mole map",
+    covers: ["Molar mass from a formula", "Converting grams ↔ moles", "Using the coefficients of a balanced equation as a mole ratio", "Finding the limiting reagent when two reactants are given", "Percent yield", "Doing it all by hand (no calculator)"],
+    outcomes: ["Convert grams of any reactant into grams of any product in three steps", "Spot the limiting reagent in seconds and use it to find the maximum yield", "Avoid the two classic traps: putting grams through the mole ratio, and starting from the reactant in excess"],
+    onTest: "Stoichiometry shows up throughout General Chemistry, and the same mole-map thinking powers gas, solution and equilibrium questions.",
     intro: "Nearly every stoichiometry question on the DAT is the same three-step trip through moles. Learn the map once and you can do them by hand, fast.",
     explore(box, ctx) {
       const { el } = ctx;

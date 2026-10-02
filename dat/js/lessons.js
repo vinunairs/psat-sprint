@@ -46,6 +46,15 @@
         el("p", { class: "muted", text: lesson.intro }),
         el("div", { class: "progress-dots", "aria-label": "Lesson progress" }, stages.map((s) => el("span", { class: s.n <= p.st ? "on" : "" }))));
 
+      // Before you start: what the lesson covers and what she'll be able to do after it.
+      if (lesson.covers || lesson.outcomes) host.append(el("details", { class: "card overview", open: !p.st },
+        el("summary", {}, el("h2", { style: "margin:0", text: "Before you start" }), el("span", { class: "tiny muted", text: p.st ? "Show" : "" })),
+        el("div", { class: "grid2", style: "margin-top:10px" },
+          lesson.covers ? el("div", {}, el("div", { class: "eyebrow", text: "What this lesson covers" }), el("ul", {}, lesson.covers.map((x) => el("li", { text: x })))) : null,
+          lesson.outcomes ? el("div", {}, el("div", { class: "eyebrow", text: "By the end, you'll be able to" }), el("ul", { class: "outcomes" }, lesson.outcomes.map((x) => el("li", { text: x })))) : null),
+        lesson.onTest ? el("p", { class: "small muted", style: "margin:8px 0 0" }, el("strong", { text: "On the DAT: " }), lesson.onTest) : null,
+        el("p", { class: "tiny muted", style: "margin:8px 0 0", text: "Four steps, about " + lesson.minutes + " minutes: Explore → " + (lesson.ruleTitle || "The rule") + " → Walk through it → Your turn." })));
+
       // 1. Explore
       host.append(stageCard(stages[0], () => {
         const box = el("div", { class: "explore" });

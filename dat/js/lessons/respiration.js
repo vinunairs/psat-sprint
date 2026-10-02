@@ -35,6 +35,9 @@
   DATLessons.add({
     id: "bio-resp-1", topic: "bio-cell", section: "bio", minutes: 15,
     title: "Cellular respiration: where the ATP comes from",
+    covers: ["The four stages: glycolysis, pyruvate oxidation, the citric acid cycle, and the electron transport chain", "Where each stage happens in the cell", "What goes in and comes out of each stage (ATP, NADH, FADH₂, CO₂)", "The role of oxygen, and fermentation when it's missing", "What happens when cyanide, oligomycin or an uncoupler blocks the pathway"],
+    outcomes: ["Fill in the per-glucose table from memory", "Say where CO₂ is released, where O₂ is used, and where most ATP is made", "Predict the effect of any blocker by tracing what backs up before it and what runs out after it"],
+    onTest: "Cell metabolism is part of Cell and Molecular Biology, one of the five Biology areas on the DAT. Respiration also connects to photosynthesis and enzyme questions.",
     intro: "One of the most tested pathways on the DAT. Know where each stage happens, what goes in and out, and what breaks when something is blocked.",
     explore(box, ctx) {
       const { el } = ctx;

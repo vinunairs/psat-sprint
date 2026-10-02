@@ -55,6 +55,9 @@
   DATLessons.add({
     id: "pat-angles-1", topic: "pat-ang", section: "pat", minutes: 10,
     title: "Angle Discrimination: rank four angles",
+    covers: ["What Angle Discrimination questions look like", "Why ray length and rotation fool your eyes", "A four-step method: ignore ray length, find the ends, eliminate choices, decide the close pair", "Pacing: about 30 seconds per question"],
+    outcomes: ["Rank four angles that differ by just a few degrees", "Cut the answer choices to two before doing any hard comparison", "Finish all 15 angle questions with time to spare for harder PAT subtests"],
+    onTest: "One of the six Perceptual Ability subtests: 15 of the 90 PAT questions, in the 60-minute PAT section.",
     intro: "Fifteen questions on test day. The angles differ by only a few degrees, and the drawings are rotated and stretched to fool you. A few habits make this one of the fastest PAT subtests.",
     explore(box, ctx) {
       const { el } = ctx;
