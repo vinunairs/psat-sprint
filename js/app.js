@@ -643,6 +643,14 @@
   function checkGoalScore(total) { if (total && S.settings.target && total >= S.settings.target) award("goal"); }
   function latestTotal() { const t = S.tests.filter((x) => x.total).pop(); return t ? t : null; }
 
+  /* Geometry & Trig Lab: a separate guided page (geometry.html), shown to signed-in students only. */
+  function labCard() {
+    return el("div", { class: "card mission" },
+      el("div", { class: "eyebrow", text: "Learn it first · Geometry & Trig" }),
+      el("h2", { text: "Geometry & Trig Lab" }),
+      el("p", { class: "muted", style: "margin-top:.3em", text: "Six short missions with moving figures: parallel lines, triangles, Pythagoras, SOH CAH TOA, similar triangles, area and volume. Each one walks you through a real PSAT problem step by step. Do these before the geometry practice sets." }),
+      el("div", { class: "row", style: "margin-top:12px" }, el("a", { class: "btn primary", href: "geometry.html" }, "Open the Lab")));
+  }
   function renderToday() {
     if (GUEST) return renderLanding();
     const p = $("#p-today"); p.textContent = "";
@@ -654,6 +662,7 @@
     const sprint = mode === "sprint";
     const fc0 = sprint ? null : focusCard(); if (fc0 && mode !== "after") p.append(fc0);
     scorePrompt(p);
+    p.append(labCard());
     if (sprint) renderSprint(p, t);
     else if (mode === "after") renderAfter(p);
     else renderLongPlan(p, mode);
@@ -1208,6 +1217,7 @@
     if (P && !P.finished) return practiceQuestion(p);
     if (P && P.finished) p.append(practiceSummary());
     { const fc = focusCard(); if (fc) p.append(fc); }
+    if (!GUEST) p.append(labCard());
     practiceSetup(p);
   }
   function practiceSetup(p) {
