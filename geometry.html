@@ -137,6 +137,16 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .nextbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:14px 16px;border-radius:12px;background:color-mix(in srgb,var(--good) 14%,var(--card));border:1.5px solid var(--good)}
 .nextbar p{font-weight:700}
 
+.wgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}
+@media (max-width:760px){.wgrid{grid-template-columns:minmax(0,1fr)}}
+.wcard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:4px;min-width:0}
+.wrow{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) auto;gap:10px;align-items:baseline;padding:8px 0;border-top:1px solid var(--line)}
+.wrow:first-of-type{border-top:0}
+.wrow .if{font-size:15px}.wrow .use{font-family:var(--f-math);font-size:13.5px;font-weight:700;color:var(--accent)}
+.wrow a{font-family:var(--f-math);font-size:11px;color:var(--muted);text-decoration:none;border:1px solid var(--line);border-radius:6px;padding:2px 6px;white-space:nowrap}
+.wrow a:hover{color:var(--ink);border-color:var(--accent)}
+@media (max-width:480px){.wrow{grid-template-columns:minmax(0,1fr) auto}.wrow .use{grid-column:1/2}}
+.drill{background:var(--card);border:1.5px dashed var(--line);border-radius:12px;padding:16px;margin-top:22px;display:grid;gap:10px;max-width:760px}
 /* bonus + sheet */
 .bonus-note{background:var(--card);border:1.5px dashed var(--muted);border-radius:12px;padding:12px 16px;font-size:15px;margin-bottom:16px;max-width:760px}
 .sheet{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
@@ -192,6 +202,7 @@ body{margin:0}
     <a href="#l6" data-v="l6" data-l="6"><span class="n">6</span>Area &amp; volume</a>
     <a href="#l7" data-v="l7" data-l="7"><span class="n">7</span>Shortcuts</a>
     <span class="sep"></span>
+    <a href="#which" data-v="which"><span class="n">?</span>When to use what</a>
     <a href="#sheet" data-v="sheet"><span class="n">★</span>Cheat sheet</a>
     <a href="#bonus" data-v="bonus"><span class="n">SAT</span>Bonus</a>
   </nav>
@@ -209,6 +220,7 @@ body{margin:0}
       </ol>
       <p>Do them in order. Each mission is short on purpose: finish one, take a breath, start the next.</p>
       <button class="bigbtn" id="go">Start the next mission</button>
+      <p style="font-size:14px;color:var(--muted)">After the missions: <a href="#which" data-goto="which">When to use what</a> is a one-page chart of which formula fits which situation, with a 10-question drill.</p>
     </div>
     <div class="path" id="path"></div>
   </section>
@@ -430,6 +442,18 @@ body{margin:0}
     </div>
   </section>
 
+  <!-- WHEN TO USE WHAT -->
+  <section class="view" id="which" hidden>
+    <div class="lhead"><span class="lnum">?</span><h2>When to use what</h2></div>
+    <p style="max-width:66ch">Most geometry mistakes aren't bad math. They're picking the wrong tool. Read what the question <b>gives you</b> and what it <b>asks for</b>, then find the row. The tags link back to the mission that teaches it.</p>
+    <div class="wgrid" id="wgrid"></div>
+    <div class="drill">
+      <h3>Drill · which tool?</h3>
+      <p style="font-size:14px;color:var(--muted)">No math, just pick the tool. 10 situations, about 3 minutes.</p>
+      <div id="drill"></div>
+    </div>
+  </section>
+
   <!-- CHEAT SHEET -->
   <section class="view" id="sheet" hidden>
     <div class="lhead"><span class="lnum">★</span><h2>Cheat sheet for the night before</h2></div>
@@ -589,7 +613,7 @@ function solo(n,d){const host=document.querySelector(`.stages[data-lesson="${n}"
   if(s.s){host.querySelectorAll('.chips button').forEach((x,j)=>{x.disabled=true;if(j===d.a)x.classList.add('right')});
     fb.innerHTML=`<div class="why"><ol>${d.why.map(w=>`<li>${w}</li>`).join('')}</ol></div>${nextBar(n)}`;bindNext(fb)}}
 function nextBar(n){const nn=+n+1;return nn<=7?`<div class="nextbar" style="margin-top:12px"><p>Mission ${n} complete. Short break, then:</p><button data-next="l${nn}">Mission ${nn}: ${TITLES[nn]}</button></div>`
-  :`<div class="nextbar" style="margin-top:12px"><p>All seven missions done. You're ready for the practice test.</p><button data-next="sheet">Open the cheat sheet</button></div>`}
+  :`<div class="nextbar" style="margin-top:12px"><p>All seven missions done. One last check before the practice test:</p><button data-next="which">When to use what</button></div>`}
 function bindNext(el){el.querySelectorAll('[data-next]').forEach(b=>b.addEventListener('click',()=>show(b.dataset.next)))}
 const TITLES={1:'Parallel lines',2:'Triangle angles',3:'Pythagoras',4:'SOH CAH TOA',5:'Similar triangles',6:'Area & volume',7:'Test-day shortcuts'};
 const BLURB={1:'Two angle sizes, one question to ask.',2:'180°, and the outside-angle shortcut.',3:'Squares on the sides. Know your triples.',4:'Opposite and adjacent depend on where you stand.',5:'One scale factor runs everything.',6:'Count cubes. Doubling is not ×2.',7:'Pick numbers, whole minus part, try the answers.'};
@@ -871,6 +895,66 @@ walk(7,[
  {p:'<b>Similar triangles share trig ratios.</b> Triangle DEF is similar to triangle ABC, with angle D matching angle A. sin A = 3/5, and DEF is three times bigger. What is sin D?',o:['3/5, the same','9/5','1/5','Can\'t tell without side lengths'],a:0,show:'sin D = 3/5',hint:'Scaling multiplies the top and bottom of the ratio by the same number.',ok:'Same angle, same ratio. Size never changes sin, cos or tan.'}]);
 solo(7,{q:'Each edge of a cube is increased by 10%. By what percent does the volume increase?',o:['10%','21%','30%','33.1%'],a:3,
   hint:'Pick a number: edge 10 becomes 11. Compare 10³ and 11³.',why:['Pick numbers: edge 10 → 11.','Volume 1,000 → 1,331.','That\'s a 33.1% increase. (In multipliers: 1.1³ = 1.331.) 30% is the trap from adding 10% three times.']});
+
+
+/* ===== When to use what ===== */
+const WHICH=[
+ ['Angles and lines',[
+  ['Two angles where a line crosses parallel lines','Same color → equal. Different → add to 180','1'],
+  ['Angles on a straight line','Add to 180','1'],
+  ['Angles all the way around a point','Add to 360','1'],
+  ['Two angles of a triangle known, need the third','180 − the two','2'],
+  ['Outside angle of a triangle','Add the two far inside angles','2'],
+  ['Two equal sides (isosceles)','Angles across from them are equal','2'],
+  ['Angles in a ratio, like 2 : 3 : 4','Add the parts, divide 180 by that','2']]],
+ ['Right triangles',[
+  ['Two sides known, need the third','a² + b² = c²','3'],
+  ['Given the hypotenuse and one leg','Subtract: b² = c² − a²','3'],
+  ['Sides look like 3-4-5, 5-12-13, 8-15-17 (or multiples)','Write the third side, skip the math','3'],
+  ['Angle + one side known, need another side','SOH CAH TOA: pick by the two sides involved','4'],
+  ['Opposite and hypotenuse','sin','4'],['Adjacent and hypotenuse','cos','4'],['Opposite and adjacent','tan','4'],
+  ['Two sides known, need the angle','sin⁻¹ / cos⁻¹ / tan⁻¹ (Desmos in degrees)','4'],
+  ['sin of one small angle, cos of the other','They\'re equal: sin x° = cos(90 − x)°','4'],
+  ['Given one ratio (sin A = 5/13), asked for another','Sketch it, Pythagoras for the 3rd side, read it off','4']]],
+ ['Similar shapes and scaling',[
+  ['Line parallel to a side inside a triangle','Small and big triangles are similar','5'],
+  ['Matching sides of similar triangles','AD/AB = DE/BC (whole sides)','5'],
+  ['Every length × k, asked about area','Area × k²','5'],
+  ['Every length × k, asked about volume','Volume × k³','6'],
+  ['Trig ratio in a similar triangle','Same angle → same ratio','7']]],
+ ['Area, volume, test-day moves',[
+  ['Volume of a box, cylinder, cone, sphere','Reference sheet formula','6'],
+  ['Prism or cylinder','Base area × height','6'],
+  ['Surface area','Add the area of every face','6'],
+  ['Shaded region','Whole − part','7'],
+  ['Dimensions change by a percent','Multiply multipliers, or pick 10 / 100','7'],
+  ['No figure given','Sketch it and label every number','7'],
+  ['Stuck on setup, number answer choices','Plug the choices back in','7']]]];
+$('#wgrid').innerHTML=WHICH.map(([h,rows])=>`<div class="wcard"><h3>${h}</h3>${rows.map(([a,b,m])=>`<div class="wrow"><span class="if">${a}</span><span class="use">${b}</span><a href="#l${m}" data-goto="l${m}">M${m}</a></div>`).join('')}</div>`).join('');
+document.addEventListener('click',e=>{const a=e.target.closest('[data-goto]');if(a){e.preventDefault();show(a.dataset.goto)}});
+const DRILL=[
+ ['Right triangle. You know the angle and the hypotenuse. You need the side across from the angle.',['sin','cos','tan','Pythagoras'],0,'Opposite and hypotenuse → sin.'],
+ ['Right triangle. You know both legs. You need the hypotenuse.',['tan','Pythagoras','sin⁻¹','Similar triangles'],1,'Two sides known, need the third, no angle involved → a² + b² = c².'],
+ ['Parallel lines cut by a slanted line. One angle is sharp, the other is wide.',['Set them equal','Add to 360','Add to 180','Use tan'],2,'Different sizes (different colors) → they add to 180.'],
+ ['sin(32°) = cos(x°). Find x.',['x = 32','x = 90 − 32','x = 180 − 32','Use sin⁻¹'],1,'sin x° = cos(90 − x)°, so x = 58.'],
+ ['Right triangle. You know two sides and need an angle.',['sin, cos or tan','Pythagoras','sin⁻¹, cos⁻¹ or tan⁻¹','180 − the others'],2,'Need an angle from sides → inverse trig.'],
+ ['Every side of a shape is tripled. What happens to the area?',['×3','×6','×9','×27'],2,'Area × k² = 3² = 9.'],
+ ['A circle is cut out of a square. Find the shaded area.',['Add the two areas','Square area − circle area','Pythagoras','Area × k²'],1,'Shaded region → whole − part.'],
+ ['A rectangle\'s length and width both grow 10%. Area change?',['+20%','+10%','Multiply 1.1 × 1.1','Can\'t tell'],2,'Percent changes multiply: 1.21, so +21%.'],
+ ['A triangle\'s outside angle at one corner.',['180 − that corner\'s inside angle, or add the two far angles','Always 90°','Same as the corner next to it','360 − all three'],0,'Both work. The fastest is adding the two far inside angles.'],
+ ['Right triangle. You know the side next to the angle and the side across from it. Need the angle.',['sin⁻¹','cos⁻¹','tan⁻¹','Pythagoras'],2,'Opposite and adjacent → tan, and you need the angle → tan⁻¹.']];
+let dOrder=[],dI=0,dScore=0,dMiss=false;
+function drillStart(){dOrder=DRILL.map((_,i)=>i).sort(()=>Math.random()-.5);dI=0;dScore=0;drillShow()}
+function drillShow(){const box=$('#drill');
+  if(dI>=dOrder.length){box.innerHTML=`<p class="praise">${dScore} / ${dOrder.length} first try.</p><p>${dScore>=8?'You know which tool fits. Go take the practice test.':'Look at the rows you missed in the chart above, then run it again.'}</p><button id="dAgain">Run the drill again</button>`;$('#dAgain').addEventListener('click',drillStart);return}
+  const [q,o,a,why]=DRILL[dOrder[dI]];dMiss=false;
+  box.innerHTML=`<p style="font-family:var(--f-math);font-size:12px;color:var(--muted)">${dI+1} of ${dOrder.length} · score ${dScore}</p><p class="q">${q}</p><div class="chips">${o.map((x,j)=>`<button data-j="${j}">${x}</button>`).join('')}</div><div data-fb></div>`;
+  const fb=box.querySelector('[data-fb]');
+  box.querySelectorAll('.chips button').forEach(b=>b.addEventListener('click',()=>{
+    if(+b.dataset.j===a){b.classList.add('right');box.querySelectorAll('.chips button').forEach(x=>x.disabled=true);if(!dMiss)dScore++;
+      fb.innerHTML=`<p><span class="praise">${praise()}</span> ${why}</p><button id="dNext" style="margin-top:8px">Next</button>`;$('#dNext').addEventListener('click',()=>{dI++;drillShow()});$('#dNext').focus()}
+    else{dMiss=true;b.classList.add('wrong');b.disabled=true;fb.innerHTML='<p class="hint">Not that one. Ask: what does it give me, and what does it want?</p>'}}))}
+drillStart();
 
 /* ===== countdown ===== */
 (function(){const now=new Date(),t=new Date(now.getFullYear(),now.getMonth(),now.getDate()),d=Math.round((new Date(2026,9,7)-t)/864e5);
