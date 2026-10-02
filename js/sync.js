@@ -103,7 +103,9 @@
       app.setAdmin(async () => (await call("admin_dashboard")) || [], {
         createInvite: (note) => call("admin_create_invite", { p_note: note || null }),
         listInvites: async () => (await call("admin_list_invites")) || [],
-        revokeInvite: (code) => call("admin_revoke_invite", { p_code: code })
+        revokeInvite: (code) => call("admin_revoke_invite", { p_code: code }),
+        getRewards: async (uid) => (await call("admin_get_rewards", { p_user: uid })) || [],
+        setRewards: (uid, rewards) => call("admin_set_rewards", { p_user: uid, p_rewards: rewards })
       });
     }
     // Friends: every call is checked on the server (friends only, first names only).
@@ -128,6 +130,11 @@
     async function loadFocus() {
       if (!user || !app.setFocus) return;
       try { const { data } = await sb.from("focus_targets").select("items, source, updated_at").eq("user_id", user.id).maybeSingle(); app.setFocus(data || null); } catch (e) { }
+    }
+    // Rewards are set by the parent (admin); the student's copy follows them.
+    async function loadRewards() {
+      if (!user || !app.setRewardCfg) return;
+      try { const { data, error } = await sb.from("reward_config").select("rewards").eq("user_id", user.id).maybeSingle(); if (!error && data) app.setRewardCfg(data); } catch (e) { }
     }
     async function loadProfile() {
       if (!user) return;
@@ -154,7 +161,7 @@
         setTimeout(async () => {
           app.setGuest(false); // load this device's student copy, then reconcile with the account
           app.expect(user.id);
-          if (user && user.id !== was) { await pull(true); await loadProfile(); await checkAdmin(); await loadFocus(); }
+          if (user && user.id !== was) { await pull(true); await loadProfile(); await checkAdmin(); await loadFocus(); await loadRewards(); }
         }, 0);
       } else {
         status = "off";

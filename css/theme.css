@@ -303,9 +303,9 @@ body.inq section.top.hero-card{display:none}
 .adm-time th{font-size:12px;color:var(--graphite);font-weight:700}
 
 /* Geometry figures */
-:root{--fig-a:#E8590C;--fig-b:#2563EB;--fig-c:#7C3AED}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--fig-a:#FF9F5A;--fig-b:#6EA8FF;--fig-c:#B79CFF}}
-:root[data-theme="dark"]{--fig-a:#FF9F5A;--fig-b:#6EA8FF;--fig-c:#B79CFF}
+:root{--fig-a:#E2552C;--fig-b:#138F81;--fig-c:#C58700}  /* same code as the Lab: coral = opposite, teal = adjacent, amber = hypotenuse */
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--fig-a:#FF7B57;--fig-b:#3FCBB8;--fig-c:#F2C14A}}
+:root[data-theme="dark"]{--fig-a:#FF7B57;--fig-b:#3FCBB8;--fig-c:#F2C14A}
 .fig{margin:6px 0 4px;display:flex;justify-content:center}
 .fig-svg{width:100%;max-width:400px;height:auto;display:block;overflow:visible}
 .fg-ink{stroke:var(--ink)} .fg-dim{stroke:var(--graphite);opacity:.35;stroke-dasharray:6 5} .fg-grid{stroke:var(--line)}
@@ -322,3 +322,92 @@ body.inq section.top.hero-card{display:none}
 .seeit{display:grid;gap:10px}
 .seeit-steps{margin:0;padding-left:20px;display:grid;gap:6px}
 @media (min-width:760px){.seeit{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center}}
+
+/* ================= Oct 2026 UX pass ================= */
+/* Slim header on Today: greeting + countdown on one band; streak/level live in the top chips (tap → Rewards) */
+section.top.hero-card{grid-template-columns:1fr;padding:14px 20px;margin:4px 0 14px;gap:0}
+section.top.hero-card .status{display:none}
+.hero-card .hero-main{display:grid;grid-template-columns:1fr auto;grid-template-areas:"hello count" "label count";align-items:center;column-gap:16px}
+.hero-card .hello{grid-area:hello;font-size:clamp(18px,2.4vw,22px);margin:0}
+.hero-card #testLabel{grid-area:label}
+.hero-card .count{grid-area:count;margin:0;display:flex;align-items:baseline;gap:6px}
+.hero-card .count b{font-size:clamp(36px,5vw,46px)!important}
+.hero-card .count span{font-size:13px}
+.hero-card .count span em{display:block;font-size:12px}
+@media (max-width:640px){section.top.hero-card{padding:12px 16px}}
+button.pill{cursor:pointer;font:inherit;font-weight:750;font-size:13.5px}
+button.pill:hover{background:var(--sunk)}
+
+/* Today card */
+.today-card{gap:10px}
+.today-meta{display:flex;gap:14px;flex-wrap:wrap;color:var(--graphite);font-size:13.5px;font-weight:650}
+.upnext{display:grid;gap:10px;padding:14px 16px;border-radius:var(--r);background:var(--pencil-soft);border:1px solid color-mix(in srgb,var(--pencil) 30%,transparent);margin:4px 0}
+.upnext .eyebrow{color:var(--pencil-strong)}
+.upnext-t{font-family:var(--display);font-weight:800;font-size:18px;line-height:1.35;color:var(--ink)}
+.today-list .task{padding:11px 0}
+.tl-text{text-decoration:none!important}
+.tlink{display:inline}
+.tlink:hover .tl-text{color:var(--pencil-strong)}
+.tgo{margin-left:2px}
+.tmin{display:inline-block;margin-left:8px;font-size:12px;font-weight:700;color:var(--graphite);background:var(--sunk);border-radius:999px;padding:1px 8px;vertical-align:1px}
+.task .bubble:empty::before{content:"";width:10px;height:10px}
+.done-fold>summary{cursor:pointer;color:var(--good);font-weight:750;font-size:14px;padding:4px 0}
+.done-fold .task .t{color:var(--graphite)}
+details.fold>summary,.week-plan>summary{cursor:pointer;font-weight:750;font-family:var(--display)}
+@media (min-width:1100px){
+  #p-today{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(280px,1fr);gap:20px;align-items:start}
+  #p-today>*{grid-column:1/-1;margin:0}
+  #p-today>.today-card{grid-column:1}
+  #p-today>.week-plan{grid-column:2;position:sticky;top:84px;max-height:calc(100vh - 110px);overflow:auto}
+}
+
+/* Footer: account tools moved to Me → Account */
+footer.foot .app-only{display:none!important}
+.acct-list{display:grid;gap:0;padding:6px 18px}
+.acct-row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--line)}
+.acct-row:last-child{border-bottom:0}
+
+/* Practice: two main options side by side on wide screens */
+.practice-top{display:grid;gap:16px}
+@media (min-width:900px){.practice-top{grid-template-columns:1.4fr 1fr;align-items:start}}
+details.build>summary{font-size:16px}
+
+/* Quieter text: fewer monospace bits, better contrast on muted chips */
+.today-card .date,.timer,.num{font-variant-numeric:tabular-nums}
+.chip{font-weight:750}
+:root{--mono:var(--display)}
+
+/* Questions: no bottom menu while answering on phones; sticky main button; progress bar */
+@media (max-width:899px){
+  body.inq nav.tabs{display:none!important}
+  body.inq{padding-bottom:24px}
+  .qactions{position:sticky;bottom:0;z-index:5;background:color-mix(in srgb,var(--surface) 94%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);margin:0 -18px -18px;padding:12px 18px calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);border-radius:0 0 var(--r) var(--r)}
+}
+.qprog{height:5px;border-radius:99px;background:var(--sunk);overflow:hidden;margin-top:8px;max-width:240px}
+.qprog i{display:block;height:100%;background:var(--hero);border-radius:99px}
+
+/* Calmer feedback: neutral card, colored verdict, details folded */
+.explain.fb{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--good);border-radius:14px;padding:14px 16px;gap:12px}
+.explain.fb.miss{background:var(--surface);border-left-color:var(--bad)}
+.fb-head{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline}
+.fb.ok .fb-verdict{color:var(--good)} .fb.miss .fb-verdict{color:var(--bad)}
+.fb-verdict{font-size:17px;font-family:var(--display)}
+.fb-more>summary{cursor:pointer;font-weight:750;color:var(--pencil-strong);padding:4px 0}
+.fb-more-body{display:grid;gap:10px;margin-top:8px}
+.fb-ol{margin:0;padding-left:20px;display:grid;gap:3px}
+.badge.locked{opacity:.55;filter:grayscale(.6)}
+.sklist{display:grid;gap:2px}
+.skrow{border-bottom:1px solid var(--line)}
+.skrow:last-of-type{border-bottom:0}
+.skrow>summary{list-style:none;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(70px,1fr) auto;gap:12px;align-items:center;padding:11px 0;cursor:pointer}
+.skrow>summary::-webkit-details-marker{display:none}
+.sk-name{font-weight:750;display:grid;line-height:1.25}
+.sk-name small{font-weight:600;color:var(--graphite);font-size:11.5px}
+.sk-more{display:grid;gap:8px;padding:0 0 12px}
+.sk-nums{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13.5px;color:var(--graphite)}
+.sk-nums b{color:var(--ink)}
+@media (max-width:640px){nav.subnav{display:flex;width:100%}nav.subnav button{flex:1;padding:8px 4px;font-size:13.5px}}
+body:not(.guest) #footNote{display:none}
+.acct-row .btn{white-space:nowrap;flex:none}
+.skrow>summary{grid-template-columns:minmax(0,1.7fr) minmax(56px,.8fr) auto}
+#p-today>.week-plan .dots{display:none}

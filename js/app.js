@@ -35,9 +35,9 @@
     { title: "Grammar rules day", tasks: [["Practice 20 Standard English Conventions questions", { k: "practice", doms: ["sec"], n: 20 }], ["Learn the grammar rules: flip through the rule cards", { k: "deck", area: "Grammar" }], ["Spend 20 minutes with Desmos: graph a line, find an intersection, find a vertex", { k: "ext", url: "https://www.desmos.com/calculator" }]] },
     { title: "Math under the clock", tasks: [["Take a timed Math section: an in-app mock, or a Khan Academy practice test Math section (log it in Log a test)", { k: "mock", parts: ["math"], alt: "khan" }], ["Review every miss in the results", { k: "mockreview" }], ["Pacing drill: 10 math questions with the timer on (about 1½ minutes each)", { k: "practice", doms: ["alg", "adv", "psda", "geo"], n: 10, timed: true }], ["Geometry Lab: Missions 1 and 2 (parallel lines, triangle angles)", { k: "lab", m: [1, 2] }]] },
     { title: "Dress rehearsal", heavy: true, tasks: [["2-minute warm-up first: your top 5 rules", { k: "deck", top: 5 }], ["Take Bluebook {TEST} Practice Test 2 in one sitting, starting at the same time as the real test", BB], ["Take only the scheduled 10-minute break"], ["Enter the results in the Log a test tab", { k: "log", src: "bluebook" }]] },
-    { title: "Review the rehearsal", tasks: [["Review every miss from Practice Test 2", MYP], ["Compare the Skill matrix with Test 1 and note what improved", { k: "visit", tab: "matrix" }], ["Your focus set: 20 questions picked from your misses", { k: "focus", n: 20 }], ["Geometry Lab: Missions 3 and 4 (Pythagoras, SOH CAH TOA)", { k: "lab", m: [3, 4] }]] },
+    { title: "Review the rehearsal", tasks: [["Review every miss from Practice Test 2", MYP], ["Compare your Progress page with Test 1 and note what improved", { k: "visit", tab: "matrix" }], ["Your focus set: 20 questions picked from your misses", { k: "focus", n: 20 }], ["Geometry Lab: Missions 3 and 4 (Pythagoras, SOH CAH TOA)", { k: "lab", m: [3, 4] }]] },
     { title: "Reading under the clock", tasks: [["Take a timed Reading and Writing section: an in-app mock, or a Khan Academy practice test section (log it in Log a test)", { k: "mock", parts: ["rw"], alt: "khan" }], ["Review every miss in the results", { k: "mockreview" }], ["Retry the Mistake notebook", { k: "notebook" }], ["Geometry Lab: Missions 5 and 6 (similar triangles, area and volume)", { k: "lab", m: [5, 6] }]] },
-    { title: "Light review", light: true, tasks: [["Flip through your strategy cards and read your night-before sheet (Review tab)", { k: "visit", tab: "review" }], ["One 10-question mixed practice set, nothing more", { k: "practice", n: 10 }], ["Charge the device, update Bluebook, and run its exam readiness check", BB], "Pack what the school asks for: device, charger, admission info", "Lights out by 10 pm", ["Geometry Lab: Mission 7 (test-day shortcuts) and the cheat sheet", { k: "lab", m: [7] }]] },
+    { title: "Light review", light: true, tasks: [["Flip through your strategy cards and read your night-before sheet (Learn tab)", { k: "visit", tab: "review" }], ["One 10-question mixed practice set, nothing more", { k: "practice", n: 10 }], ["Charge the device, update Bluebook, and run its exam readiness check", BB], "Pack what the school asks for: device, charger, admission info", "Lights out by 10 pm", ["Geometry Lab: Mission 7 (test-day shortcuts) and the cheat sheet", { k: "lab", m: [7] }]] },
     { title: "Test day", light: true, tasks: ["Eat a real breakfast", "Take care on Module 1: it decides whether Module 2 is the harder set", "Never leave a question blank; wrong answers cost nothing", "Use Desmos and the reference sheet to check math answers"] }
   ];
 
@@ -51,7 +51,7 @@
       const date = ymd(dt), tasks = [], go = [];
       d.tasks.forEach((x) => { const [txt, g] = Array.isArray(x) ? x : [x, null]; tasks.push(txt.replace("{TEST}", label)); go.push(g); });
       if (date >= t && !d.light && !GUEST) {
-        tasks.push("Flip today's flashcards (about 5 minutes)"); go.push({ k: "deck" });
+        tasks.push("Flip today's flashcards"); go.push({ k: "deck" });
         // Today's weak area is fixed once chosen, so the task doesn't change under the student mid-day.
         const pw = S.planWeak || (S.planWeak = {});
         if (date === t && !pw[date] && weak) pw[date] = { d: weak.d, c: weak.c, t: weak.t };
@@ -348,15 +348,13 @@
   function focusCard() {
     if (GUEST) return null;
     const ws = focusWeights(); if (!ws.length) return null;
-    const top = ws.slice(0, 6);
+    const top = ws.slice(0, 4);
     return el("div", { class: "card focus", style: "display:grid;gap:12px" },
       el("div", {}, el("div", { class: "eyebrow", text: "Picked for you" }), el("h3", { text: "Your focus set" })),
-      el("p", { class: "muted", style: "font-size:14px", text: "Question types chosen from your test reviews and the questions you miss here. It updates itself as you improve." }),
-      el("ul", { class: "focus-list" }, top.map((x) => el("li", {}, el("strong", { text: typeLabel(x.type) }), el("span", { class: "muted", text: " · " + x.why })))),
+      el("p", { class: "muted", style: "font-size:14px", text: "20 questions on what you miss most. It updates as you improve." }),
+      el("ul", { class: "focus-list" }, top.map((x) => el("li", {}, el("strong", { text: typeLabel(x.type) })))),
       ws.length > top.length ? el("p", { class: "muted", style: "font-size:13px", text: "+ " + (ws.length - top.length) + " more types in the mix" }) : null,
-      el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => startPractice(null, 20, "auto", false, true) }, "Start my focus set (20)"),
-        (() => { const due = dueCards().slice(0, 12); return due.length ? el("button", { class: "btn", onclick: () => { RV = { queue: due, i: 0, flipped: false, plan: { k: "deck" } }; show("review"); } }, "5-minute warm-up (" + due.length + " card" + (due.length === 1 ? "" : "s") + ")") : null; })()),
-      el("p", { class: "muted", style: "font-size:13px", text: "New question types start with a quick tip card, so he can learn the rule right before using it." }));
+      el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => startPractice(null, 20, "auto", false, true) }, "Start my focus set")));
   }
   const isRight = (q, ans) => (q.type === "spr" ? ans != null && ans !== "" && checkSpr(ans, q.spr) : ans === q.a);
   const answerText = (q) => (q.type === "spr" ? String(q.o[q.a]).replace(/^\$/, "") : LETTERS[q.a] + ") " + q.o[q.a]);
@@ -412,17 +410,19 @@
     $("#hXp").textContent = S.xp + " XP · " + (XP_PER_LEVEL - (S.xp % XP_PER_LEVEL)) + " to next level";
   }
   let TAB = "today";
-  // Five destinations; related views sit under one destination with a segmented sub-nav.
-  const GROUP = { today: "today", practice: "practice", review: "practice", mock: "mock", log: "mock", matrix: "matrix", rewards: "matrix", friends: "friends" };
-  const SUBS = { practice: [["practice", "Practice"], ["review", "Review"]], mock: [["mock", "Mock test"], ["log", "Log a test"]], matrix: [["matrix", "Skill matrix"], ["rewards", "Rewards"]] };
+  // Five destinations, one place per job: Today (the plan), Learn (Lab, flashcards, rules), Practice (questions),
+  // Tests (mocks, logging, official tests), Me (progress, rewards, friends, account). Related views share a sub-nav.
+  const GROUP = { today: "today", review: "review", practice: "practice", mock: "mock", log: "mock", matrix: "matrix", rewards: "matrix", friends: "matrix", account: "matrix" };
+  const SUBS = { mock: [["mock", "Mock test"], ["log", "Log a test"]], matrix: [["matrix", "Progress"], ["rewards", "Rewards"], ["friends", "Friends"], ["account", "Account"]] };
   function renderSubnav(t) {
     const sn = document.querySelector("nav.subnav"); if (!sn) return;
     const subs = !GUEST && !ADMIN && SUBS[GROUP[t]];
     sn.hidden = !subs; sn.textContent = "";
     if (subs) subs.forEach(([k, label]) => { const b = el("button", { type: "button", "data-tab": k, "aria-current": k === t ? "page" : false, onclick: () => show(k) }, label); sn.append(b); });
   }
-  const RENDERERS_OK = (t) => ["today", "practice", "mock", "review", "matrix", "log", "rewards", "friends"].includes(t);
+  const RENDERERS_OK = (t) => ["today", "practice", "mock", "review", "matrix", "log", "rewards", "friends", "account"].includes(t);
   document.querySelectorAll("nav.tabs button").forEach((b) => b.addEventListener("click", () => show(b.dataset.tab)));
+  ["aStreak", "aLevel"].forEach((id) => { const b = document.getElementById(id); if (b) b.addEventListener("click", () => { if (!GUEST && !ADMIN) show("rewards"); }); });
   function show(t) {
     if (GUEST && !["today", "practice", "mock"].includes(t)) t = "today";
     if (ADMIN && !GUEST) t = "admin";
@@ -459,7 +459,7 @@
     setLbl("practice", GUEST ? "Try practice" : "Practice"); setLbl("mock", GUEST ? "Try a test" : "Tests");
     const fn = document.getElementById("footNote"); if (fn) fn.textContent = GUEST ? "Create a free student account to save progress and unlock the full site." : "Progress saves on this device first, then to your account.";
     if (!RENDERERS_OK(TAB)) { TAB = "today"; document.querySelectorAll("section.panel").forEach((x) => (x.hidden = x.id !== "p-today")); }
-    renderHeader(); ({ today: renderToday, practice: renderPractice, mock: renderMock, review: renderReview, matrix: renderMatrix, log: renderLog, rewards: renderRewards, friends: renderFriends })[TAB](); }
+    renderHeader(); ({ today: renderToday, practice: renderPractice, mock: renderMock, review: renderReview, matrix: renderMatrix, log: renderLog, rewards: renderRewards, friends: renderFriends, account: renderAccount })[TAB](); }
 
   /* ================= Today ================= */
   function taskList(day, only, moved) {
@@ -468,11 +468,11 @@
     return ul;
   }
   // One checklist row: a tick circle, then the task (tappable when the app can open it).
-  function taskRow(day, i, n, from, moved) {
+  function taskRow(day, i, n, from, moved, mins) {
     const t = day.tasks[i], id = day.date + "#" + i, on = !!S.tasks[id], mv = moved && !on;
     return el("li", { class: "task" + (on ? " done" : "") + (mv ? " moved" : "") },
-      el("button", { class: "bubble", "aria-pressed": String(on), "aria-label": (on ? "Mark not done: " : "Mark done: ") + t, onclick: () => toggleTask(day, i) }, on ? "✓" : String(n + 1)),
-      el("span", { class: "t" }, taskText(day, i, t), from ? el("span", { class: "moved-tag", text: "from " + from.dow }) : null, mv ? el("span", { class: "moved-tag", text: "Moved to today" }) : null,
+      el("button", { class: "bubble", "aria-pressed": String(on), "aria-label": (on ? "Mark not done: " : "Mark done: ") + t, onclick: () => toggleTask(day, i) }, on ? "✓" : ""),
+      el("span", { class: "t" }, taskText(day, i, t), mins && !on ? el("span", { class: "tmin", text: minLabel(mins) }) : null, from ? el("span", { class: "moved-tag", text: "from " + from.dow }) : null, mv ? el("span", { class: "moved-tag", text: "Moved to today" }) : null,
         /Log a test/.test(t) && !on ? howBox(/Khan/.test(t) ? "khan" : "bluebook", /Khan/.test(t) ? "How to log a Khan Academy section" : "How to log it: step by step") : null));
   }
   // Task text: a link that opens the right place (and ticks itself when finished), or plain text.
@@ -669,10 +669,10 @@
   /* Geometry & Trig Lab: a separate guided page (geometry.html), shown to signed-in students only. */
   function labCard() {
     return el("div", { class: "card mission" },
-      el("div", { class: "eyebrow", text: "Learn it first · Geometry & Trig" }),
+      el("div", { class: "eyebrow", text: "Interactive lessons · Geometry & Trig" }),
       el("h2", { text: "Geometry & Trig Lab" }),
-      el("p", { class: "muted", style: "margin-top:.3em", text: "Seven short missions with moving figures: parallel lines, triangles, Pythagoras, SOH CAH TOA (with calculator problems), similar triangles, area and volume, and test-day shortcuts. Each one walks you through a real PSAT problem step by step. Do these before the geometry practice sets." }),
-      el("div", { class: "row", style: "margin-top:12px" }, el("a", { class: "btn primary", href: "geometry.html" }, "Open the Lab")));
+      el("p", { class: "muted", style: "margin-top:.3em", text: "Seven short missions with moving figures, each ending in a real PSAT-style problem." }),
+      (() => { const n = ((S.lab && S.lab.done) || []).length; return el("div", { class: "row", style: "margin-top:12px;align-items:center" }, el("a", { class: "btn primary", href: "geometry.html" }, n ? (n >= 7 ? "Review the Lab" : "Continue the Lab") : "Open the Lab"), el("span", { class: "muted", style: "font-size:13.5px", text: n + " of 7 missions done" })); })());
   }
   function renderToday() {
     if (GUEST) return renderLanding();
@@ -686,26 +686,35 @@
     const fc0 = sprint ? null : focusCard(); if (fc0 && mode !== "after") p.append(fc0);
     scorePrompt(p);
     try { labSync(); } catch (e) { }
-    if (!sprint) p.append(labCard());
     if (sprint) renderSprint(p, t);
     else if (mode === "after") renderAfter(p);
     else renderLongPlan(p, mode);
-    // In the final sprint, Home is just today's list; the rest sits in one closed section.
-    const more = sprint ? el("div", { style: "display:grid;gap:16px;margin-top:12px" }) : p;
-    if (sprint) p.append(el("details", { class: "card more-home" }, el("summary", { text: "More: practice tests, reminders, and how the PSAT works" }), more));
-    more.append(officialCard());
-    more.append(myTestsCard());
-    more.append(el("div", { class: "card row between", style: "padding:14px 18px" },
-      el("span", {}, el("strong", { text: "Reminders on your phone" }), el("span", { class: "muted", text: mode === "sprint" ? " · a nudge each evening with the skill to work on" : " · an evening nudge with this week's goals, plus a Sunday check-in" })),
-      el("button", { class: "btn small", onclick: () => { const b = document.getElementById("remindBtn"); if (b) b.click(); } }, "Set up reminders")));
-    more.append(el("div", { class: "card" }, el("h3", { text: "How the digital PSAT and SAT work" }),
+  }
+  // How the digital tests work (shown on the Tests tab).
+  function howTestCard() {
+    const info = (h, b) => el("div", {}, el("div", { class: "eyebrow", text: h }), el("p", { style: "margin-top:.3em", text: b }));
+    return el("details", { class: "card fold" }, el("summary", { text: "How the digital PSAT and SAT work" }),
       el("div", { class: "grid2", style: "margin-top:12px" },
         info("Reading and Writing", "54 questions in 64 minutes, split into two 32-minute modules. Short passages with one question each. About 71 seconds per question."),
         info("Math", "44 questions in 70 minutes, split into two 35-minute modules. Calculator allowed throughout. About a quarter of questions need a typed-in answer. About 95 seconds per question."),
         info("Adaptive", "How you do on Module 1 decides whether Module 2 is the easier or the harder set. Only the harder set unlocks the top scores."),
         info("Scoring", "PSAT sections score 160–760 (total 320–1520). SAT sections score 200–800 (total 400–1600). Wrong answers cost nothing, so never leave a blank.")),
-      el("p", { class: "muted", style: "font-size:13px;margin-top:14px" }, "Official practice: ", el("a", { href: "https://bluebook.collegeboard.org/", target: "_blank", rel: "noopener" }, "Bluebook app"), " · ", el("a", { href: "https://satsuitequestionbank.collegeboard.org/", target: "_blank", rel: "noopener" }, "SAT Suite Question Bank"), " · ", el("a", { href: "https://www.khanacademy.org/digital-sat", target: "_blank", rel: "noopener" }, "Khan Academy SAT prep"))));
-    function info(h, b) { return el("div", {}, el("div", { class: "eyebrow", text: h }), el("p", { style: "margin-top:.3em", text: b })); }
+      el("p", { class: "muted", style: "font-size:13px;margin-top:14px" }, "Official practice: ", el("a", { href: "https://bluebook.collegeboard.org/", target: "_blank", rel: "noopener" }, "Bluebook app"), " · ", el("a", { href: "https://satsuitequestionbank.collegeboard.org/", target: "_blank", rel: "noopener" }, "SAT Suite Question Bank"), " · ", el("a", { href: "https://www.khanacademy.org/digital-sat", target: "_blank", rel: "noopener" }, "Khan Academy SAT prep")));
+  }
+
+  /* ================= Me > Account: tests, name, reminders, sign-in, backups (one place) ================= */
+  function renderAccount() {
+    const p = $("#p-account"); p.textContent = "";
+    const click = (id) => () => { const b = document.getElementById(id); if (b) b.click(); };
+    p.append(el("div", {}, el("h2", { text: "Account" })));
+    p.append(myTestsCard());
+    p.append(el("div", { class: "card acct-list" },
+      row("Your name", S.settings.name || "Not set", "Edit", click("settingsBtn")),
+      row("Reminders", "A nudge on your phone each evening", "Set up", click("remindBtn")),
+      row("Sign-in", (document.getElementById("syncBtn") || {}).textContent || "", "Open", click("syncBtn")),
+      row("Backup file", "Your progress already saves to your account. A file copy is optional.", "Download", click("exportBtn")),
+      row("Restore", "Load progress from a backup file", "Choose file", click("importFile"))));
+    function row(h, sub, btn, fn) { return el("div", { class: "acct-row" }, el("div", {}, el("strong", { text: h }), el("div", { class: "muted", style: "font-size:13.5px", text: sub })), el("button", { class: "btn small", onclick: fn }, btn)); }
   }
 
   /* ================= Public home page (signed out) ================= */
@@ -809,7 +818,7 @@
       el("div", { class: "row" },
         el("button", { class: "btn primary", onclick: () => { S.prefs.sel = [focusId]; save(); show("practice"); startPractice([focusId], 10, "auto"); } }, "15 minutes today: " + DOM[focusId].name),
         el("button", { class: "btn", onclick: () => show("mock") }, "Take a mock test")),
-      el("p", { class: "muted", style: "font-size:13px", text: "New goals every Monday, picked from your Skill matrix. Meet them all for +100 XP." })));
+      el("p", { class: "muted", style: "font-size:13px", text: "New goals every Monday, picked from your Progress page. Meet them all for +100 XP." })));
     // last week
     const lw = addDays(ws, -7), lt = weekTotals(lw), lwGoals = S.weeks[lw];
     if (lt.q || lt.mock) {
@@ -937,28 +946,64 @@
     draw(adding ? "new" : null); host.append(box);
   }
 
+  // Rough minutes for a task, so the student can see how long the day is. Explicit numbers in the text win.
+  function estMin(day, i) {
+    const g = day.go && day.go[i], t = day.tasks[i];
+    const m = /(\d+)\s*(?:min|minutes)\b/.exec(t); if (m && !/1½/.test(t)) return +m[1];
+    if (!g) return /breakfast|Lights out|Pack|Take care|Never leave|Use Desmos and|break/.test(t) ? 0 : 5;
+    if (g.k === "practice") return Math.round(g.n * (g.timed ? 1.5 : 1.3));
+    if (g.k === "focus") return 25;
+    if (g.k === "notebook") return 15;
+    if (g.k === "deck") return g.top ? 2 : g.area ? 8 : 5;
+    if (g.k === "mock") return g.parts.includes("rw") && g.parts.includes("math") ? 145 : g.parts.includes("rw") ? 64 : 70;
+    if (g.k === "mockreview") return 15;
+    if (g.k === "log") return 5;
+    if (g.k === "visit") return 10;
+    if (g.k === "lab") return 8 * g.m.length;
+    if (g.k === "ext") return /Practice Test 2 in one sitting/.test(t) ? 135 : /Read the explanation|Review every miss/.test(t) ? 20 : /Install|Download|Charge/.test(t) ? 10 : 15;
+    return 5;
+  }
+  const minLabel = (n) => (n >= 60 ? Math.floor(n / 60) + " h" + (n % 60 ? " " + (n % 60) + " min" : "") : n + " min");
   function renderSprint(p, t) {
     const PLAN = plan();
     const cur = PLAN.find((d) => d.date === t) || (t < PLAN[0].date ? PLAN[0] : null);
     if (cur) {
-      // Everything for today in one list: today's tasks, then anything carried over from earlier days.
+      // Everything for today in one list: today's tasks, then up to 3 carried over from earlier days.
       const rows = cur.tasks.map((_, i) => ({ day: cur, i }));
-      // Carried tasks: the 3 most recent, so a missed day or two never buries today's list.
       const carry = []; if (cur.date === t) carriedTasks(PLAN, t).forEach((x) => x.idx.forEach((i) => carry.push({ day: x.day, i, from: fmtDay(x.day.date) })));
       carry.slice(0, 3).forEach((r) => rows.push(r)); const older = carry.length - 3;
-      const done = rows.filter((r) => S.tasks[r.day.date + "#" + r.i]).length, all = done === rows.length;
+      const isDone = (r) => !!S.tasks[r.day.date + "#" + r.i];
+      const todo = rows.filter((r) => !isDone(r)), done = rows.filter(isDone);
+      const left = todo.reduce((a, r) => a + estMin(r.day, r.i), 0);
       const when = parseYmd(cur.date).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
-      const ul = el("ul", { class: "tasks today-list" });
-      rows.forEach((r, k) => ul.append(taskRow(r.day, r.i, k, r.from)));
-      p.append(el("div", { class: "card mission today-card" },
+      const card = el("div", { class: "card mission today-card" },
         el("div", { class: "eyebrow", text: (cur.date === t ? "Today · " : "Starts ") + when }),
-        el("div", { class: "row between", style: "align-items:baseline" }, el("h2", { text: cur.title }), el("span", { class: "date", text: done + " of " + rows.length + " done" })),
-        el("div", { class: "tmeter", "aria-hidden": "true" }, el("i", { style: "width:" + Math.round((100 * done) / Math.max(1, rows.length)) + "%" })),
+        el("h2", { text: cur.title }),
+        el("div", { class: "today-meta" }, el("span", { text: done.length + " of " + rows.length + " done" }), todo.length && left ? el("span", { text: "about " + minLabel(left) + " left" }) : null),
+        el("div", { class: "tmeter", "aria-hidden": "true" }, el("i", { style: "width:" + Math.round((100 * done.length) / Math.max(1, rows.length)) + "%" })),
         S.settings.target ? goalLine() : null,
-        todayTimeLine(),
-        ul,
-        all ? el("div", { class: "row" }, el("strong", { text: "All done for today. Nice work." }), focusWeights().length ? el("button", { class: "btn small", onclick: () => startPractice(null, 20, "auto", false, true) }, "Want more? Your focus set") : null)
-          : el("p", { class: "muted hint", text: "Tap a task to start it. It ticks itself when you finish. Tasks marked ↗ open another site, so tick those yourself." + (older > 0 ? " " + older + " older unfinished task" + (older === 1 ? " is" : "s are") + " in the whole plan below." : "") })));
+        todayTimeLine());
+      if (todo.length) {
+        const up = todo[0], g = up.day.go[up.i], txt = up.day.tasks[up.i], ext = g && g.k === "ext", est = estMin(up.day, up.i);
+        card.append(el("div", { class: "upnext" },
+          el("div", { class: "eyebrow", text: "Up next" + (est ? " · about " + minLabel(est) : "") + (up.from ? " · from " + up.from.dow : "") }),
+          el("div", { class: "upnext-t", text: txt }),
+          el("div", { class: "row" },
+            !g ? el("button", { class: "btn primary", onclick: () => toggleTask(up.day, up.i) }, "Mark done")
+              : ext ? el("a", { class: "btn primary", href: g.url, target: "_blank", rel: "noopener" }, "Open ↗") : el("button", { class: "btn primary", onclick: () => runTask(up.day, up.i) }, "Start"),
+            ext ? el("button", { class: "btn", onclick: () => toggleTask(up.day, up.i) }, "Mark done") : null)));
+        if (todo.length > 1) {
+          const ul = el("ul", { class: "tasks today-list" });
+          todo.slice(1).forEach((r, k) => ul.append(taskRow(r.day, r.i, k + 1, r.from, false, estMin(r.day, r.i))));
+          card.append(el("div", { class: "eyebrow", style: "margin-top:4px", text: "Then" }), ul);
+        }
+      } else card.append(el("div", { class: "row" }, el("strong", { text: "All done for today. Nice work." }), focusWeights().length ? el("button", { class: "btn small", onclick: () => startPractice(null, 20, "auto", false, true) }, "Want more? Your focus set") : null));
+      if (done.length) {
+        const ul = el("ul", { class: "tasks today-list" }); done.forEach((r) => ul.append(taskRow(r.day, r.i, 0, r.from)));
+        card.append(el("details", { class: "done-fold" }, el("summary", { text: "✓ " + done.length + " done" }), ul));
+      }
+      if (todo.length) card.append(el("p", { class: "muted hint", text: "Most tasks tick themselves when you finish. ↗ opens another site, so tick that one yourself." + (older > 0 ? " " + older + " older unfinished task" + (older === 1 ? " is" : "s are") + " in the whole plan." : "") }));
+      p.append(card);
     }
     const pw = el("div", { class: "plan" });
     PLAN.forEach((day) => {
@@ -966,7 +1011,8 @@
       day.tasks.forEach((_, i) => dots.append(el("i", { class: S.tasks[day.date + "#" + i] ? "on" : "" })));
       pw.append(el("div", { class: "pday" + (isT ? " today" : "") }, el("div", { class: "d" }, el("b", { text: f.md }), f.dow + (isT ? " · today" : "")), el("details", {}, el("summary", { text: day.title }), taskList(day, null, day.date < t)), dots));
     });
-    p.append(el("details", { class: "card week-plan" }, el("summary", { text: "See the whole plan, day by day" }), el("div", { style: "margin-top:12px" }, pw)));
+    const wide = window.innerWidth >= 1100;
+    p.append(el("details", Object.assign({ class: "card week-plan" }, wide ? { open: "" } : {}), el("summary", { text: "The whole plan, day by day" }), el("div", { style: "margin-top:12px" }, pw)));
   }
 
   /* ================= Shared question rendering ================= */
@@ -1070,21 +1116,26 @@
     const chose = !ok && !blank ? (q.type === "spr" ? String(picked) : LETTERS[picked] + ") " + q.o[picked]) : null;
     const row = (label, ...kids) => el("div", { class: "fb-row" }, el("span", { class: "fb-label", text: label }), el("div", { class: "fb-body" }, ...kids));
     const inDeck = !!S.deck[sid];
-    return el("div", { class: "explain fb" + (ok ? "" : " miss") },
-      el("strong", { class: "fb-verdict", text: ok ? "Correct." : blank ? "No answer. The answer is " + answerText(q).replace(/[.!?]$/, "") + "." : "Not quite. The answer is " + answerText(q).replace(/[.!?]$/, "") + "." }),
-      chose ? el("p", { class: "muted", style: "font-size:14px", text: "You chose " + supify(chose) + "." }) : null,
-      row("Spot it", el("strong", { text: c.name }), el("span", { text: " · " + c.spot })),
+    const verdict = ok ? "Correct." : (blank ? "No answer. " : "Not quite. ") + (q.type === "spr" ? "The answer is " + answerText(q).replace(/[.!?]$/, "") + "." : "The answer is " + LETTERS[q.a] + ".");
+    // Calm layout: a short verdict, the picture, the explanation and the one rule to remember. The rest folds away.
+    return el("div", { class: "explain fb" + (ok ? " ok" : " miss") },
+      el("div", { class: "fb-head" }, el("strong", { class: "fb-verdict", text: verdict }), chose ? el("span", { class: "muted", text: "You chose " + (q.type === "spr" ? supify(chose) : LETTERS[picked]) + "." }) : null),
       q.efig || q.steps ? row("See it", el("div", { class: "seeit" }, q.efig || q.fig ? figView(q.efig || q.fig) : null, q.steps ? el("ol", { class: "seeit-steps" }, q.steps.map((x) => el("li", { text: supify(x) }))) : null)) : null,
-      row("Solve it", el("p", { text: supify(q.e) }), el("details", { class: "fb-steps" }, el("summary", { text: "The method for every question like this" }), el("ol", {}, c.steps.map((x) => el("li", { text: x }))))),
-      isMath && c.desmos ? row("Desmos way", el("p", { text: c.desmos })) : null,
-      row(ok ? "Watch for" : "The trap", el("p", { text: c.trap })),
-      q.t ? row("Tip", el("p", { text: supify(q.t) })) : null,
-      el("div", { class: "fb-remember" }, el("span", { class: "eyebrow", text: "Remember" }), el("p", { text: c.rule }),
+      row("Why", el("p", { text: supify(q.e) })),
+      el("div", { class: "fb-remember" }, el("span", { class: "eyebrow", text: "Remember · " + c.name }), el("p", { text: c.say || c.rule }),
         GUEST ? null : el("button", { class: "btn small" + (inDeck ? " ghost" : ""), onclick: (e) => {
-          if (S.deck[sid]) { delete S.deck[sid]; e.target.textContent = "Save to my review deck"; e.target.classList.remove("ghost"); }
-          else { S.deck[sid] = { box: 0, due: today(), added: today() }; e.target.textContent = "Saved to review deck ✓"; e.target.classList.add("ghost"); }
+          if (S.deck[sid]) { delete S.deck[sid]; e.target.textContent = "Save to my flashcards"; e.target.classList.remove("ghost"); }
+          else { S.deck[sid] = { box: 0, due: today(), added: today() }; e.target.textContent = "In my flashcards ✓"; e.target.classList.add("ghost"); }
           save();
-        } }, inDeck ? "Saved to review deck ✓" : "Save to my review deck")));
+        } }, inDeck ? "In my flashcards ✓" : "Save to my flashcards")),
+      el("details", { class: "fb-more" }, el("summary", { text: "Learn the pattern" }),
+        el("div", { class: "fb-more-body" },
+          row("Spot it", el("p", { text: c.spot })),
+          row("Method", el("ol", { class: "fb-ol" }, c.steps.map((x) => el("li", { text: x })))),
+          isMath && c.desmos ? row("Desmos", el("p", { text: c.desmos })) : null,
+          row(ok ? "Watch for" : "The trap", el("p", { text: c.trap })),
+          q.t ? row("Tip", el("p", { text: supify(q.t) })) : null,
+          c.say && c.say !== c.rule ? row("Full rule", el("p", { text: c.rule })) : null)));
   }
   // The top strategies behind this set's misses: the "3 things to remember" after every set and mock.
   function takeaways(results, title) {
@@ -1100,7 +1151,7 @@
           el("div", {}, el("strong", { text: c.name }), el("span", { class: "muted", style: "font-size:13px", text: " · missed " + n + (n === 1 ? " time" : " times") }),
             el("p", { text: c.rule }), el("p", { class: "muted", style: "font-size:13px" }, el("b", { text: "Trap: " }), c.trap)));
       })),
-      GUEST ? null : el("div", { class: "row" }, el("button", { class: "btn small primary", onclick: () => show("review") }, "Flip through your review deck"), el("span", { class: "muted", style: "font-size:13px", text: "These strategies were added to your deck." })));
+      GUEST ? null : el("div", { class: "row" }, el("button", { class: "btn small primary", onclick: () => show("review") }, "Flip through your flashcards"), el("span", { class: "muted", style: "font-size:13px", text: "These strategies were added to your deck." })));
   }
 
   /* ================= Review: strategy flashcards and night-before sheet ================= */
@@ -1110,7 +1161,8 @@
   function renderReview() {
     const p = $("#p-review"); p.textContent = "";
     const deckIds = Object.keys(S.deck), due = dueCards();
-    p.append(el("div", {}, el("h2", { text: "Strategy review" }), el("p", { class: "muted lede", text: "Every question type has one short rule to remember. Strategies behind the questions you miss land in your deck automatically; flip through them for a few minutes a day, and the night before the test read your one-page sheet." })));
+    p.append(el("div", {}, el("h2", { text: "Learn" }), el("p", { class: "muted lede", text: "Learn the rule first, then practice it." })));
+    if (!RV || RV.i >= RV.queue.length) p.append(labCard());
     // Flashcards
     const fc = el("div", { class: "card", style: "display:grid;gap:14px" });
     if (RV && RV.i < RV.queue.length) {
@@ -1134,7 +1186,7 @@
     } else {
       const done = RV && RV.i >= RV.queue.length;
       fc.append(el("h3", { text: done ? "Nice. That's the deck for today." : due.length ? due.length + " card" + (due.length === 1 ? "" : "s") + " to review today" : "All caught up for today" }),
-        el("p", { class: "muted", text: deckIds.length + " strategies in your deck. Cards you know come back less often (after 1, 2, 4, 7, then 14 days); cards you miss come back tomorrow." }),
+        el("p", { class: "muted", text: "About 5 minutes. Cards you know come back less often; cards you miss come back tomorrow." }),
         el("div", { class: "row" },
           due.length ? el("button", { class: "btn primary", onclick: () => { RV = { queue: due, i: 0, flipped: false }; renderReview(); } }, "Start today's cards") : null,
           el("button", { class: "btn" + (due.length ? "" : " primary"), onclick: () => { RV = { queue: deckIds.slice().sort(() => Math.random() - 0.5), i: 0, flipped: false }; renderReview(); } }, "Review the whole deck")));
@@ -1240,15 +1292,25 @@
     }
     if (P && !P.finished) return practiceQuestion(p);
     if (P && P.finished) p.append(practiceSummary());
-    { const fc = focusCard(); if (fc) p.append(fc); }
-    if (!GUEST) p.append(labCard());
-    practiceSetup(p);
+    if (GUEST) return practiceSetup(p);
+    if (!P || !P.finished) p.append(el("div", {}, el("h2", { text: "Practice" })));
+    const top = el("div", { class: "practice-top" });
+    { const fc = focusCard(); if (fc) top.append(fc); }
+    const nb = S.mistakes.length;
+    top.append(el("div", { class: "card nbcard", style: "display:grid;gap:10px" },
+      el("div", {}, el("div", { class: "eyebrow", text: "Your misses" }), el("h3", { text: "Mistake notebook" })),
+      el("p", { class: "muted", style: "font-size:14px", text: nb ? nb + " question" + (nb === 1 ? "" : "s") + " you missed. Get one right and it leaves the notebook." : "Empty. Every question you miss will wait here until you get it right." }),
+      el("div", { class: "row" }, el("button", { class: "btn" + (focusWeights().length ? "" : " primary"), disabled: !nb, onclick: () => startPractice([], 0, "auto", true) }, nb ? "Retry " + Math.min(15, nb) + " now" : "Nothing to retry"))));
+    p.append(top);
+    const body = el("div", { style: "display:grid;gap:16px;margin-top:14px" });
+    practiceSetup(body);
+    p.append(el("details", { class: "card fold build" }, el("summary", { text: "Build your own set" }), body));
   }
   function practiceSetup(p) {
     if (GUEST && (S.samples.practice || 0) >= SAMPLE_LIMIT) return guestGate(p, "sample practice sets");
     const pr = S.prefs, top3 = focusList().slice(0, 3).map((d) => d.id);
     if (!pr.sel.length) pr.sel = [top3[0]];
-    p.append(el("div", {}, el("h2", { text: GUEST ? "Sample practice set" : "Practice by skill" }), el("p", { class: "muted lede", text: (GUEST ? "Try 5 questions on any skill, with the answer and a full explanation after each one. " : "") + "Pick the skills to work on (for example, the weak areas from your Bluebook score report). Every question is new: math is generated with fresh numbers each time, and reading questions don't repeat until the bank runs out. You see the answer and explanation right after each question." })));
+    p.append(el("div", {}, GUEST ? el("h2", { text: "Sample practice set" }) : null, el("p", { class: "muted lede", text: GUEST ? "Try 5 questions on any skill, with the answer and a full explanation after each one." : "Pick skills, how many questions, and the difficulty." })));
     const grid = (sec) => {
       const g = el("div", { class: "skills" });
       DOMAINS.filter((d) => d.sec === sec).forEach((d) => {
@@ -1281,15 +1343,15 @@
       seg("Difficulty", "diff", [["auto", "Match my level"], ["easier", "Easier"], ["harder", "Harder"]]),
       seg("Pace timer", "timed", [[true, "On"], [false, "Off"]])));
     p.append(el("div", { class: "row" },
-      el("button", { class: "btn primary", disabled: !pr.sel.length, onclick: () => startPractice(pr.sel, pr.count, pr.diff) }, pr.sel.length ? "Start " + pr.count + " questions" : "Pick at least one skill"),
-      el("button", { class: "btn", disabled: !S.mistakes.length, onclick: () => startPractice([], 0, "auto", true) }, "Mistake notebook (" + S.mistakes.length + ")")));
+      el("button", { class: "btn primary", disabled: !pr.sel.length, onclick: () => startPractice(pr.sel, pr.count, pr.diff) }, pr.sel.length ? "Start " + pr.count + " questions" : "Pick at least one skill")));
   }
   function practiceQuestion(p) {
     const q = P.qs[P.i], d = DOM[q.d];
     if (P.qIdx !== P.i) { P.qIdx = P.i; P.qAt = Date.now(); P.qAway = 0; }
     const card = el("div", { class: "card qcard" });
     card.append(el("div", { class: "q-head" },
-      el("div", {}, el("div", { class: "eyebrow", text: (P.notebook ? "Mistake notebook · " : "") + d.name + (q.sk ? " · " + q.sk : "") }), el("strong", { class: "num", text: "Question " + (P.i + 1) + " of " + P.qs.length })),
+      el("div", {}, el("div", { class: "eyebrow", text: (P.notebook ? "Mistake notebook · " : "") + d.name + (q.sk ? " · " + q.sk : "") }), el("strong", { class: "num", text: "Question " + (P.i + 1) + " of " + P.qs.length }),
+        el("div", { class: "qprog", "aria-hidden": "true" }, el("i", { style: "width:" + Math.round((100 * (P.i + (P.done ? 1 : 0))) / P.qs.length) + "%" }))),
       P.timed ? el("span", { class: "timer", id: "ptimer", text: "0:00" }) : null));
     card.append(stem(q));
     const submit = () => {
@@ -1307,11 +1369,11 @@
       onEnter: submit
     }));
     if (!P.done) {
-      card.append(el("div", { class: "row" }, el("button", { class: "btn primary", id: "checkBtn", disabled: P.pick == null || P.pick === "", onclick: submit }, "Check answer"),
+      card.append(el("div", { class: "row qactions" }, el("button", { class: "btn primary", id: "checkBtn", disabled: P.pick == null || P.pick === "", onclick: submit }, "Check answer"),
         el("button", { class: "btn ghost", onclick: () => { P.pick = null; P.done = true; P.results.push({ q, ok: false, pick: null, skipped: true }); record(q, false); save(); renderPractice(); } }, "Skip")));
     } else {
       card.append(explainBox(q, P.pick));
-      card.append(el("div", { class: "row" }, el("button", { class: "btn primary", id: "nextBtn", onclick: nextPractice }, P.i + 1 < P.qs.length ? "Next question" : "See results")));
+      card.append(el("div", { class: "row qactions" }, el("button", { class: "btn primary", id: "nextBtn", onclick: nextPractice }, P.i + 1 < P.qs.length ? "Next question" : "See results")));
     }
     card.append(el("div", { class: "row" }, el("button", { class: "btn small ghost", onclick: () => { if (P.results.length) finishPractice(); else { P = null; clearInterval(pTick); renderPractice(); } } }, "End set")));
     p.append(card);
@@ -1508,7 +1570,7 @@
     if (GUEST) return guestMockSetup(p);
     if (WU) return mockWarmup(p);
     const fmt = S.settings.kind;
-    p.append(el("div", {}, el("h2", { text: "Mock test" }), el("p", { class: "muted lede", text: "A full-length practice test in the real digital format: two timed modules per section, and Module 2 adapts to how you did on Module 1. Answers are revealed only at the end. Every mock uses new questions, and the results feed the Skill matrix automatically." })));
+    p.append(el("div", {}, el("h2", { text: "Mock test" }), el("p", { class: "muted lede", text: "Timed, two modules per section, and Module 2 adapts like the real test. Answers come at the end." })));
     const pick = { kind: fmt, timed: true };
     const kindSeg = el("div", { class: "seg", role: "group", "aria-label": "Test format" });
     const timeSeg = el("div", { class: "seg", role: "group", "aria-label": "Timing" });
@@ -1530,6 +1592,8 @@
         el("li", { text: "The built-in calculator is basic. Bluebook has Desmos, so practice with Desmos too (there's a link in the test toolbar)." }),
         el("li", { text: "Leaving the page is fine: the test and timer pick up where you left off." }))));
     if (S.lastMock && S.lastMock.result) p.append(el("div", { class: "row" }, el("button", { class: "btn", onclick: () => { S.lastMock.showResults = true; renderMock(); } }, "Review the last mock test")));
+    p.append(officialCard());
+    p.append(howTestCard());
   }
   function mockToolbar(M, m) {
     const secName = MOD[m.sec].name, mn = M.mi + 1;
@@ -1662,7 +1726,7 @@
   /* ================= Skill matrix ================= */
   function renderMatrix() {
     const p = $("#p-matrix"); p.textContent = "";
-    p.append(el("div", {}, el("h2", { text: "Skill matrix" }), el("p", { class: "muted lede", text: "Mastery blends the most recent test with practice accuracy; practice counts fully once a skill has about 30 answers. Tests include Bluebook and Khan Academy tests you log and mock tests taken here. Practice accuracy counts once a skill has at least 3 answers. Strong is 80% or better, Building is 60–79%, Focus is below 60%." })));
+    p.append(el("div", {}, el("h2", { text: "Progress" }), el("p", { class: "muted lede", text: "Your scores and how strong each skill is, weakest first." })));
     const tiles = el("div", { class: "tiles" });
     const scored = S.tests.filter((t) => t.total || t.rw || t.math);
     const last = scored[scored.length - 1], first = scored[0];
@@ -1677,21 +1741,24 @@
     tiles.append(tile("Practice accuracy", ans ? pct(cor / ans) : "—", ans + " answered"));
     if (S.settings.target) { const lt = latestTotal(); const gap = lt ? S.settings.target - lt.total : null; tiles.append(tile("Target score", S.settings.target, lt ? (gap > 0 ? gap + " points to go" : "reached") : "take a test to compare", lt && gap <= 0 ? "up" : "")); }
     p.append(tiles);
-    const fl = focusList().filter((d) => mastery(d.id) != null && mastery(d.id) < 0.8).slice(0, 3);
-    p.append(el("div", { class: "card" }, el("h3", { text: "Focus next" }), fl.length ? el("div", { class: "row", style: "margin-top:12px" }, fl.map((d, i) => el("button", { class: "btn small", onclick: () => { S.prefs.sel = [d.id]; save(); show("practice"); startPractice([d.id], 10, "auto"); } }, (i + 1) + ". " + d.name + " · " + pct(mastery(d.id))))) : el("p", { class: "muted", style: "margin-top:.4em", text: "Take a test or practice a few sets and the weakest skills will show up here." })));
-    const tb = el("tbody");
-    for (const [sec, name] of [["rw", "Reading and Writing"], ["math", "Math"]]) {
-      tb.append(el("tr", { class: "grp" }, el("td", { colspan: "6", text: name })));
-      DOMAINS.filter((d) => d.sec === sec).forEach((d) => {
-        const m = mastery(d.id), [c, l] = status(m), r = S.stats[d.id], td = latestTestDom(d.id);
-        tb.append(el("tr", {}, el("td", { class: "mx-name" }, el("strong", { text: d.name }), el("div", { class: "muted", style: "font-size:12px", text: d.what })),
-          el("td", { class: "num", "data-label": "On the test", text: "≈" + d.n }),
-          el("td", { class: "num", "data-label": "Latest test", text: td ? pct(td.c / td.t) + " (" + td.c + "/" + td.t + ")" : "—" }),
-          el("td", { class: "num", "data-label": "Practice", text: r ? pct(r.cor / r.att) + " (" + r.cor + "/" + r.att + ")" : "—" }),
-          el("td", { class: "mx-bar" }, mbar(m, c)), el("td", { class: "mx-status" }, el("span", { class: "chip " + c, text: l }))));
-      });
-    }
-    p.append(el("div", { class: "card", style: "padding:6px 8px" }, el("div", { class: "tablewrap" }, el("table", { class: "mx mx-stack" }, el("thead", {}, el("tr", {}, ["Skill", "On the test", "Latest test", "Practice", "Mastery", "Status"].map((h) => el("th", { text: h })))), tb))));
+    // Eight skills as compact bars, weakest first; tap one for the numbers behind it.
+    const ranked = DOMAINS.map((d) => ({ d, m: mastery(d.id) })).sort((a, b) => (a.m == null) - (b.m == null) || (a.m ?? 1) - (b.m ?? 1));
+    const sk = el("div", { class: "card sklist" }, el("h3", { text: "Skills" }));
+    ranked.forEach(({ d, m }) => {
+      const [c, l] = status(m), r = S.stats[d.id], td = latestTestDom(d.id);
+      sk.append(el("details", { class: "skrow" },
+        el("summary", {}, el("span", { class: "sk-name" }, d.name, el("small", { text: d.sec === "rw" ? "Reading and Writing" : "Math" })), el("span", { class: "sk-bar" }, el("div", { class: "track" }, el("i", { class: c, style: "width:" + (m == null ? 0 : Math.round(m * 100)) + "%" }))), el("span", { class: "chip " + c, text: m == null ? l : pct(m) })),
+        el("div", { class: "sk-more" },
+          el("p", { class: "muted", text: d.what }),
+          el("div", { class: "sk-nums" },
+            el("span", {}, el("b", { text: "≈" + d.n }), " questions on the test"),
+            el("span", {}, el("b", { text: td ? pct(td.c / td.t) : "—" }), " latest test" + (td ? " (" + td.c + "/" + td.t + ")" : "")),
+            el("span", {}, el("b", { text: r ? pct(r.cor / r.att) : "—" }), " practice" + (r ? " (" + r.cor + "/" + r.att + ")" : ""))),
+          m != null && m < 0.8 ? el("button", { class: "btn small", onclick: () => { S.prefs.sel = [d.id]; save(); show("practice"); startPractice([d.id], 10, "auto"); } }, "Practice 10 " + d.name + " questions") : null)));
+    });
+    sk.append(el("details", { class: "fold", style: "margin-top:10px" }, el("summary", { class: "muted", style: "font-size:13px;font-weight:650", text: "How is this calculated?" }),
+      el("p", { class: "muted", style: "font-size:13px;margin-top:6px", text: "Mastery blends your most recent test (Bluebook, Khan Academy or a mock here) with practice accuracy; practice counts fully once a skill has about 30 answers. Strong is 80% or better, Building is 60–79%, Focus is below 60%." })));
+    p.append(sk);
     const subs = Object.entries(S.sub).filter(([, v]) => v.att >= 3).map(([k, v]) => ({ k: k.split("|")[0], d: k.split("|")[1], a: v.cor / v.att, n: v.att })).sort((x, y) => x.a - y.a).slice(0, 12);
     if (subs.length) p.append(el("div", { class: "card", style: "display:grid;gap:12px" }, el("h3", { text: "Question types to watch" }), el("p", { class: "muted", style: "font-size:13px", text: "The narrower question types you miss most (at least 3 attempts each)." }),
       el("div", { class: "subs" }, subs.map((s) => el("div", { class: "sub" }, el("span", {}, el("strong", { text: s.k }), el("span", { class: "muted", text: " · " + DOM[s.d].name.split(" ")[0] })), el("span", { class: "chip " + status(s.a)[0], text: pct(s.a) + " of " + s.n }))))));
@@ -1726,7 +1793,7 @@
       ],
       other: [
         ["Enter the number right for each section", "Any full-length or section practice test works, such as a paper test or a prep book. Enter how many you got right out of the total."],
-        ["Add misses by skill if the test labels them", "That way the Skill matrix can use it too."]
+        ["Add misses by skill if the test labels them", "That way your Progress page can use it too."]
       ]
     }[src];
   }
@@ -1741,7 +1808,7 @@
     const p = $("#p-log"); p.textContent = "";
     const link = (href, text) => el("a", { href, target: "_blank", rel: "noopener" }, text);
     const n = (src) => S.tests.filter((t) => t.source === src).length + 1;
-    p.append(el("div", {}, el("h2", { text: "Log a practice test" }), el("p", { class: "muted lede", text: "Took a practice test in Bluebook or on Khan Academy? Enter the results here. They feed your Skill matrix, Focus list, weekly goals and score trend, and each logged test is worth 100 XP." })));
+    p.append(el("div", {}, el("h2", { text: "Log a practice test" }), el("p", { class: "muted lede", text: "Took a Bluebook or Khan Academy test? Enter the results here (worth 100 XP). They update your Progress and focus set." })));
     const seg = el("div", { class: "srcpick", role: "group", "aria-label": "Where you took the test" });
     [["bluebook", "Bluebook (official)"], ["khan", "Khan Academy"], ["other", "Other"]].forEach(([id, lab]) => seg.append(el("button", { type: "button", class: "btn small" + (LOGSRC === id ? " primary" : ""), "aria-pressed": String(LOGSRC === id), onclick: () => { LOGSRC = id; renderLog(); } }, lab)));
     p.append(seg);
@@ -1824,7 +1891,7 @@
       logMock(sec === "both" ? 2 : 1); if (rec.total && src === "bluebook") checkGoalScore(rec.total);
       addXP(100, (src === "bluebook" ? "Bluebook" : src === "khan" ? "Khan Academy" : "Practice") + " test logged"); award("baseline");
       if (S.tests.filter((t) => t.source === "bluebook" && t.total).length >= 2) award("rehearsal");
-      bumpStreak(); planEvent({ k: "log", src }); save(); toast("Test saved. Your Skill matrix is updated.", true); show("matrix");
+      bumpStreak(); planEvent({ k: "log", src }); save(); toast("Test saved. Your Progress page is updated.", true); show("matrix");
     });
     p.append(f);
   }
@@ -1836,22 +1903,20 @@
     p.append(el("div", { class: "card lvl" }, el("div", { class: "ring" }, el("div", {}, el("b", { class: "num", text: String(l) }), el("small", { text: "Level" }))),
       el("div", { style: "display:grid;gap:8px" }, el("h2", { text: levelName(l) }), el("div", { class: "track" }, el("i", { style: "width:" + (into / XP_PER_LEVEL) * 100 + "%" })),
         el("span", { class: "num muted", style: "font-size:13px", text: S.xp + " XP total · " + (XP_PER_LEVEL - into) + " XP to " + levelName(l + 1) }),
-        el("span", { class: "muted", style: "font-size:13px", text: "Earn XP: 10 per correct practice answer, 20 per finished set, 15 per plan task, 100 per mock section or logged practice test, 200 for a full mock." }))));
-    const bg = el("div", { class: "badges" });
-    BADGES.forEach((b) => { const on = !!S.badges[b.id]; bg.append(el("div", { class: "badge" + (on ? " on" : "") }, el("div", { class: "seal", text: b.s }), el("b", { text: b.name }), el("span", { text: on ? "Earned " + fmtDay(S.badges[b.id]).md : b.how }))); });
-    p.append(el("div", {}, el("div", { class: "row between", style: "margin-bottom:12px" }, el("h3", { text: "Badges" }), el("span", { class: "muted num", text: Object.keys(S.badges).length + " of " + BADGES.length })), bg));
+        el("span", { class: "muted", style: "font-size:13px", text: "Earn XP for correct answers, finished sets, plan tasks and tests." }))));
+    // Rewards first (set by the parent in the admin view; students can only claim), then badges, earned first.
     const list = el("div", { class: "rw-list" });
     S.rewards.slice().sort((a, b) => a.xp - b.xp).forEach((r) => {
       const ready = S.xp >= r.xp && !r.claimed;
       list.append(el("div", { class: "rwd" + (ready ? " ready" : "") + (r.claimed ? " claimed" : "") }, el("span", { class: "x", text: r.xp + " XP" }),
-        el("span", {}, el("strong", { text: r.label }), el("div", { class: "muted", style: "font-size:12px", text: r.claimed ? "Claimed" : ready ? "Unlocked. Claim it with Dad." : r.xp - S.xp + " XP to go" })),
-        el("div", { class: "row acts", style: "gap:6px" }, ready ? el("button", { class: "btn small primary", onclick: () => { r.claimed = true; save(); render(); toast("Enjoy it: " + r.label, true); } }, "Claim") : null,
-          el("button", { class: "btn small ghost", onclick: () => { S.rewards = S.rewards.filter((x) => x.id !== r.id); save(); render(); } }, "Remove"))));
+        el("span", {}, el("strong", { text: r.label }), el("div", { class: "muted", style: "font-size:12px", text: r.claimed ? "Claimed" : ready ? "Unlocked. Claim it with your parent." : r.xp - S.xp + " XP to go" })),
+        el("div", { class: "row acts", style: "gap:6px" }, ready ? el("button", { class: "btn small primary", onclick: () => { r.claimed = true; save(); render(); toast("Enjoy it: " + r.label, true); } }, "Claim") : null)));
     });
-    const lab = el("input", { type: "text", id: "rLabel", placeholder: "e.g. Extra hour of gaming", maxlength: "80" }), xp = el("input", { type: "number", id: "rXp", min: "50", step: "50", value: "750", inputmode: "numeric" });
-    const addF = el("form", { class: "fields", style: "margin-top:14px" }, el("label", { class: "f" }, "New reward", lab), el("label", { class: "f" }, "Unlocks at XP", xp), el("div", { style: "display:flex;align-items:end" }, el("button", { class: "btn", type: "submit" }, "Add reward")));
-    addF.addEventListener("submit", (e) => { e.preventDefault(); const v = lab.value.trim(), x = +xp.value; if (!v || !(x > 0)) return; S.rewards.push({ id: uid(), xp: Math.round(x), label: v, claimed: false }); save(); render(); });
-    p.append(el("div", { class: "card" }, el("h3", { text: "Rewards from Dad" }), el("p", { class: "muted", style: "margin:.3em 0 14px", text: "Real rewards unlock at XP milestones. Edit them to whatever works in your house." }), list, addF));
+    p.append(el("div", { class: "card" }, el("h3", { text: "Rewards" }), el("p", { class: "muted", style: "margin:.3em 0 14px", text: S.rewards.length ? "Real rewards that unlock as you earn XP. Your parent sets them." : "Your parent hasn't set any rewards yet." }), list));
+    const earned = BADGES.filter((b) => S.badges[b.id]), locked = BADGES.filter((b) => !S.badges[b.id]);
+    const bg = el("div", { class: "badges" });
+    [...earned, ...locked].forEach((b) => { const on = !!S.badges[b.id]; bg.append(el("div", { class: "badge" + (on ? " on" : " locked") }, el("div", { class: "seal", text: b.s }), el("b", { text: b.name }), el("span", { text: on ? "Earned " + fmtDay(S.badges[b.id]).md : b.how }))); });
+    p.append(el("div", {}, el("div", { class: "row between", style: "margin-bottom:12px" }, el("h3", { text: "Badges" }), el("span", { class: "muted num", text: earned.length + " of " + BADGES.length + " earned" })), bg));
   }
 
   /* ================= Backup, restore, settings ================= */
@@ -1941,7 +2006,7 @@
   const liveStreak2 = (st) => (st && (st.last === today() || st.last === addDays(today(), -1)) ? st.count || 0 : 0);
   const fmtMs = (ms) => { const sec = Math.round((ms || 0) / 1000); return Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0"); };
   function socialBadge() {
-    const b = document.querySelector('nav.tabs button[data-tab="friends"]'); if (!b) return;
+    const b = document.querySelector('nav.tabs button[data-tab="matrix"]'); if (!b) return;
     const n = SOC ? (SOC.friends || []).filter((f) => f.status === "incoming").length + (SOC.challenges || []).filter((c) => c.mine_to_play).length : 0;
     const dot = b.querySelector(".dot"); if (dot) { dot.hidden = !n; dot.textContent = n ? String(n) : ""; }
     b.setAttribute("aria-label", n ? "Friends, " + n + " waiting" : "Friends");
@@ -1993,7 +2058,7 @@
   function renderFriends() {
     const p = $("#p-friends"); p.textContent = "";
     if (CH) return renderChallengeRun(p);
-    p.append(el("div", {}, el("h2", { text: "Friends" }), el("p", { class: "muted lede", text: "Compete with friends who also use Test Prep Hub: a weekly league, head-to-head challenges, and quick cheers. Friends see your first name, points, streak, latest score and skills. Nothing else, and no messages." })));
+    p.append(el("div", {}, el("h2", { text: "Friends" }), el("p", { class: "muted lede", text: "A weekly league, head-to-head challenges and cheers. Friends see only your first name, points, streak, score and skills." })));
     if (!SOC) { p.append(el("div", { class: "card" }, el("p", { class: "muted", text: "Sign in to use Friends." }))); return; }
     if (!SOC.board && !SOC.loading) { socialLoad(true); }
     if (SOC.err) p.append(el("div", { class: "card" }, el("p", { class: "err", text: SOC.err }), el("button", { class: "btn small", onclick: () => socialLoad(true) }, "Try again")));
@@ -2012,7 +2077,7 @@
     const code = SOC.code;
     p.append(el("div", { class: "card", style: "display:grid;gap:10px" },
       el("div", { class: "row between" }, el("div", {}, el("div", { class: "eyebrow", text: "Your friend code" }), el("strong", { class: "num fcode", text: code || "…" })),
-        code ? el("button", { class: "btn small", onclick: () => copyText("Add me on Test Prep Hub! My friend code is " + code + ". Open the Friends tab and enter it.", "Friend code copied") }, "Copy to share") : null),
+        code ? el("button", { class: "btn small", onclick: () => copyText("Add me on Test Prep Hub! My friend code is " + code + ". Open Me → Friends and enter it.", "Friend code copied") }, "Copy to share") : null),
       el("div", { class: "row", style: "gap:8px;flex-wrap:nowrap" }, codeIn, addBtn), msg));
     // Requests
     const inc = (SOC.friends || []).filter((f) => f.status === "incoming"), out = (SOC.friends || []).filter((f) => f.status === "outgoing");
@@ -2290,6 +2355,35 @@
     try { if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(msg).then(done, () => prompt("Copy this invite:", msg)); return; } } catch (e) { }
     prompt("Copy this invite:", msg);
   }
+  // Parent-set rewards: edited here, read by the student's app (they can only claim).
+  function adminRewards(x) {
+    const host = el("div", { style: "display:grid;gap:8px" });
+    const uidv = x.row.user_id;
+    const draw = (list) => {
+      host.textContent = "";
+      const rows = list.map((r) => ({ id: r.id || uid(), label: r.label || "", xp: r.xp || 500 }));
+      const tbl = el("div", { style: "display:grid;gap:6px" });
+      const paint = () => { tbl.textContent = ""; rows.forEach((r, k) => {
+        const lab = el("input", { type: "text", value: r.label, maxlength: "80", "aria-label": "Reward" }), xp = el("input", { type: "number", value: String(r.xp), min: "50", step: "50", style: "max-width:100px", "aria-label": "XP" });
+        lab.addEventListener("input", () => (r.label = lab.value)); xp.addEventListener("input", () => (r.xp = +xp.value));
+        tbl.append(el("div", { class: "row", style: "gap:6px;flex-wrap:nowrap" }, lab, xp, el("span", { class: "muted", style: "font-size:12px", text: "XP" }), el("button", { class: "btn small ghost", type: "button", onclick: () => { rows.splice(k, 1); paint(); } }, "Remove")));
+      }); };
+      paint();
+      const msg = el("span", { class: "muted", style: "font-size:13px" });
+      host.append(tbl, el("div", { class: "row" },
+        el("button", { class: "btn small", type: "button", onclick: () => { rows.push({ id: uid(), label: "", xp: 750 }); paint(); } }, "Add a reward"),
+        el("button", { class: "btn small primary", type: "button", onclick: async () => {
+          const clean = rows.filter((r) => r.label.trim() && r.xp > 0).map((r) => ({ id: String(r.id), label: r.label.trim(), xp: Math.round(r.xp) }));
+          msg.textContent = "Saving…";
+          try { await ADMIN.api.setRewards(uidv, clean); msg.textContent = "Saved. " + x.name + " sees them next time the app opens."; } catch (e) { msg.textContent = "Couldn't save: " + ((e && e.message) || "error"); }
+        } }, "Save rewards"), msg));
+    };
+    if (ADMIN && ADMIN.api && ADMIN.api.getRewards) {
+      host.append(el("p", { class: "muted", style: "font-size:14px", text: "Loading…" }));
+      ADMIN.api.getRewards(uidv).then((r) => draw(Array.isArray(r) ? r : [])).catch(() => { host.textContent = ""; host.append(el("p", { class: "muted", style: "font-size:14px", text: "Rewards editing isn't available yet." })); });
+    } else draw(x.D.rewards || []);
+    return host;
+  }
   function adminDetail(x) {
     const box = el("div", { class: "adm-detail" });
     // Last 14 days of activity
@@ -2299,6 +2393,7 @@
     days.forEach(([d, q, mk]) => bars.append(el("div", { class: "adm-bar", title: fmtDay(d).md + ": " + q + " questions" + (mk ? ", " + mk + " mock section(s)" : "") }, el("i", { style: "height:" + Math.round((q / mx) * 100) + "%" + (mk ? ";background:var(--pencil)" : "") }), el("span", { text: fmtDay(d).dow[0] }))));
     box.append(el("div", { class: "eyebrow", text: "Last 14 days (questions per day; gold = mock test day)" }), bars);
     box.append(el("div", { class: "eyebrow", text: "Study time (last 7 days)" }), adminTime(x.D));
+    box.append(el("div", { class: "eyebrow", text: "Rewards (only you can change these)" }), adminRewards(x));
     // Skills as a stacked list: reads well on a phone and on a desktop.
     const sk = el("div", { class: "adm-skills" });
     x.dom.forEach((r) => {
@@ -2431,6 +2526,12 @@
     // Called by sync.js after the server confirms admin status (load = fetches the dashboard rows), or with null.
     setAdmin(load, api) { const was = !!ADMIN; ADMIN = load && !GUEST ? { load, api: api || null, rows: null } : null; if (ADMIN) { show("admin"); adminLoad(); } else if (was) show("today"); },
     get admin() { return !!ADMIN; },
+    setRewardCfg(row) {
+      if (!row || !Array.isArray(row.rewards) || GUEST) return;
+      const old = Object.fromEntries((S.rewards || []).map((r) => [r.id, r]));
+      S.rewards = row.rewards.filter((r) => r && r.label && r.xp > 0).map((r) => Object.assign({ claimed: false }, old[r.id] ? { claimed: old[r.id].claimed, notified: old[r.id].notified } : {}, { id: String(r.id), label: String(r.label), xp: Math.round(+r.xp) }));
+      save(); if (TAB === "rewards") render();
+    },
     setFocus(row) { FOCUS = row && Array.isArray(row.items) ? { items: row.items, source: row.source, updated: row.updated_at } : null; seedDeck(); if (!GUEST && (TAB === "today" || TAB === "practice")) render(); },
     setSocial(api) { SOC = api && !GUEST ? { api } : null; CH = null; socialBadge(); if (SOC) socialLoad(TAB === "friends"); },
     onSettings(fn) { settingsHooks.push(fn); },
