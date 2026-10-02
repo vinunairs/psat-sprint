@@ -128,7 +128,7 @@
       toast("Saved to notes");
       const ta = $("#notesTa"); if (ta && ta.dataset.id === id) ta.value = notes.get(id);
     },
-    open(id) {
+    open(id, docked) {
       id = id || currentNoteId();
       closeNotes();
       const ta = el("textarea", { id: "notesTa", "data-id": id, "aria-label": "Notes for " + noteTitle(id), placeholder: "Type anything: a rule in your own words, a trick, a question to look up later.\n\nTip: the ＋ Notes buttons in a lesson add key points here for you." });
@@ -138,13 +138,16 @@
       ta.addEventListener("input", () => { status.textContent = "Saving…"; clearTimeout(t); t = setTimeout(() => { notes.set(id, ta.value); status.textContent = "Saved"; }, 400); });
       const panel = el("aside", { class: "notes-panel", role: "dialog", "aria-label": "Notes" },
         el("header", {}, el("div", {}, el("div", { class: "eyebrow", text: "My notes" }), el("strong", { text: noteTitle(id) })),
-          el("button", { type: "button", class: "btn small", onclick: () => { clearTimeout(t); notes.set(id, ta.value); closeNotes(); } }, "Done")),
+          el("button", { type: "button", class: "btn small", onclick: () => { clearTimeout(t); notes.set(id, ta.value); if (docked) { state.notesHidden = true; save(); } closeNotes(); } }, docked ? "Hide" : "Done")),
         ta,
         el("div", { class: "row between" }, status, el("button", { type: "button", class: "btn small ghost", onclick: () => { clearTimeout(t); notes.set(id, ta.value); closeNotes(); go("learn", "notes"); } }, "All my notes")));
+      if (docked) panel.classList.add("docked");
       document.body.append(panel); document.body.classList.add("notes-open");
-      setTimeout(() => ta.focus(), 50);
+      if (!docked) setTimeout(() => ta.focus(), 50);
     }
   };
+  const wide = window.matchMedia("(min-width: 1100px)");
+  wide.addEventListener("change", () => { if (!wide.matches) { const p = $(".notes-panel.docked"); if (p) { const ta = $("#notesTa"); notes.set(ta.dataset.id, ta.value); closeNotes(); } } else render(); });
   function closeNotes() { const p = $(".notes-panel"); if (p) p.remove(); document.body.classList.remove("notes-open"); }
   function currentNoteId() { return tab === "learn" && view && L.byId[view] ? view : "general"; }
 
@@ -203,6 +206,11 @@
     m.append(...[].concat(screens[tab]()));
     paintBar();
     const fab = $("#notesFab"); if (fab) fab.hidden = tab === "learn" && view === "notes";
+    // On wider screens a lesson keeps its notes open beside it; anywhere else the panel opens on demand.
+    const onLesson = tab === "learn" && view && L.byId[view];
+    const open = $(".notes-panel"), ta = $("#notesTa");
+    if (open && ta && (!onLesson || ta.dataset.id !== view)) { notes.set(ta.dataset.id, ta.value); closeNotes(); }
+    if (onLesson && wide.matches && !state.notesHidden && !$(".notes-panel")) notes.open(view, true);
     if (!state.settings.setup && tab === "today") setTimeout(openSetup, 50);
   }
   function paintBar() {
@@ -499,7 +507,11 @@
   /* ---------- Boot ---------- */
   document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => go(b.dataset.tab)));
   $("#barCount").addEventListener("click", openSetup);
-  $("#notesFab").addEventListener("click", () => ($(".notes-panel") ? closeNotes() : notes.open()));
+  $("#notesFab").addEventListener("click", () => {
+    if ($(".notes-panel")) return closeNotes();
+    const onLesson = tab === "learn" && view && L.byId[view];
+    if (onLesson && wide.matches) { state.notesHidden = false; save(); notes.open(view, true); } else notes.open();
+  });
   window.addEventListener("hashchange", () => { fromHash(); render(); });
   window.addEventListener("storage", (e) => { if (e.key === KEY) { state = load(); render(); } });
   applyTheme(); fromHash(); render();
