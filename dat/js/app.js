@@ -119,6 +119,7 @@
   /* ---------- Notes ---------- */
   // One note per lesson plus a general notebook. Autosaves while typing.
   const noteTitle = (id) => (id === "general" ? "General notes" : L.byId[id] ? L.byId[id].title : id);
+  const noteWhere = (id) => (L.byId[id] ? S.byId[L.byId[id].section].name + " · " + S.byId[L.byId[id].topic].name : "Not tied to a lesson");
   const notes = {
     get(id) { return (state.notes[id] && state.notes[id].t) || ""; },
     set(id, t) { state.notes[id] = { t, u: Date.now() }; save(); },
@@ -137,7 +138,7 @@
       let t = null;
       ta.addEventListener("input", () => { status.textContent = "Saving…"; clearTimeout(t); t = setTimeout(() => { notes.set(id, ta.value); status.textContent = "Saved"; }, 400); });
       const panel = el("aside", { class: "notes-panel", role: "dialog", "aria-label": "Notes" },
-        el("header", {}, el("div", {}, el("div", { class: "eyebrow", text: "My notes" }), el("strong", { text: noteTitle(id) })),
+        el("header", {}, el("div", {}, el("div", { class: "eyebrow", text: id === "general" ? "My notes" : "Notes · " + noteWhere(id) }), el("strong", { text: noteTitle(id) })),
           el("button", { type: "button", class: "btn small", onclick: () => { clearTimeout(t); notes.set(id, ta.value); if (docked) { state.notesHidden = true; save(); } closeNotes(); } }, docked ? "Hide" : "Done")),
         ta,
         el("div", { class: "row between" }, status, el("button", { type: "button", class: "btn small ghost", onclick: () => { clearTimeout(t); notes.set(id, ta.value); closeNotes(); go("learn", "notes"); } }, "All my notes")));
@@ -158,12 +159,14 @@
     function paint() {
       listBox.textContent = "";
       const term = q.value.trim().toLowerCase();
-      const shown = ids.filter((id) => (id === "general" || notes.get(id)) && (!term || (noteTitle(id) + " " + notes.get(id)).toLowerCase().includes(term)));
+      const shown = ids.filter((id) => (id === "general" || notes.get(id)) && (!term || (noteTitle(id) + " " + noteWhere(id) + " " + notes.get(id)).toLowerCase().includes(term)));
       if (!shown.length) listBox.append(el("p", { class: "muted", text: "No notes match." }));
       for (const id of shown) {
         const n = state.notes[id];
-        listBox.append(el("section", { class: "card" },
-          el("div", { class: "row between" }, el("h3", { style: "margin:0", text: noteTitle(id) }),
+        const les = L.byId[id];
+        listBox.append(el("section", { class: "card" + (les ? " c-" + les.section : "") },
+          el("div", { class: "eyebrow", style: "display:flex;gap:6px;align-items:baseline" }, les ? el("span", { class: "dot", style: "flex:none;width:8px;height:8px" }) : null, el("span", { text: noteWhere(id) })),
+          el("div", { class: "row between", style: "margin-top:4px" }, el("h3", { style: "margin:0", text: noteTitle(id) }),
             el("div", { class: "row", style: "gap:4px" },
               L.byId[id] ? el("button", { type: "button", class: "btn small ghost", onclick: () => go("learn", id) }, "Open lesson") : null,
               el("button", { type: "button", class: "btn small", onclick: () => notes.open(id) }, "Edit"))),
@@ -183,7 +186,7 @@
   }
   function downloadNotes() {
     const ids = Object.keys(state.notes).filter((id) => notes.get(id).trim());
-    const txt = "DAT Prep notes — " + todayISO() + "\n\n" + ids.map((id) => "## " + noteTitle(id) + "\n\n" + notes.get(id).trim()).join("\n\n");
+    const txt = "DAT Prep notes — " + todayISO() + "\n\n" + ids.map((id) => "## " + noteTitle(id) + "\n" + noteWhere(id) + "\n\n" + notes.get(id).trim()).join("\n\n");
     const a = el("a", { href: URL.createObjectURL(new Blob([txt], { type: "text/plain" })), download: "dat-notes-" + todayISO() + ".txt" });
     document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
   }
