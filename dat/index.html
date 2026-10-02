@@ -15,7 +15,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="DAT Prep">
-<link rel="stylesheet" href="css/dat.css?v=20261001a">
+<link rel="stylesheet" href="css/dat.css?v=20261001b">
 <script>try { var t = JSON.parse(localStorage.getItem("dat-prep-v1") || "{}").theme; if (t) document.documentElement.setAttribute("data-theme", t); } catch (e) {}</script>
 </head>
 <body>
@@ -41,8 +41,14 @@
     <p>DAT Prep uses original lessons and questions written in the style of the test. DAT® is a registered trademark of the American Dental Association, which is not affiliated with this site.</p>
   </footer>
 </div>
+<button type="button" class="notes-fab" id="notesFab" aria-label="Open my notes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 19.5h3.8L19.2 8.6a1.9 1.9 0 0 0 0-2.7l-1.1-1.1a1.9 1.9 0 0 0-2.7 0L4.5 15.7z"/><path d="m14 6.3 3.7 3.7"/></svg>Notes</button>
 <div class="toasts" id="toasts" aria-live="polite"></div>
-<script src="js/syllabus.js?v=20261001a"></script>
-<script src="js/app.js?v=20261001a"></script>
+<script src="../js/core.js?v=20261001b"></script>
+<script src="js/syllabus.js?v=20261001b"></script>
+<script src="js/lessons.js?v=20261001b"></script>
+<script src="js/lessons/stoich.js?v=20261001b"></script>
+<script src="js/lessons/respiration.js?v=20261001b"></script>
+<script src="js/lessons/angles.js?v=20261001b"></script>
+<script src="js/app.js?v=20261001b"></script>
 </body>
 </html>

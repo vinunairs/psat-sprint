@@ -4,6 +4,7 @@
 (function () {
   "use strict";
   const S = window.DATSyllabus;
+  const L = window.DATLessons || { list: [], byId: {}, byTopic: {}, render: () => [] };
   const KEY = "dat-prep-v1";
   const DAY = 864e5;
 
@@ -14,7 +15,8 @@
       settings: { name: "", date: null, target: null, hours: 15, setup: false },
       conf: {},      // topicId -> 0 new, 1 shaky, 2 solid (self-rating)
       skills: {},    // topicId -> { n, c, last } from practice (filled in by later phases)
-      lessons: {},   // lessonId -> ISO date finished
+      lessons: {},   // lessonId -> { st: stages done, walk: step, best, done: date }
+      notes: {},     // lessonId or "general" -> { t: text, u: ms }
       activity: {},  // date -> { q, c, min }
       tests: [], mistakes: [], checks: {}, theme: null
     };
@@ -104,6 +106,90 @@
     return { weeks: out, order };
   }
 
+
+  /* ---------- Practice results ---------- */
+  function record(topicId, ok) {
+    const sk = (state.skills[topicId] = state.skills[topicId] || { n: 0, c: 0, last: null });
+    sk.n++; if (ok) sk.c++; sk.last = todayISO();
+    const a = (state.activity[todayISO()] = state.activity[todayISO()] || { q: 0, c: 0 });
+    a.q++; if (ok) a.c++;
+    save();
+  }
+
+  /* ---------- Notes ---------- */
+  // One note per lesson plus a general notebook. Autosaves while typing.
+  const noteTitle = (id) => (id === "general" ? "General notes" : L.byId[id] ? L.byId[id].title : id);
+  const notes = {
+    get(id) { return (state.notes[id] && state.notes[id].t) || ""; },
+    set(id, t) { state.notes[id] = { t, u: Date.now() }; save(); },
+    append(id, line) {
+      const cur = notes.get(id);
+      notes.set(id, (cur && !cur.endsWith("\n") ? cur + "\n" : cur) + line + "\n");
+      toast("Saved to notes");
+      const ta = $("#notesTa"); if (ta && ta.dataset.id === id) ta.value = notes.get(id);
+    },
+    open(id) {
+      id = id || currentNoteId();
+      closeNotes();
+      const ta = el("textarea", { id: "notesTa", "data-id": id, "aria-label": "Notes for " + noteTitle(id), placeholder: "Type anything: a rule in your own words, a trick, a question to look up later.\n\nTip: the ＋ Notes buttons in a lesson add key points here for you." });
+      ta.value = notes.get(id);
+      const status = el("span", { class: "tiny muted", role: "status" });
+      let t = null;
+      ta.addEventListener("input", () => { status.textContent = "Saving…"; clearTimeout(t); t = setTimeout(() => { notes.set(id, ta.value); status.textContent = "Saved"; }, 400); });
+      const panel = el("aside", { class: "notes-panel", role: "dialog", "aria-label": "Notes" },
+        el("header", {}, el("div", {}, el("div", { class: "eyebrow", text: "My notes" }), el("strong", { text: noteTitle(id) })),
+          el("button", { type: "button", class: "btn small", onclick: () => { clearTimeout(t); notes.set(id, ta.value); closeNotes(); } }, "Done")),
+        ta,
+        el("div", { class: "row between" }, status, el("button", { type: "button", class: "btn small ghost", onclick: () => { clearTimeout(t); notes.set(id, ta.value); closeNotes(); go("learn", "notes"); } }, "All my notes")));
+      document.body.append(panel); document.body.classList.add("notes-open");
+      setTimeout(() => ta.focus(), 50);
+    }
+  };
+  function closeNotes() { const p = $(".notes-panel"); if (p) p.remove(); document.body.classList.remove("notes-open"); }
+  function currentNoteId() { return tab === "learn" && view && L.byId[view] ? view : "general"; }
+
+  function NotesPage() {
+    const ids = ["general", ...L.list.map((l) => l.id), ...Object.keys(state.notes).filter((k) => k !== "general" && !L.byId[k])];
+    const q = el("input", { type: "search", placeholder: "Search my notes", "aria-label": "Search my notes", class: "search" });
+    const listBox = el("div");
+    function paint() {
+      listBox.textContent = "";
+      const term = q.value.trim().toLowerCase();
+      const shown = ids.filter((id) => (id === "general" || notes.get(id)) && (!term || (noteTitle(id) + " " + notes.get(id)).toLowerCase().includes(term)));
+      if (!shown.length) listBox.append(el("p", { class: "muted", text: "No notes match." }));
+      for (const id of shown) {
+        const n = state.notes[id];
+        listBox.append(el("section", { class: "card" },
+          el("div", { class: "row between" }, el("h3", { style: "margin:0", text: noteTitle(id) }),
+            el("div", { class: "row", style: "gap:4px" },
+              L.byId[id] ? el("button", { type: "button", class: "btn small ghost", onclick: () => go("learn", id) }, "Open lesson") : null,
+              el("button", { type: "button", class: "btn small", onclick: () => notes.open(id) }, "Edit"))),
+          n && n.u ? el("div", { class: "tiny muted", text: "Updated " + new Date(n.u).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) }) : null,
+          el("div", { class: "note-text", text: notes.get(id) || "Nothing yet." })));
+      }
+    }
+    q.addEventListener("input", paint);
+    paint();
+    return [el("button", { type: "button", class: "btn ghost small", style: "margin:-6px 0 6px -10px", onclick: () => go("learn") }, "‹ Learn"),
+      el("h1", { text: "My notes" }),
+      el("p", { class: "muted", text: "One page per lesson plus a general notebook. The ✎ Notes button on every screen opens the right one." }),
+      el("div", { class: "row", style: "margin-bottom:14px" }, q,
+        el("button", { type: "button", class: "btn small", onclick: downloadNotes }, "Download"),
+        el("button", { type: "button", class: "btn small", onclick: () => window.print() }, "Print")),
+      listBox];
+  }
+  function downloadNotes() {
+    const ids = Object.keys(state.notes).filter((id) => notes.get(id).trim());
+    const txt = "DAT Prep notes — " + todayISO() + "\n\n" + ids.map((id) => "## " + noteTitle(id) + "\n\n" + notes.get(id).trim()).join("\n\n");
+    const a = el("a", { href: URL.createObjectURL(new Blob([txt], { type: "text/plain" })), download: "dat-notes-" + todayISO() + ".txt" });
+    document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+
+  const lessonCtx = {
+    get state() { return state; }, save: () => save(), el, toast, go, record, notes, today: todayISO,
+    sectionName: (id) => S.byId[id].name, topicName: (id) => S.byId[id].name
+  };
+
   /* ---------- Shell ---------- */
   const TABS = ["today", "learn", "practice", "tests", "me"];
   let tab = "today", view = null; // view: sub-page such as a section id in Learn
@@ -116,6 +202,7 @@
     const screens = { today: Today, learn: Learn, practice: Practice, tests: Tests, me: Me };
     m.append(...[].concat(screens[tab]()));
     paintBar();
+    const fab = $("#notesFab"); if (fab) fab.hidden = tab === "learn" && view === "notes";
     if (!state.settings.setup && tab === "today") setTimeout(openSetup, 50);
   }
   function paintBar() {
@@ -158,7 +245,7 @@
     document.body.append(ov); name.focus();
   }
   function closeOverlay() { const o = $(".overlay"); if (o) o.remove(); }
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && state.settings.setup) closeOverlay(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if ($(".notes-panel")) { const ta = $("#notesTa"); if (ta) notes.set(ta.dataset.id, ta.value); closeNotes(); } else if (state.settings.setup) closeOverlay(); } });
 
   /* ---------- Today ---------- */
   function Today() {
@@ -189,7 +276,7 @@
       const items = [];
       if (now.id === "learn") {
         const topics = wp.weeks[Math.min(weekIdx, wp.weeks.length - 1)] || [];
-        items.push(...topics.map((t) => ({ sec: t.section, text: t.name, sub: S.byId[t.section].name })));
+        items.push(...topics.map((t) => ({ sec: t.section, text: t.name, sub: S.byId[t.section].name, lesson: (L.byTopic[t.id] || [])[0] })));
         items.push({ sec: "pat", text: "Perceptual Ability drills", sub: "15 minutes, 4 days this week" });
         items.push({ sec: "qr", text: "Quantitative Reasoning set", sub: "2 short sets this week" });
         if (weekIdx % 2 === 1) items.push({ sec: "rc", text: "One timed reading passage", sub: "20 minutes" });
@@ -206,8 +293,9 @@
         el("p", { class: "muted small", text: now.desc }),
         el("div", {}, items.map((it) => el("div", { class: "check" + (it.sec ? " c-" + it.sec : "") },
           el("span", { class: "dot", style: "margin-top:7px" + (it.sec ? "" : ";background:var(--ink-3)") }),
-          el("div", {}, el("div", { class: "t", text: it.text }), el("div", { class: "muted small", text: it.sub }))))),
-        el("p", { class: "tiny muted", style: "margin:10px 0 0", text: "Lessons and practice sets arrive section by section over the next updates. Until then, use this list to pace your week." })));
+          el("div", { style: "flex:1" }, el("div", { class: "t", text: it.text }), el("div", { class: "muted small", text: it.sub })),
+          it.lesson ? el("button", { type: "button", class: "btn small" + ((state.lessons[it.lesson.id] || {}).done ? "" : " primary"), onclick: () => go("learn", it.lesson.id) }, (state.lessons[it.lesson.id] || {}).done ? "Done ✓" : "Lesson") : null))),
+        el("p", { class: "tiny muted", style: "margin:10px 0 0", text: "Lessons and practice sets arrive section by section. Three prototype lessons are ready in Learn." })));
     }
 
     // Start here
@@ -249,8 +337,17 @@
   /* ---------- Learn ---------- */
   const CONF = ["New", "Shaky", "Solid"];
   function Learn() {
+    if (view === "notes") return NotesPage();
+    if (view && L.byId[view]) return L.render(L.byId[view], lessonCtx);
     if (view && S.byId[view] && S.byId[view].topics) return LearnSection(S.byId[view]);
-    const out = [el("h1", { text: "Learn" }), el("p", { class: "muted", text: "Everything on the 2026 DAT, section by section. Rate each topic so your plan starts with what you need most." })];
+    const nNotes = Object.values(state.notes).filter((n) => n && n.t && n.t.trim()).length;
+    const out = [el("div", { class: "row between" }, el("h1", { style: "margin:0", text: "Learn" }),
+        el("button", { type: "button", class: "btn small", onclick: () => go("learn", "notes") }, "✎ My notes" + (nNotes ? " (" + nNotes + ")" : ""))),
+      el("p", { class: "muted", style: "margin-top:6px", text: "Everything on the 2026 DAT, section by section. Rate each topic so your plan starts with what you need most." })];
+    if (L.list.length) out.push(el("section", { class: "card" }, el("h2", { text: "Lessons ready to try" }),
+      L.list.map((l) => { const lp = state.lessons[l.id] || {}; return el("button", { type: "button", class: "sec c-" + l.section, style: "box-shadow:none", onclick: () => go("learn", l.id) },
+        el("span", { class: "ico", text: l.section.toUpperCase() }),
+        el("span", {}, el("div", { class: "name", text: l.title }), el("div", { class: "meta", text: S.byId[l.section].name + " · " + l.minutes + " min" + (lp.done ? " · done ✓" : lp.st ? " · step " + Math.min(4, lp.st + 1) + " of 4" : "") })), chev()); })));
     let group = "";
     for (const s of S.SECTIONS) {
       if (s.group !== group && s.group.startsWith("Survey")) { out.push(el("div", { class: "eyebrow", style: "margin:14px 0 8px", text: "Survey of the Natural Sciences · 100 questions · 90 min" })); }
@@ -278,8 +375,10 @@
         const c = state.conf[t.id];
         const seg = el("div", { class: "seg", role: "group", "aria-label": "Rate " + t.name },
           CONF.map((label, i) => el("button", { type: "button", "aria-pressed": String(c === i), onclick: (e) => { e.preventDefault(); state.conf[t.id] = i; if (Object.keys(state.conf).length >= 5) state.checks.rate = state.checks.rate || todayISO(); save(); render(); } }, label)));
+        const ls = L.byTopic[t.id] || [];
         return el("div", { class: "topic" },
-          el("div", { class: "row between" }, el("strong", { text: t.name }), el("span", { class: "chip", text: "Lesson coming" })),
+          el("div", { class: "row between" }, el("strong", { text: t.name }), ls.length ? null : el("span", { class: "chip", text: "Lesson coming" })),
+          ls.map((l) => { const lp = state.lessons[l.id] || {}; return el("button", { type: "button", class: "btn small " + (lp.done ? "" : "primary"), style: "margin-top:8px", onclick: () => go("learn", l.id) }, (lp.done ? "✓ " : lp.st ? "Continue: " : "Lesson: ") + l.title); }),
           el("div", { style: "margin-top:8px" }, seg),
           el("details", {}, el("summary", { class: "tiny muted", style: "cursor:pointer;margin-top:8px" }, "What's covered (" + t.subs.length + ")"),
             el("ul", {}, t.subs.map((x) => el("li", { text: x })))));
@@ -400,8 +499,9 @@
   /* ---------- Boot ---------- */
   document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => go(b.dataset.tab)));
   $("#barCount").addEventListener("click", openSetup);
+  $("#notesFab").addEventListener("click", () => ($(".notes-panel") ? closeNotes() : notes.open()));
   window.addEventListener("hashchange", () => { fromHash(); render(); });
   window.addEventListener("storage", (e) => { if (e.key === KEY) { state = load(); render(); } });
   applyTheme(); fromHash(); render();
-  window.DATApp = { get state() { return state; }, blank, weekPlan, phaseDates, mastery };
+  window.DATApp = { get state() { return state; }, blank, weekPlan, phaseDates, mastery, notes };
 })();
