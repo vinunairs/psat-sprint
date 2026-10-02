@@ -4,7 +4,7 @@
 // POST {mode:"cron"}  + x-cron-secret → hourly: daily summary at 9 pm New York time, plus alerts for newly logged tests.
 // Telegram webhook (header X-Telegram-Bot-Api-Secret-Token) → commands:
 //   /link CODE  connect this chat (CODE is app_secrets.telegram_link_code; nothing is shared without it)
-//   /report     today's summary now      /brief  latest Daily Brief coach reports      /stop  pause      /help
+//   /report  short summary now   /details  full summary   /brief  Daily Brief coach reports   /stop  pause
 // The evening summary also includes each Daily Brief learner's day (brief_* tables, same project).
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
@@ -83,20 +83,46 @@ function summary(s: any, date: string) {
   return L.join("\n");
 }
 
+// Short version (the 9 pm message): one status line plus only the things worth a parent's attention.
+// deno-lint-ignore no-explicit-any
+function short(s: any, date: string, brief?: { done: boolean; opened: boolean; read: number; total: number }) {
+  const D = s.D, st = D.settings || {}, name = (s.p.first_name || st.name || s.email.split("@")[0] || "Student").trim();
+  const testDate = st.date || s.p.test_date, kind = (st.kind || s.p.test_kind) === "sat" ? "SAT" : "PSAT";
+  const left = testDate ? Math.round((Date.parse(testDate + "T00:00:00Z") - Date.parse(date + "T00:00:00Z")) / 864e5) : null;
+  const tasks = Object.keys(D.tasks || {}).filter((k) => k.startsWith(date + "#")).length;
+  const a = (D.activity || {})[date] || {}, t = (D.time || {})[date];
+  const head = `<b>${esc(name)}</b>${left != null && left >= 0 ? " · " + (left === 0 ? kind + " today" : left + "d to " + kind) : ""}`;
+  const labToday = Object.entries((D.lab && D.lab.log) || {}).filter(([, d]) => d === date).length;
+  if (!tasks && !a.q && !a.mock && !(t && t.f > 60) && !labToday) return `${head}\n⚠️ No study today${brief ? (brief.done ? " · 📰 Brief ✓" : brief.opened ? " · 📰 Brief " + brief.read + "/" + brief.total : " · 📰 Brief not opened") : ""}`;
+  const bits = [`✅ ${tasks} task${tasks === 1 ? "" : "s"}`];
+  if (t && t.f >= 60) bits.push(`⏱ ${mins(t.f)} min`);
+  if (a.q) bits.push(`📝 ${a.c}/${a.q} (${Math.round((a.c / a.q) * 100)}%)`);
+  if (brief) bits.push(brief.done ? "📰 ✓" : brief.opened ? "📰 " + brief.read + "/" + brief.total : "📰 ✗");
+  const flags: string[] = [];
+  for (const [d, v] of Object.entries(a.dom || {})) { const [n, c] = v as number[]; if (n >= 3 && c / n < 0.6) flags.push(`${DOMAINS[d] || d} ${c}/${n}`); }
+  const qt = D.qtime || {};
+  for (const [d, v] of Object.entries(qt)) { const [n, sum] = v as number[]; if ((a.dom || {})[d] && n >= 3 && sum / n > (PACE[d] || 95) * 1.25) flags.push(`slow on ${DOMAINS[d] || d} (${mmss(sum / n)}/q)`); }
+  if (t && t.n >= 3) flags.push(`left the app ${t.n}×`);
+  if (t && t.f >= 600 && t.i > t.f * 0.5) flags.push(`idle ${mins(t.i)} min`);
+  if (a.mock) flags.push(`🧪 ${a.mock} mock section${a.mock === 1 ? "" : "s"}`);
+  if (labToday) flags.push(`🧩 +${labToday} Lab mission${labToday === 1 ? "" : "s"}`);
+  return `${head}\n${bits.join(" · ")}${flags.length ? "\n⚠️ " + flags.slice(0, 3).join(" · ") : ""}`;
+}
+
 // Daily Brief: one line per active learner for the given day.
 async function briefLines(date: string) {
   const [{ data: learners }, { data: feeds }, { data: ev }] = await Promise.all([
     admin.from("brief_learners").select("user_id, display_name").eq("active", true),
     admin.from("brief_feeds").select("user_id, cards").eq("feed_date", date),
     admin.from("brief_events").select("user_id, kind, card_id, correct, points").eq("feed_date", date)]);
-  const out: Record<string, { name: string; line: string }> = {};
+  const out: Record<string, { name: string; line: string; info: { done: boolean; opened: boolean; read: number; total: number } }> = {};
   for (const l of learners || []) {
     const f = (feeds || []).find((x: { user_id: string }) => x.user_id === l.user_id), mine = (ev || []).filter((e: { user_id: string }) => e.user_id === l.user_id);
     const total = f && Array.isArray(f.cards) ? f.cards.length : 0;
     const read = new Set(mine.filter((e: { kind: string }) => e.kind === "read").map((e: { card_id: string }) => e.card_id)).size;
     const graded = mine.filter((e: { correct: boolean | null }) => e.correct !== null && e.correct !== undefined), cor = graded.filter((e: { correct: boolean }) => e.correct).length;
     const pts = mine.reduce((a: number, e: { points: number | null }) => a + (e.points || 0), 0);
-    out[l.user_id] = { name: l.display_name, line: !total ? "📰 Daily Brief: no brief today" : !mine.length ? "📰 Daily Brief: not opened yet" :
+    out[l.user_id] = { name: l.display_name, info: { done: total > 0 && read >= total, opened: mine.length > 0, read, total }, line: !total ? "📰 Daily Brief: no brief today" : !mine.length ? "📰 Daily Brief: not opened yet" :
       `📰 Daily Brief: ${read}/${total} cards read${read >= total ? " ✓" : ""}${graded.length ? ` · ${cor}/${graded.length} checks right` : ""} · ${pts} pts` };
   }
   return out;
@@ -110,12 +136,21 @@ async function briefCoach(chat: number) {
 }
 
 async function chats() { const { data } = await admin.from("telegram_chats").select("chat_id").eq("enabled", true); return (data || []).map((c: { chat_id: number }) => c.chat_id); }
-async function reportTo(chat_ids: number[], date: string) {
-  const [list, brief] = await Promise.all([students(), briefLines(date).catch(() => ({} as Record<string, { name: string; line: string }>))]);
-  const blocks = list.map((s) => summary(s, date) + (brief[s.id] ? "\n" + brief[s.id].line : ""));
+async function reportTo(chat_ids: number[], date: string, full = false) {
+  // deno-lint-ignore no-explicit-any
+  const [list, brief] = await Promise.all([students(), briefLines(date).catch(() => ({} as Record<string, any>))]);
   const ids = new Set(list.map((s) => s.id));
-  for (const [id, b] of Object.entries(brief)) if (!ids.has(id)) blocks.push(`👤 <b>${esc(b.name)}</b>\n${b.line}`);
-  const text = blocks.length ? blocks.join("\n\n") + `\n\n<a href="${SITE}">Open Test Prep Hub</a> · /brief for the Daily Brief coach reports` : "No students yet.";
+  let text: string;
+  if (full) {
+    const blocks = list.map((s) => summary(s, date) + (brief[s.id] ? "\n" + brief[s.id].line : ""));
+    for (const [id, b] of Object.entries(brief)) if (!ids.has(id)) blocks.push(`👤 <b>${esc(b.name)}</b>\n${b.line}`);
+    text = blocks.length ? blocks.join("\n\n") + `\n\n<a href="${SITE}">Open Test Prep Hub</a>` : "No students yet.";
+  } else {
+    const blocks = list.map((s) => short(s, date, brief[s.id] && brief[s.id].info));
+    const others = Object.entries(brief).filter(([id]) => !ids.has(id)).map(([, b]) => `${esc(b.name)} ${b.info.done ? "✓" : b.info.opened ? b.info.read + "/" + b.info.total : "✗"}`);
+    if (others.length) blocks.push("📰 Daily Brief: " + others.join(" · "));
+    text = `📊 <b>${dayLabel(date)}</b>\n\n` + (blocks.length ? blocks.join("\n\n") : "No students yet.") + "\n\n/details for the full report";
+  }
   for (const c of chat_ids) await send(c, text);
 }
 
@@ -154,9 +189,10 @@ Deno.serve(async (req) => {
         await send(chat, "Linked ✅ You'll get a study summary every evening at 9 pm, plus a note whenever a test is logged.\n\nCommands: /report (summary now) · /stop (pause messages)");
       } else await send(chat, "That link code isn't right. Ask the person who runs Test Prep Hub for the code.");
     } else if (row && row.enabled && cmd === "/report") await reportTo([chat], localDate());
+    else if (row && row.enabled && (cmd === "/details" || cmd === "/full")) await reportTo([chat], localDate(), true);
     else if (row && row.enabled && cmd === "/brief") await briefCoach(chat);
     else if (row && cmd === "/stop") { await admin.from("telegram_chats").update({ enabled: false }).eq("chat_id", chat); await send(chat, "Paused. Send /link CODE again to restart."); }
-    else if (row && row.enabled) await send(chat, "Commands: /report (today's summary now) · /brief (Daily Brief coach reports) · /stop (pause messages)");
+    else if (row && row.enabled) await send(chat, "Commands: /report (short summary) · /details (full report) · /brief (Daily Brief coach reports) · /stop (pause)");
     else await send(chat, "Hi! To connect, send: /link YOURCODE");
     return json({ ok: true });
   }
