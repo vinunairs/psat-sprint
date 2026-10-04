@@ -1191,7 +1191,7 @@
     const fc = el("div", { class: "card", style: "display:grid;gap:14px" });
     if (RV && RV.i < RV.queue.length) {
       const id = RV.queue[RV.i], c = STRAT.cards[id];
-      fc.append(el("div", { class: "row between" }, el("span", { class: "eyebrow", text: c.area + " · card " + (RV.i + 1) + " of " + RV.queue.length }), el("button", { class: "btn small ghost", onclick: () => { RV = null; renderReview(); } }, "Stop")));
+      fc.append(el("div", { class: "row between" }, el("span", { class: "eyebrow", text: c.area + " · card " + (RV.i + 1) + " of " + RV.queue.length }), RV.back ? el("button", { class: "btn small ghost", onclick: () => { RV = null; show("treview"); } }, "← Back to Test review") : el("button", { class: "btn small ghost", onclick: () => { RV = null; renderReview(); } }, "Stop")));
       fc.append(el("div", { class: "flash" + (RV.flipped ? " flipped" : "") },
         el("h3", { class: "flash-name", text: c.name }),
         el("p", { class: "muted" }, el("b", { text: "When you see: " }), c.spot),
@@ -1245,6 +1245,7 @@
       if (ok) addXP(2); bumpStreak();
       RV.i++; RV.flipped = false;
       if (RV.i >= RV.queue.length && RV.plan) planEvent({ k: "deck", spec: RV.plan });
+      if (RV.i >= RV.queue.length && RV.back) { const back = RV.back; RV = null; save(); toast("Card added to your deck. Now try 5 like it."); show(back); return; }
       save(); renderReview();
     }
   }
@@ -1905,14 +1906,18 @@
       rv.link ? el("a", { class: "tr-open", href: rv.link, target: "_blank", rel: "noopener" }, "See the full question: My Practice → " + (rv.linkName || "Score Details") + " → " + it.q.replace(/^(R&W|Math) M(\d) Q(\d+)$/, (m, sec, mod, n) => (sec === "Math" ? "Math" : "Reading and Writing") + ", module " + mod + ", question " + n) + " ↗") : null,
       el("div", { class: "tr-ans" }, el("span", { text: "You: " }), el("b", { class: "bad", text: it.his }), el("span", { text: "  ·  Correct: " }), el("b", { class: "good", text: it.cor })),
       el("p", { class: "tr-what" }, el("b", { text: "What we think happened: " }), it.what),
-      (it.lab || it.ty) ? el("div", { class: "tr-go" },
-        it.lab ? el("a", { class: "btn small primary", href: it.lab }, "Learn it: " + (it.labText || "Lab")) : null,
-        it.ty ? el("button", { class: "btn small", type: "button", onclick: () => startTypePractice(it.ty, 5) }, "Practice 5 like this") : null) : null,
       el("p", { class: "tr-ask", text: "What really happened?" }),
       el("div", { class: "tr-why" }, TR_WHY.map(([k, name]) => el("button", { class: "chipbtn" + (a.c === k ? " on" : ""), "aria-pressed": String(a.c === k), onclick: () => { st.r[it.q] = Object.assign({}, st.r[it.q], { c: k, at: today() }); save(); const nc = trItem(rv, st, it); card.replaceWith(nc); refreshTRProg(rv, st); } }, name))));
     const ta = el("textarea", { rows: "2", "aria-label": "Your explanation for " + it.q, placeholder: "Your explanation (optional)" }); ta.value = a.note || "";
     ta.addEventListener("input", () => { st.r[it.q] = Object.assign({}, st.r[it.q], { note: ta.value }); save(); });
     card.append(ta);
+    // Next steps, below the feedback: a lesson (a Lab mission, or the strategy card for this type), then practice.
+    const sid = it.ty ? STRAT.strategyFor(it.ty.startsWith("bank:") ? { sk: it.ty.slice(5) } : { gen: it.ty.slice(4) }) : null;
+    const scard = sid && sid !== "general" && STRAT.cards[sid];
+    const learn = it.lab ? el("a", { class: "btn small primary", href: it.lab }, "Learn it: " + (it.labText || "Lab"))
+      : scard ? el("button", { class: "btn small primary", type: "button", onclick: () => { RV = { queue: [sid], i: 0, flipped: false, back: "treview" }; show("review"); window.scrollTo({ top: 0 }); } }, "Learn it: " + scard.name + " (tip card)") : null;
+    if (learn || it.ty) card.append(el("div", { class: "tr-next" }, el("p", { class: "tr-ask", text: "Next steps" }), el("div", { class: "tr-go" }, learn,
+      it.ty ? el("button", { class: "btn small", type: "button", onclick: () => startTypePractice(it.ty, 5) }, "Practice 5 like this") : null)));
     return card;
   }
   function refreshTRProg(rv, st) {
