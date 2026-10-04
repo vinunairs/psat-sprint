@@ -449,6 +449,7 @@ body:not(.guest) #footNote{display:none}
 .tr-open{font-size:13px;font-weight:700;color:var(--pencil);text-decoration:none;justify-self:start}
 .tr-open:hover{text-decoration:underline}
 .tr-item .btn.small{justify-self:start}
+.tr-go{display:flex;flex-wrap:wrap;gap:8px}
 .tr-ask{font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--graphite);margin-top:2px}
 .tr-why{display:flex;flex-wrap:wrap;gap:8px}
 .chipbtn{border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:99px;padding:7px 13px;min-height:38px;font-weight:650;font-size:13.5px}

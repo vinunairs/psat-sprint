@@ -1251,6 +1251,16 @@
 
   /* ================= Practice ================= */
   let P = null, pTick = null;
+  // A short set of one question type (used by Test review's "Practice 5 like this").
+  function startTypePractice(ty, n) {
+    const used = new Set(), qs = [];
+    for (let i = 0; i < n * 3 && qs.length < n; i++) { const q = qFromType(ty, used, null); if (q) qs.push(q); }
+    if (!qs.length) { toast("No practice questions for this type yet."); return; }
+    save();
+    P = { qs, i: 0, pick: null, done: false, results: [], start: Date.now(), timed: S.prefs.timed, notebook: false, focus: false, doms: [...new Set(qs.map((q) => q.d))], count: qs.length, diff: "auto", strikes: new Set() };
+    clearInterval(pTick); pTick = setInterval(tickPractice, 1000);
+    if (TAB !== "practice") show("practice"); else renderPractice();
+  }
   function startPractice(doms, count, diff, notebook, focus) {
     if (GUEST) {
       if ((S.samples.practice || 0) >= SAMPLE_LIMIT) { renderPractice(); return; }
@@ -1852,7 +1862,7 @@
       el("h2", { text: rv.title }),
       el("p", { class: "muted", text: sm.line || "" }),
       el("div", { class: "tr-prog" }, el("div", { class: "tr-bar" }, el("i", { style: "width:" + Math.round((answered / Math.max(1, items.length)) * 100) + "%" })), el("span", { text: answered + " of " + items.length + " reviewed" })),
-      el("p", { class: "tr-how", text: "For each miss, read what we think happened. Then tap what really happened, and add a sentence if you want. Your answers change which questions show up in your focus set." })));
+      el("p", { class: "tr-how", text: "For each miss, read what we think happened. Then tap what really happened, and add a sentence if you want. Where there's a Learn it button, do that lesson first, then practice. Your answers change which questions show up in your focus set." })));
     // the four groups
     const counts = {}; items.forEach((it) => (counts[it.cat] = (counts[it.cat] || 0) + 1));
     p.append(el("div", { class: "tr-tiles" }, Object.entries(TR_CAT).filter(([k]) => counts[k]).map(([k, [name, desc]]) =>
@@ -1895,7 +1905,9 @@
       rv.link ? el("a", { class: "tr-open", href: rv.link, target: "_blank", rel: "noopener" }, "See the full question: My Practice → " + (rv.linkName || "Score Details") + " → " + it.q.replace(/^(R&W|Math) M(\d) Q(\d+)$/, (m, sec, mod, n) => (sec === "Math" ? "Math" : "Reading and Writing") + ", module " + mod + ", question " + n) + " ↗") : null,
       el("div", { class: "tr-ans" }, el("span", { text: "You: " }), el("b", { class: "bad", text: it.his }), el("span", { text: "  ·  Correct: " }), el("b", { class: "good", text: it.cor })),
       el("p", { class: "tr-what" }, el("b", { text: "What we think happened: " }), it.what),
-      it.lab ? el("a", { class: "btn small", href: it.lab }, it.labText || "Learn it") : null,
+      (it.lab || it.ty) ? el("div", { class: "tr-go" },
+        it.lab ? el("a", { class: "btn small primary", href: it.lab }, "Learn it: " + (it.labText || "Lab")) : null,
+        it.ty ? el("button", { class: "btn small", type: "button", onclick: () => startTypePractice(it.ty, 5) }, "Practice 5 like this") : null) : null,
       el("p", { class: "tr-ask", text: "What really happened?" }),
       el("div", { class: "tr-why" }, TR_WHY.map(([k, name]) => el("button", { class: "chipbtn" + (a.c === k ? " on" : ""), "aria-pressed": String(a.c === k), onclick: () => { st.r[it.q] = Object.assign({}, st.r[it.q], { c: k, at: today() }); save(); const nc = trItem(rv, st, it); card.replaceWith(nc); refreshTRProg(rv, st); } }, name))));
     const ta = el("textarea", { rows: "2", "aria-label": "Your explanation for " + it.q, placeholder: "Your explanation (optional)" }); ta.value = a.note || "";
