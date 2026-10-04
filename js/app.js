@@ -709,6 +709,7 @@
     const fc0 = sprint ? null : focusCard(); if (fc0 && mode !== "after") p.append(fc0);
     scorePrompt(p);
     try { labSync(); } catch (e) { }
+    const fxc = fixCard(); if (fxc) p.append(fxc);
     if (sprint) renderSprint(p, t);
     else if (mode === "after") renderAfter(p);
     else renderLongPlan(p, mode);
@@ -1929,6 +1930,18 @@
     const sid = it.ty ? STRAT.strategyFor(it.ty.startsWith("bank:") ? { sk: it.ty.slice(5) } : { gen: it.ty.slice(4) }) : null, sc = sid && sid !== "general" && STRAT.cards[sid];
     return sc ? el("button", { class: "btn small primary", type: "button", onclick: () => { mark(); RV = { queue: [sid], i: 0, flipped: false, back: "treview" }; show("review"); window.scrollTo({ top: 0 }); } }, "Learn: " + sc.name + " (tip card)") : null;
   }
+  // Today card: the latest test review, until it's submitted and every miss on the fix-it list is started.
+  function fixCard() {
+    if (GUEST || !REVIEWS.length) return null;
+    const rv = REVIEWS[REVIEWS.length - 1], st = (S.treview || {})[rv.id] || {}, items = rv.items || [];
+    const started = items.filter((it) => (st.fix || {})[it.q]).length;
+    if (st.done && started >= items.length) return null;
+    return el("div", { class: "card tr-today" },
+      el("div", { class: "eyebrow", text: st.done ? "Your fix-it list" : "Test review" }),
+      el("h3", { text: st.done ? rv.title + ": " + started + " of " + items.length + " misses started" : "Review your " + rv.title + " misses" }),
+      el("p", { class: "muted", style: "font-size:14px", text: st.done ? "Pick up where you left off: a lesson and 5 practice questions for each miss." : "Say what really happened on each miss. Then you get a fix-it list." }),
+      el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => show("treview") }, st.done ? "Open my fix-it list" : "Start the review")));
+  }
   function trFixList(p, rv, st) {
     const items = rv.items || [], fix = st.fix || {}, started = items.filter((it) => fix[it.q]).length;
     const WHY = Object.fromEntries(TR_WHY);
@@ -2701,7 +2714,18 @@
     setFocus(row) {
       const all = row && Array.isArray(row.items) ? row.items : [];
       REVIEWS = all.filter((x) => x && typeof x.type === "string" && x.type.startsWith("review:") && x.review).map((x) => Object.assign({ id: x.type.slice(7) }, x.review));
-      FOCUS = row && all.length ? { items: all.filter((x) => !(typeof x.type === "string" && x.type.startsWith("review:"))), source: row.source, updated: row.updated_at } : null;
+      // Official practice test results read from the student's College Board account arrive as {type:"log:<id>", log:{...test}}
+      // and are added to the student's tests once, the same way the Log a test form would.
+      if (!GUEST) all.filter((x) => x && typeof x.type === "string" && x.type.startsWith("log:") && x.log && x.log.id).forEach((x) => {
+        if (S.tests.some((t) => t.id === x.log.id)) return;
+        const rec = Object.assign({ source: "bluebook", kind: "psat", dom: {} }, x.log);
+        S.tests.push(rec); S.tests.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+        addXP(100, "Bluebook test added"); award("baseline");
+        if (S.tests.filter((t) => t.source === "bluebook" && t.total).length >= 2) award("rehearsal");
+        if (rec.total) checkGoalScore(rec.total);
+        planEvent({ k: "log", src: rec.source }); save(); toast(rec.name + " added to your tests", true);
+      });
+      FOCUS = row && all.length ? { items: all.filter((x) => !(typeof x.type === "string" && (x.type.startsWith("review:") || x.type.startsWith("log:")))), source: row.source, updated: row.updated_at } : null;
       if (TAB === "treview") render(); seedDeck(); if (!GUEST && (TAB === "today" || TAB === "practice")) render(); },
     setSocial(api) { SOC = api && !GUEST ? { api } : null; CH = null; socialBadge(); if (SOC) socialLoad(TAB === "friends"); },
     onSettings(fn) { settingsHooks.push(fn); },

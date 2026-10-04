@@ -151,7 +151,7 @@
 
     app.onSave(() => schedulePush());
     window.addEventListener("online", () => { if (user) pushNow(); });
-    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && user) pull(false); });
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && user) { pull(false); loadFocus(); } });
 
     sb.auth.onAuthStateChange((event, session) => {
       const was = user && user.id;

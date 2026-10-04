@@ -134,3 +134,7 @@ After an official practice test, the parent's question-by-question review shows 
 - Answers are saved in the synced state: `S.treview[id] = { r: { [q]: { c, note, at } }, focus: [...], note, done }`.
 - Two steps: the review itself has no practice links. After **Submit my review**, the screen becomes a fix-it list of every miss, grouped by the student's own answers (Learn first: never learned / forgot how · Practice until it sticks: guessed · Quick fixes: careless, rushed, lost focus). Each row has a lesson (Lab mission, or the tip card for that type, which returns to the list) and "Practice 5". Opening either marks the row started (`S.treview[id].fix`). "See or change my answers" reopens the review.
 - "Never learned it" and "forgot how" add weight to that question type (`ty`) in the focus set. The admin view lists each student's answers and notes.
+
+### Official test results from College Board
+
+When the parent connects the student's College Board account, the results are added on the server as a `focus_targets.items` entry `{ type: "log:<id>", log: { id, name, date, kind, source: "bluebook", rw, math, total, dom } }` (domain counts use the app's `DOMAINS[].n` minus the misses, like the Log a test form). The app adds it to `S.tests` once (by id) on its next load or when it comes back into view, with the same XP, badges and plan tick as logging by hand. This avoids writing into `progress` while the student's device may be saving. A Today card links to the latest Test review until it's submitted and every fix-it row is started.
