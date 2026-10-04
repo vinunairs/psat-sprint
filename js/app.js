@@ -2422,7 +2422,7 @@
     $("#hello").textContent = "Admin dashboard";
     $("#testLabel").textContent = "Read-only view of every student";
     p.append(el("div", { class: "row between" }, el("div", {}, el("h2", { text: "Students" }), el("p", { class: "muted", style: "font-size:14px", text: ADMIN.loading ? "Loading…" : ADMIN.at ? "Updated " + ADMIN.at.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + ". Progress syncs whenever a student uses the app." : "" })),
-      el("button", { class: "btn small", onclick: adminLoad, disabled: !!ADMIN.loading }, "Refresh")));
+      el("div", { class: "row" }, el("a", { class: "btn small", href: "fast/" }, "FAST Prep (grade 4) →"), el("button", { class: "btn small", onclick: adminLoad, disabled: !!ADMIN.loading }, "Refresh"))));
     { const ic = installCard(); if (ic) p.append(ic); }
     if (ADMIN.err) { p.append(el("div", { class: "card" }, el("p", { class: "err", text: ADMIN.err }))); return; }
     if (!ADMIN.rows) return;

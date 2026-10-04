@@ -136,6 +136,9 @@
       if (!user || !app.setRewardCfg) return;
       try { const { data, error } = await sb.from("reward_config").select("rewards").eq("user_id", user.id).maybeSingle(); if (!error && data) app.setRewardCfg(data); } catch (e) { }
     }
+    async function isFastLearner() {
+      try { const { data } = await sb.from("fast_learners").select("user_id").eq("user_id", user.id).maybeSingle(); return !!data; } catch (e) { return false; }
+    }
     async function loadProfile() {
       if (!user) return;
       const { data } = await sb.from("profiles").select("first_name, test_kind, test_date, target_score").eq("user_id", user.id).maybeSingle();
@@ -159,6 +162,8 @@
       if (event === "PASSWORD_RECOVERY") setTimeout(showReset, 0);
       if (user) {
         setTimeout(async () => {
+          // FAST Prep learners (grade 4) have their own section; send them there before any PSAT progress is created.
+          if (user && user.id !== was && (await isFastLearner())) { location.replace("fast/"); return; }
           app.setGuest(false); // load this device's student copy, then reconcile with the account
           app.expect(user.id);
           if (user && user.id !== was) { await pull(true); await loadProfile(); await checkAdmin(); await loadFocus(); await loadRewards(); }

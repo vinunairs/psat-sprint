@@ -1,0 +1,15 @@
+{
+  "name": "FAST Prep",
+  "short_name": "FAST Prep",
+  "description": "Grade 4 FAST and i-Ready practice with squishy rewards.",
+  "start_url": "./?from=app",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#FFF6F8",
+  "theme_color": "#E2557F",
+  "icons": [
+    { "src": "../icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "../icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "../icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -138,3 +138,42 @@ After an official practice test, the parent's question-by-question review shows 
 ### Official test results from College Board
 
 When the parent connects the student's College Board account, the results are added on the server as a `focus_targets.items` entry `{ type: "log:<id>", log: { id, name, date, kind, source: "bluebook", rw, math, total, dom } }` (domain counts use the app's `DOMAINS[].n` minus the misses, like the Log a test form). The app adds it to `S.tests` once (by id) on its next load or when it comes back into view, with the same XP, badges and plan tick as logging by hand. This avoids writing into `progress` while the student's device may be saving. A Today card links to the latest Test review until it's submitted and every fix-it row is started.
+
+## FAST Prep (grade 4 FAST + i-Ready) — `/fast/`
+
+**Live:** https://vinunairs.github.io/psat-sprint/fast/ · a separate, kid-friendly section for a 4th grader (Florida B.E.S.T. standards, FAST PM1–PM3 and i-Ready). It shares the Supabase project, the admin login and the Telegram report with the PSAT/SAT app but **never reads or writes the PSAT tables** (`progress`, `profiles`, …).
+
+**Who can use it.** Only accounts listed in `public.fast_learners` (added by the admin in SQL — there's no sign-up). Learners sign in with their existing email/password (e.g. the Daily Brief login). A FAST learner who signs in on the main page is sent to `/fast/` before any PSAT progress is created (`isFastLearner()` in `js/sync.js`). The admin signing in at `/fast/` gets the **parent view**.
+
+**What she sees (bottom tabs).**
+- **Home**: her squishy buddy, *Today's mission* (10–15 min: 2 warm-ups → 6 math with weak skills first → a reading passage on even days or Word Power + 2 writing drills on odd days → a 5th-grade bonus when she's ≥85% over 7 days), the next math-path stop, the weekly essay, Word Power, Level Up. A half-done mission resumes where she left off.
+- **Math**: a path in teaching order — Fraction Forest → Shape & Measure Studio → Multiply & Divide Dojo → Place Value Peaks (29 skills). Each stop has a quick lesson + worked example, then practice. 2 ⭐ moves the path on (or 25 tries; the skill keeps coming back as a power-up). **Level Up** = 11 grade-5 skills plus grade-5 passages and words.
+- **Reading**: stories, poems, articles, paired "across genres" texts (FAST formats incl. two-part Part A/Part B and choose-two), Word Power vocabulary, and every reading skill with stars.
+- **Writing**: drills (conventions, evidence, organization) and 8 FAST-Writing-style prompts with two sources each: Read → Plan → Write → Check (automatic checks + the B.E.S.T. rubric as a self-check). The parent scores essays (4/4/2) and leaves a note in the parent view.
+- **Me**: progress by **FAST reporting category** and by **i-Ready domain** (same names as the school reports), school-score charts with official FAST level bands, squishy collection and dance moves, ranks, "Forms" badges, and parent-set real rewards.
+
+**Adaptivity.** Each math skill has a level 1–3 (3 right in a row → up, 2 wrong → down). Mastery = recent accuracy (last 10). Missed skills go to `fixit` and are served first. Bank items cycle without repeats (`seen`).
+
+**Rewards.** Mochi coins: 10 per right answer (15 for grade 5), 1 for a try, mission bonus 50 + 5×streak, essay 100, set bonus 20, Form badge 200. Coins buy original squishies (`fast/js/squishies.js`, inline SVG — no copyrighted characters); best streak unlocks dance moves; total coins earned sets the rank (Trainee → Star Legend). Real rewards are set by the parent (`fast_learners.rewards`, `[{id,label,xp}]` with `xp` = coin cost); claims show in the parent view and the Telegram report.
+
+**Files.**
+| File | What |
+|---|---|
+| `fast/index.html`, `fast/css/fast.css`, `fast/js/app.js` | the page, theme, UI + sync + parent view |
+| `fast/js/skills.js` | skill catalog → FAST category + i-Ready domain + B.E.S.T. benchmark + tip; FAST cut scores |
+| `fast/js/engine.js` | answer checking, adaptivity, mastery, daily mission, essay checks, ranks/moves/forms |
+| `fast/js/figs.js`, `math4.js`, `math5.js` | SVG figures + grade-4 and grade-5 math generators (random numbers, computed answers) |
+| `fast/js/bank-lit.js`, `bank-info.js` | 37 passages (stories, poems, articles, paired sets; some grade 5) |
+| `fast/js/bank-vocab.js`, `bank-writing.js` | 270 vocabulary items, 120 writing drills, 8 essay prompts, the writing rubric |
+| `fast/CONTENT-SPEC.md` | format and rules for adding content |
+
+**Data.** Local copy in `localStorage["fastprep-v1:<user id>"]`; synced to `public.fast_progress` (one row per learner, RLS: own row, learners only; admin reads). School scores live in `public.fast_scores` (admin writes, learner reads) — add new FAST/i-Ready results from the parent view. Essay scores: `public.fast_feedback`. Goals: `fast_learners.goals`. Schema: `supabase/migrations/20261005_fast_prep.sql`. Same rule as the PSAT app: only add fields, with defaults in `blank()`.
+
+**Telegram.** The 9 pm summary and `/report` add one line per FAST learner (mission, minutes, right/total by subject, Daily Brief, flags for skills under 60%, essays and reward claims); `/details` adds skills practiced, practice by FAST area and the latest school scores. `{mode:"preview"}` (cron secret) returns the text without sending.
+
+**Checks.**
+```
+node test/check-fast.js      # ~180,000 generated math questions + every bank item + a 30-day mission simulation
+node test/check-lengths.js   # the right answer mustn't be the giveaway "longest choice"
+NODE_PATH=$(npm root -g) node test/e2e-fast.js   # browser test (phone + desktop) against a fake Supabase
+```

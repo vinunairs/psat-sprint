@@ -5,7 +5,9 @@
 // Telegram webhook (header X-Telegram-Bot-Api-Secret-Token) → commands:
 //   /link CODE  connect this chat (CODE is app_secrets.telegram_link_code; nothing is shared without it)
 //   /report  short summary now   /details  full summary   /brief  Daily Brief coach reports   /stop  pause
-// The evening summary also includes each Daily Brief learner's day (brief_* tables, same project).
+// The evening summary also includes each Daily Brief learner's day (brief_* tables, same project)
+// and each FAST Prep learner's day (grade 4 FAST + i-Ready practice; fast_* tables, site /fast/).
+// POST {mode:"preview", full?} + x-cron-secret → returns the report text without sending it (for testing).
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 
@@ -40,13 +42,14 @@ const mmss = (s: number) => Math.floor(s / 60) + ":" + String(Math.round(s % 60)
 const dayLabel = (date: string) => new Date(date + "T12:00:00Z").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 
 async function students() {
-  const [{ data: prog }, { data: profs }, { data: admins }, users] = await Promise.all([
+  const [{ data: prog }, { data: profs }, { data: admins }, users, { data: fastL }] = await Promise.all([
     admin.from("progress").select("user_id, data"), admin.from("profiles").select("user_id, first_name, test_kind, test_date"),
-    admin.from("admins").select("email"), admin.auth.admin.listUsers({ perPage: 200 })]);
+    admin.from("admins").select("email"), admin.auth.admin.listUsers({ perPage: 200 }), admin.from("fast_learners").select("user_id")]);
+  const fastIds = new Set((fastL || []).map((f: { user_id: string }) => f.user_id));
   const adminEmails = new Set((admins || []).map((a: { email: string }) => a.email.toLowerCase()));
   const email: Record<string, string> = {}; for (const u of users.data?.users || []) email[u.id] = (u.email || "").toLowerCase();
   const prof: Record<string, { first_name?: string; test_kind?: string; test_date?: string }> = {}; for (const p of profs || []) prof[p.user_id] = p;
-  return (prog || []).filter((r: { user_id: string }) => !adminEmails.has(email[r.user_id] || "")).map((r: { user_id: string; data: Record<string, unknown> }) => ({ id: r.user_id, D: r.data || {}, p: prof[r.user_id] || {}, email: email[r.user_id] || "" }));
+  return (prog || []).filter((r: { user_id: string }) => !adminEmails.has(email[r.user_id] || "") && !fastIds.has(r.user_id)).map((r: { user_id: string; data: Record<string, unknown> }) => ({ id: r.user_id, D: r.data || {}, p: prof[r.user_id] || {}, email: email[r.user_id] || "" }));
 }
 
 // deno-lint-ignore no-explicit-any
@@ -139,23 +142,102 @@ async function briefCoach(chat: number) {
   for (const chunk of (parts.length ? parts : ["No Daily Brief reports yet."])) await send(chat, chunk.slice(0, 4000));
 }
 
+// FAST Prep (grade 4 FAST + i-Ready): one block per learner from fast_progress.data.days[date].
+const FAST_SUB: Record<string, string> = { math: "➗ Math", reading: "📚 Reading", writing: "✏️ Writing", stretch: "🚀 Level Up" };
+const FAST_SKILL: Record<string, string> = {
+  "m.fr.equiv": "Equivalent fractions", "m.fr.compare": "Compare fractions", "m.fr.decomp": "Break apart fractions", "m.fr.addsub": "Add/subtract fractions", "m.fr.word": "Fraction word problems",
+  "m.fr.times": "Fraction × whole", "m.fr.tenths": "Tenths & hundredths", "m.dec.notation": "Decimals", "m.dec.ops": "Decimal sums", "m.gr.angles": "Types of angles", "m.gr.measure": "Measure angles",
+  "m.gr.unknown": "Missing angles", "m.gr.area": "Area & perimeter", "m.geo.shapes": "Lines & shapes", "m.m.convert": "Convert units", "m.m.time": "Time & distance", "m.m.money": "Money",
+  "m.dp.lineplot": "Line plots & data", "m.md.facts": "Times tables", "m.md.mult": "Multi-digit ×", "m.md.div": "Division w/ remainders", "m.md.estimate": "Estimation", "m.ar.word": "× ÷ word problems",
+  "m.ar.equation": "Equations", "m.ar.factors": "Factors & primes", "m.ar.pattern": "Patterns", "m.nso.place": "Place value", "m.nso.compare": "Compare big numbers", "m.nso.round": "Rounding",
+  "r.plot": "Plot & characters", "r.theme": "Theme", "r.pov": "Point of view", "r.poetry": "Poetry", "r.textfeat": "Text features", "r.central": "Central idea", "r.perspective": "Author's perspective",
+  "r.claim": "Claim & evidence", "r.figurative": "Figurative language", "r.summary": "Summarize", "r.compare": "Compare texts", "v.context": "Context clues", "v.roots": "Roots & affixes",
+  "v.multi": "Multiple-meaning words", "v.relations": "Word relationships", "v.academic": "Academic words", "w.org": "Writing: organization", "w.evid": "Writing: evidence", "w.conv": "Writing: conventions" };
+const FAST_CATS: Record<string, string[]> = {
+  "Fractions & Decimals": ["m.fr.equiv", "m.fr.compare", "m.fr.decomp", "m.fr.addsub", "m.fr.times", "m.fr.tenths", "m.dec.notation", "m.dec.ops"],
+  "Whole Numbers": ["m.md.facts", "m.md.mult", "m.md.div", "m.md.estimate", "m.nso.place", "m.nso.compare", "m.nso.round"],
+  "Algebraic Reasoning": ["m.fr.word", "m.ar.word", "m.ar.equation", "m.ar.factors", "m.ar.pattern"],
+  "Geometry, Measurement & Data": ["m.gr.angles", "m.gr.measure", "m.gr.unknown", "m.gr.area", "m.geo.shapes", "m.m.convert", "m.m.time", "m.m.money", "m.dp.lineplot"],
+  "Prose & Poetry": ["r.plot", "r.theme", "r.pov", "r.poetry"], "Informational Text": ["r.textfeat", "r.central", "r.perspective", "r.claim"],
+  "Across Genres & Vocabulary": ["r.figurative", "r.summary", "r.compare", "v.context", "v.roots", "v.multi", "v.relations", "v.academic"] };
+// deno-lint-ignore no-explicit-any
+function fastSkillScore(D: any, id: string) { const s = (D.skills || {})[id]; if (!s || s.n < 3) return null; const h = (s.h || []).slice(-10); return Math.round(((h.reduce((a: number, b: number) => a + b, 0) + 0.5) / (h.length + 1)) * 100); }
+// deno-lint-ignore no-explicit-any
+function fastCat(D: any, ids: string[]) { let w = 0, t = 0; for (const id of ids) { const sc = fastSkillScore(D, id); if (sc == null) continue; const k = Math.min(D.skills[id].n, 20); w += k; t += sc * k; } return w ? Math.round(t / w) : null; }
+async function fastLearners() {
+  const [{ data: L }, { data: P }, { data: F }] = await Promise.all([admin.from("fast_learners").select("user_id, first_name, grade").eq("active", true), admin.from("fast_progress").select("user_id, data"), admin.from("fast_scores").select("user_id, test, score, level, term, grade, taken_on").order("taken_on")]);
+  return (L || []).map((l: { user_id: string; first_name: string; grade: string }) => ({ ...l, D: ((P || []).find((p: { user_id: string }) => p.user_id === l.user_id) || { data: {} }).data || {}, scores: (F || []).filter((f: { user_id: string }) => f.user_id === l.user_id) }));
+}
+type BriefInfo = { done: boolean; opened: boolean; read: number; total: number };
+const briefBit = (b?: BriefInfo) => (b ? (b.done ? "📰 ✓" : b.opened ? "📰 " + b.read + "/" + b.total : "📰 ✗") : "");
+// deno-lint-ignore no-explicit-any
+function fastShort(f: any, date: string, brief?: BriefInfo) {
+  const D = f.D, d = (D.days || {})[date], st = D.streak || {};
+  const streak = st.last === date || st.last === prevDate(date) ? st.cur || 0 : 0;
+  const head = `<b>${esc(f.first_name)}</b> · FAST Gr${esc(f.grade)}${streak > 1 ? ` · 🔥${streak}` : ""}`;
+  if (!d || (!d.q && !d.essays)) return `${head}\n⚠️ No FAST practice today${brief ? " · " + briefBit(brief) : ""}`;
+  const bits = [d.set ? "✅ mission" : "⏳ mission not finished"];
+  if (d.sec >= 60) bits.push(`⏱ ${mins(d.sec)} min`);
+  if (d.q) bits.push(`📝 ${d.c}/${d.q} (${Math.round((d.c / d.q) * 100)}%)`);
+  if (brief) bits.push(briefBit(brief));
+  const subs = Object.entries(d.sub || {}).map(([k, v]) => `${FAST_SUB[k] || k} ${(v as number[])[1]}/${(v as number[])[0]}`);
+  const flags: string[] = [];
+  for (const [id, v] of Object.entries(d.sk || {})) { const [n, c] = v as number[]; if (n >= 3 && c / n < 0.6) flags.push(`${FAST_SKILL[id] || id} ${c}/${n}`); }
+  if (d.essays) flags.push(`✍️ wrote ${d.essays} essay${d.essays > 1 ? "s" : ""}`);
+  for (const c of (D.claims || []).filter((x: { at: string }) => x.at === date)) flags.push(`🎁 claimed “${esc(c.label)}”`);
+  return `${head}\n${bits.join(" · ")}${subs.length ? "\n   " + subs.join(" · ") : ""}${flags.length ? "\n⚠️ " + flags.slice(0, 3).join(" · ") : ""}`;
+}
+// deno-lint-ignore no-explicit-any
+function fastFull(f: any, date: string, brief?: { line: string }) {
+  const D = f.D, d = (D.days || {})[date], st = D.streak || {};
+  const L = [`🧮 <b>${esc(f.first_name)}</b> · FAST Prep (grade ${esc(f.grade)}) · ${dayLabel(date)}`];
+  if (!d || (!d.q && !d.essays)) L.push("⚠️ No FAST practice yet today.");
+  else {
+    L.push(`${d.set ? "✅ Daily mission done" : "⏳ Daily mission not finished"} · ⏱ ${mins(d.sec || 0)} min · 📝 ${d.c}/${d.q} right (${d.q ? Math.round((d.c / d.q) * 100) : 0}%)`);
+    const subs = Object.entries(d.sub || {}).map(([k, v]) => `${FAST_SUB[k] || k} ${(v as number[])[1]}/${(v as number[])[0]}`);
+    if (subs.length) L.push("   " + subs.join(" · "));
+    const sk = Object.entries(d.sk || {}).sort((x, y) => (x[1] as number[])[1] / (x[1] as number[])[0] - (y[1] as number[])[1] / (y[1] as number[])[0]).map(([id, v]) => `${FAST_SKILL[id] || id} ${(v as number[])[1]}/${(v as number[])[0]}`);
+    if (sk.length) L.push("🎯 Skills today: " + sk.slice(0, 8).join(" · "));
+    if (d.essays) L.push(`✍️ Essays turned in today: ${d.essays} (score them in the parent view)`);
+  }
+  const cats = Object.entries(FAST_CATS).map(([name, ids]) => [name, fastCat(D, ids)] as [string, number | null]).filter(([, v]) => v != null);
+  if (cats.length) L.push("📊 Practice by FAST area: " + cats.map(([n, v]) => `${n} ${v}%`).join(" · "));
+  const last = (t: string) => f.scores.filter((s: { test: string }) => s.test === t).slice(-1)[0];
+  const lm = last("fast_math"), lr = last("fast_reading"), im = last("iready_math"), ir = last("iready_reading");
+  L.push(`🏫 Latest school: FAST Math ${lm ? lm.score + (lm.level ? " L" + lm.level : "") : "—"} · FAST Reading ${lr ? lr.score + (lr.level ? " L" + lr.level : "") : "—"} · i-Ready Math ${im ? im.score : "—"} · Reading ${ir ? ir.score : "—"}`);
+  L.push(`🔥 Streak ${st.last === date || st.last === prevDate(date) ? st.cur || 0 : 0} (best ${st.best || 0}) · 🪙 ${D.coins || 0} coins`);
+  if (brief) L.push(brief.line);
+  return L.join("\n");
+}
+function prevDate(date: string) { const d = new Date(date + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() - 1); return d.toISOString().slice(0, 10); }
+
 async function chats() { const { data } = await admin.from("telegram_chats").select("chat_id").eq("enabled", true); return (data || []).map((c: { chat_id: number }) => c.chat_id); }
-async function reportTo(chat_ids: number[], date: string, full = false) {
+async function reportText(date: string, full = false) {
   // deno-lint-ignore no-explicit-any
-  const [list, brief] = await Promise.all([students(), briefLines(date).catch(() => ({} as Record<string, any>))]);
-  const ids = new Set(list.map((s) => s.id));
-  let text: string;
+  const [list, brief, fast] = await Promise.all([students(), briefLines(date).catch(() => ({} as Record<string, any>)), fastLearners().catch(() => [])]);
+  const ids = new Set([...list.map((s) => s.id), ...fast.map((f: { user_id: string }) => f.user_id)]);
   if (full) {
     const blocks = list.map((s) => summary(s, date) + (brief[s.id] ? "\n" + brief[s.id].line : ""));
+    // deno-lint-ignore no-explicit-any
+    for (const f of fast as any[]) blocks.push(fastFull(f, date, brief[f.user_id]));
     for (const [id, b] of Object.entries(brief)) if (!ids.has(id)) blocks.push(`👤 <b>${esc(b.name)}</b>\n${b.line}`);
-    text = blocks.length ? blocks.join("\n\n") + `\n\n<a href="${SITE}">Open Test Prep Hub</a>` : "No students yet.";
-  } else {
-    const blocks = list.map((s) => short(s, date, brief[s.id] && brief[s.id].info));
-    const others = Object.entries(brief).filter(([id]) => !ids.has(id)).map(([, b]) => `${esc(b.name)} ${b.info.done ? "✓" : b.info.opened ? b.info.read + "/" + b.info.total : "✗"}`);
-    if (others.length) blocks.push("📰 Daily Brief: " + others.join(" · "));
-    text = `📊 <b>${dayLabel(date)}</b>\n\n` + (blocks.length ? blocks.join("\n\n") : "No students yet.") + "\n\n/details for the full report";
+    return blocks.length ? blocks.join("\n\n") + `\n\n<a href="${SITE}">Open Test Prep Hub</a> · <a href="${SITE}fast/">FAST Prep</a>` : "No students yet.";
   }
-  for (const c of chat_ids) await send(c, text);
+  const blocks = list.map((s) => short(s, date, brief[s.id] && brief[s.id].info));
+  // deno-lint-ignore no-explicit-any
+  for (const f of fast as any[]) blocks.push(fastShort(f, date, brief[f.user_id] && brief[f.user_id].info));
+  const others = Object.entries(brief).filter(([id]) => !ids.has(id)).map(([, b]) => `${esc(b.name)} ${b.info.done ? "✓" : b.info.opened ? b.info.read + "/" + b.info.total : "✗"}`);
+  if (others.length) blocks.push("📰 Daily Brief: " + others.join(" · "));
+  return `📊 <b>${dayLabel(date)}</b>\n\n` + (blocks.length ? blocks.join("\n\n") : "No students yet.") + "\n\n/details for the full report";
+}
+async function reportTo(chat_ids: number[], date: string, full = false) {
+  // Telegram caps a message at 4,096 characters: split between blocks so HTML tags stay whole.
+  const parts: string[] = []; let cur = "";
+  for (const block of (await reportText(date, full)).split("\n\n")) {
+    if (cur && (cur + "\n\n" + block).length > 4000) { parts.push(cur); cur = block; } else cur = cur ? cur + "\n\n" + block : block;
+  }
+  if (cur) parts.push(cur);
+  for (const c of chat_ids) for (const p of parts) await send(c, p);
 }
 
 // New tests logged since the last check → a short alert.
@@ -202,8 +284,9 @@ Deno.serve(async (req) => {
   }
   // Admin / scheduled calls
   if (req.headers.get("x-cron-secret") !== S.cron_secret) return json({ error: "forbidden" }, 403);
-  if (!TOKEN) return json({ error: "TELEGRAM_BOT_TOKEN is not set" }, 400);
   const body = await req.json().catch(() => ({}));
+  if (body.mode === "preview") return json({ text: await reportText(body.date || localDate(), !!body.full) });
+  if (!TOKEN) return json({ error: "TELEGRAM_BOT_TOKEN is not set" }, 400);
   if (body.mode === "setup") {
     const r = await tg("setWebhook", { url: HOOK_URL, secret_token: S.telegram_hook_secret, allowed_updates: ["message"], drop_pending_updates: true });
     const me = await tg("getMe", {});
