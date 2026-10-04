@@ -1833,7 +1833,7 @@
      repeat gap / hit or miss) shows up here. The student says what really happened on each one, plus when
      focus slipped. Answers live in S.treview[id] = { r: { [q]: { c, note, at } }, focus: [...], note, done }.
      "Never learned it" and "forgot how" raise that question type in the focus set (focusWeights). */
-  const TR_CAT = { knew: ["Knew it", "You got this type right elsewhere"], new: ["New type", "You hadn't missed this type before"], repeat: ["Repeat gap", "Missed on both tests"], mixed: ["Hit or miss", "Right about half the time"] };
+  const TR_CAT = { knew: ["Knew it", "You got this type right elsewhere"], new: ["New type", "Not on Test 1, or only an easy version"], repeat: ["Repeat gap", "Missed on both tests"], mixed: ["Hit or miss", "Right about half the time"] };
   const TR_WHY = [["careless", "Careless slip"], ["time", "Rushed or ran out of time"], ["focus", "Lost focus"], ["guess", "Guessed"], ["forgot", "Learned it, forgot how"], ["new", "Never learned it"]];
   const TR_MODS = [["rw1", "Reading & Writing, Module 1"], ["rw2", "Reading & Writing, Module 2"], ["m1", "Math, Module 1"], ["m2", "Math, Module 2"]];
   let TR_FILTER = "all";
@@ -1891,6 +1891,8 @@
     const card = el("div", { class: "card tr-item c-" + it.cat + (a.c ? " answered" : "") },
       el("div", { class: "tr-top" }, el("span", { class: "tr-q", text: it.q }), el("span", { class: "tr-cat c-" + it.cat, text: TR_CAT[it.cat][0] })),
       el("div", { class: "tr-type", text: it.type }),
+      it.ask ? el("p", { class: "tr-qtext" }, el("b", { text: "The question: " }), it.ask) : null,
+      rv.link ? el("a", { class: "tr-open", href: rv.link, target: "_blank", rel: "noopener" }, "See the full question: My Practice → " + (rv.linkName || "Score Details") + " → " + it.q.replace(/^(R&W|Math) M(\d) Q(\d+)$/, (m, sec, mod, n) => (sec === "Math" ? "Math" : "Reading and Writing") + ", module " + mod + ", question " + n) + " ↗") : null,
       el("div", { class: "tr-ans" }, el("span", { text: "You: " }), el("b", { class: "bad", text: it.his }), el("span", { text: "  ·  Correct: " }), el("b", { class: "good", text: it.cor })),
       el("p", { class: "tr-what" }, el("b", { text: "What we think happened: " }), it.what),
       it.lab ? el("a", { class: "btn small", href: it.lab }, it.labText || "Learn it") : null,

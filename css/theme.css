@@ -445,6 +445,9 @@ body:not(.guest) #footNote{display:none}
 .tr-ans{font-size:14px;color:var(--graphite)}
 .tr-ans .bad{color:var(--bad)}.tr-ans .good{color:var(--good)}
 .tr-what{font-size:14.5px}
+.tr-qtext{font-size:14.5px;background:var(--sunk);border-radius:var(--r-sm);padding:9px 12px}
+.tr-open{font-size:13px;font-weight:700;color:var(--pencil);text-decoration:none;justify-self:start}
+.tr-open:hover{text-decoration:underline}
 .tr-item .btn.small{justify-self:start}
 .tr-ask{font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--graphite);margin-top:2px}
 .tr-why{display:flex;flex-wrap:wrap;gap:8px}
