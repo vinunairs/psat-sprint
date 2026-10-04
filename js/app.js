@@ -1847,7 +1847,7 @@
   const TR_CAT = { knew: ["Knew it", "You got this type right elsewhere"], new: ["New type", "Not on Test 1, or only an easy version"], repeat: ["Repeat gap", "Missed on both tests"], mixed: ["Hit or miss", "Right about half the time"] };
   const TR_WHY = [["careless", "Careless slip"], ["time", "Rushed or ran out of time"], ["focus", "Lost focus"], ["guess", "Guessed"], ["forgot", "Learned it, forgot how"], ["new", "Never learned it"]];
   const TR_MODS = [["rw1", "Reading & Writing, Module 1"], ["rw2", "Reading & Writing, Module 2"], ["m1", "Math, Module 1"], ["m2", "Math, Module 2"]];
-  let TR_FILTER = "all";
+  let TR_FILTER = "all", TR_EDIT = false;
   function trState(id) { const all = S.treview || (S.treview = {}); return all[id] || (all[id] = { r: {}, focus: [], note: "" }); }
   function renderTReview() {
     const p = $("#p-treview"); p.textContent = "";
@@ -1856,6 +1856,7 @@
       return;
     }
     const rv = REVIEWS[REVIEWS.length - 1], st = trState(rv.id), items = rv.items || [];
+    if (st.done && !TR_EDIT) { trFixList(p, rv, st); return; }
     const answered = items.filter((it) => st.r[it.q] && st.r[it.q].c).length;
     const sm = rv.summary || {};
     p.append(el("div", { class: "card tr-head" },
@@ -1863,7 +1864,7 @@
       el("h2", { text: rv.title }),
       el("p", { class: "muted", text: sm.line || "" }),
       el("div", { class: "tr-prog" }, el("div", { class: "tr-bar" }, el("i", { style: "width:" + Math.round((answered / Math.max(1, items.length)) * 100) + "%" })), el("span", { text: answered + " of " + items.length + " reviewed" })),
-      el("p", { class: "tr-how", text: "For each miss, read what we think happened. Then tap what really happened, and add a sentence if you want. Where there's a Learn it button, do that lesson first, then practice. Your answers change which questions show up in your focus set." })));
+      el("p", { class: "tr-how", text: "Step 1: for each miss, read what we think happened, then tap what really happened and add a sentence if you want. Step 2: submit. Then you get a fix-it list with a lesson and practice for every miss, sorted by your answers." })));
     // the four groups
     const counts = {}; items.forEach((it) => (counts[it.cat] = (counts[it.cat] || 0) + 1));
     p.append(el("div", { class: "tr-tiles" }, Object.entries(TR_CAT).filter(([k]) => counts[k]).map(([k, [name, desc]]) =>
@@ -1893,9 +1894,10 @@
     p.append(fx);
     const complete = answered === items.length && st.focus.length > 0;
     p.append(el("div", { class: "card tr-done" + (st.done ? " ok" : "") },
-      st.done ? el("p", { text: "✓ Review finished. Thanks: your answers are saved and your focus set already uses them." }) :
-        el("p", { text: complete ? "All done. Finish to save your review." : "Finish all " + items.length + " misses and the focus question, then tap Finish." }),
-      st.done ? null : el("button", { class: "btn primary", disabled: !complete, onclick: () => { st.done = today(); addXP(25, "test review"); planEvent({ k: "treview" }); save(); toast("Review saved. Nice work."); renderTReview(); } }, "Finish the review")));
+      st.done ? el("p", { text: "Your review is submitted. Change any answer above, then go back to your fix-it list." }) :
+        el("p", { text: complete ? "All done. Submit to get your fix-it list." : "Answer all " + items.length + " misses and the focus question, then submit." }),
+      st.done ? el("button", { class: "btn primary", onclick: () => { TR_EDIT = false; save(); renderTReview(); window.scrollTo({ top: 0 }); } }, "Back to my fix-it list")
+        : el("button", { class: "btn primary", disabled: !complete, onclick: () => { st.done = today(); TR_EDIT = false; addXP(25, "test review"); planEvent({ k: "treview" }); save(); toast("Review submitted. Here's your fix-it list."); renderTReview(); window.scrollTo({ top: 0 }); } }, "Submit my review")));
   }
   function trItem(rv, st, it) {
     const a = st.r[it.q] || {};
@@ -1911,14 +1913,42 @@
     const ta = el("textarea", { rows: "2", "aria-label": "Your explanation for " + it.q, placeholder: "Your explanation (optional)" }); ta.value = a.note || "";
     ta.addEventListener("input", () => { st.r[it.q] = Object.assign({}, st.r[it.q], { note: ta.value }); save(); });
     card.append(ta);
-    // Next steps, below the feedback: a lesson (a Lab mission, or the strategy card for this type), then practice.
-    const sid = it.ty ? STRAT.strategyFor(it.ty.startsWith("bank:") ? { sk: it.ty.slice(5) } : { gen: it.ty.slice(4) }) : null;
-    const scard = sid && sid !== "general" && STRAT.cards[sid];
-    const learn = it.lab ? el("a", { class: "btn small primary", href: it.lab }, "Learn it: " + (it.labText || "Lab"))
-      : scard ? el("button", { class: "btn small primary", type: "button", onclick: () => { RV = { queue: [sid], i: 0, flipped: false, back: "treview" }; show("review"); window.scrollTo({ top: 0 }); } }, "Learn it: " + scard.name + " (tip card)") : null;
-    if (learn || it.ty) card.append(el("div", { class: "tr-next" }, el("p", { class: "tr-ask", text: "Next steps" }), el("div", { class: "tr-go" }, learn,
-      it.ty ? el("button", { class: "btn small", type: "button", onclick: () => startTypePractice(it.ty, 5) }, "Practice 5 like this") : null)));
     return card;
+  }
+  /* After the review is submitted: a fix-it list of every miss, ordered by what the student said happened.
+     Each row has a lesson (a Lab mission, or the tip card for that type) and a 5-question practice set.
+     Opening either marks the row started: S.treview[id].fix[q] = date. */
+  const TR_GROUPS = [
+    ["learn", "Learn first", "You said you never learned these or forgot how. Do the lesson, then the 5 practice questions."],
+    ["practice", "Practice until it sticks", "Gaps and guesses. Practice each one, and do the lesson if the practice goes badly."],
+    ["quick", "Quick fixes", "You know these. You said they were slips, rushing or lost focus. One quick practice set each, and slow down on these in the real test."]];
+  function trGroup(a) { const c = a && a.c; return c === "new" || c === "forgot" ? "learn" : c === "careless" || c === "time" || c === "focus" ? "quick" : "practice"; }
+  function trLearn(it, st) {
+    const mark = () => { st.fix = st.fix || {}; if (!st.fix[it.q]) { st.fix[it.q] = today(); save(); } };
+    if (it.lab) return el("a", { class: "btn small primary", href: it.lab, onclick: mark }, "Learn: " + (it.labText || "Lab"));
+    const sid = it.ty ? STRAT.strategyFor(it.ty.startsWith("bank:") ? { sk: it.ty.slice(5) } : { gen: it.ty.slice(4) }) : null, sc = sid && sid !== "general" && STRAT.cards[sid];
+    return sc ? el("button", { class: "btn small primary", type: "button", onclick: () => { mark(); RV = { queue: [sid], i: 0, flipped: false, back: "treview" }; show("review"); window.scrollTo({ top: 0 }); } }, "Learn: " + sc.name + " (tip card)") : null;
+  }
+  function trFixList(p, rv, st) {
+    const items = rv.items || [], fix = st.fix || {}, started = items.filter((it) => fix[it.q]).length;
+    const WHY = Object.fromEntries(TR_WHY);
+    p.append(el("div", { class: "card tr-head" },
+      el("div", { class: "eyebrow", text: "Your fix-it list" }),
+      el("h2", { text: rv.title + ": " + items.length + " to fix" }),
+      el("p", { class: "muted", text: "Sorted by what you told us in your review. Start at the top." }),
+      el("div", { class: "tr-prog" }, el("div", { class: "tr-bar" }, el("i", { style: "width:" + Math.round((started / Math.max(1, items.length)) * 100) + "%" })), el("span", { text: started + " of " + items.length + " started" }))));
+    TR_GROUPS.forEach(([g, name, desc]) => {
+      const list = items.filter((it) => trGroup(st.r[it.q]) === g); if (!list.length) return;
+      p.append(el("div", { class: "tr-fixhead" }, el("h3", { text: name + " · " + list.length }), el("p", { class: "muted", text: desc })));
+      p.append(el("div", { class: "card tr-fix" }, list.map((it) => {
+        const a = st.r[it.q] || {}, done = !!fix[it.q];
+        return el("div", { class: "tr-frow" + (done ? " started" : "") },
+          el("div", { class: "tr-fmeta" }, el("span", { class: "tr-q", text: (done ? "✓ " : "") + it.q }), el("span", { class: "tr-fty", text: it.type }), el("span", { class: "tr-fsaid", text: "You said: " + (WHY[a.c] || "—").toLowerCase() })),
+          el("div", { class: "tr-go" }, trLearn(it, st), it.ty ? el("button", { class: "btn small", type: "button", onclick: () => { st.fix = st.fix || {}; if (!st.fix[it.q]) st.fix[it.q] = today(); save(); startTypePractice(it.ty, 5); } }, "Practice 5") : null));
+      })));
+    });
+    p.append(el("div", { class: "card tr-done ok" }, el("p", { text: "✓ Review submitted " + st.done + ". Your answers also shape your focus set." }),
+      el("button", { class: "btn small ghost", onclick: () => { TR_EDIT = true; renderTReview(); window.scrollTo({ top: 0 }); } }, "See or change my answers")));
   }
   function refreshTRProg(rv, st) {
     const items = rv.items || [], answered = items.filter((it) => st.r[it.q] && st.r[it.q].c).length;

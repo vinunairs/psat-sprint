@@ -132,4 +132,5 @@ After an official practice test, the parent's question-by-question review shows 
 
 - Review data lives in the student's `focus_targets.items` as one entry `{ type: "review:<id>", review: { title, date, summary: { line, len, finding }, items: [{ q, mod, n, type, his, cor, cat, what, ty, lab, labText }] } }`, so no extra table is needed. `setFocus` splits these out into `REVIEWS`.
 - Answers are saved in the synced state: `S.treview[id] = { r: { [q]: { c, note, at } }, focus: [...], note, done }`.
+- Two steps: the review itself has no practice links. After **Submit my review**, the screen becomes a fix-it list of every miss, grouped by the student's own answers (Learn first: never learned / forgot how · Practice until it sticks: guessed · Quick fixes: careless, rushed, lost focus). Each row has a lesson (Lab mission, or the tip card for that type, which returns to the list) and "Practice 5". Opening either marks the row started (`S.treview[id].fix`). "See or change my answers" reopens the review.
 - "Never learned it" and "forgot how" add weight to that question type (`ty`) in the focus set. The admin view lists each student's answers and notes.

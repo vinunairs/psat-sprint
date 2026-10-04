@@ -462,3 +462,12 @@ body:not(.guest) #footNote{display:none}
 .tr-lbl{font-weight:700;font-size:14px;margin-top:4px}
 .tr-done{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
 .tr-done.ok{border-color:var(--good);background:var(--good-soft)}
+
+.tr-fixhead{display:grid;gap:2px;margin-top:6px}.tr-fixhead h3{margin:0;font-size:16px}.tr-fixhead p{font-size:13.5px}
+.tr-fix{display:grid;gap:0;padding:4px 16px}
+.tr-frow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 14px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.tr-frow:first-child{border-top:0}
+@media (max-width:640px){.tr-frow{grid-template-columns:minmax(0,1fr)}}
+.tr-fmeta{display:grid;gap:1px;min-width:0}
+.tr-fty{font-weight:750}.tr-fsaid{font-size:12.5px;color:var(--graphite)}
+.tr-frow.started .tr-q{color:var(--good)}
