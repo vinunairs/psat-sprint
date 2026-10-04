@@ -125,3 +125,11 @@ A second guided Lab, built after Bluebook Practice Test 2, for question types th
 7. Notes → goal (rhetorical synthesis method)
 
 Plan tasks use `{ k: "lab", p: "cx", m: [...] }`; `p` omitted means the Geometry Lab. The Geometry Lab's Mission 2 now also covers polygon angle sums.
+
+## Test review (Tests → Test review)
+
+After an official practice test, the parent's question-by-question review shows up here for the student to confirm. Each miss is sorted into Knew it / New type / Repeat gap / Hit or miss, with the answers, what we think happened, and a link to the matching Lab mission. The student taps what really happened (careless, rushed, lost focus, guessed, forgot how, never learned it), can add a sentence, marks where focus slipped, and finishes the review (ticks the plan task, +25 XP).
+
+- Review data lives in the student's `focus_targets.items` as one entry `{ type: "review:<id>", review: { title, date, summary: { line, len, finding }, items: [{ q, mod, n, type, his, cor, cat, what, ty, lab, labText }] } }`, so no extra table is needed. `setFocus` splits these out into `REVIEWS`.
+- Answers are saved in the synced state: `S.treview[id] = { r: { [q]: { c, note, at } }, focus: [...], note, done }`.
+- "Never learned it" and "forgot how" add weight to that question type (`ty`) in the focus set. The admin view lists each student's answers and notes.

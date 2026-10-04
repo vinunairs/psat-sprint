@@ -35,7 +35,7 @@
     { title: "Grammar rules day", tasks: [["Practice 20 Standard English Conventions questions", { k: "practice", doms: ["sec"], n: 20 }], ["Learn the grammar rules: flip through the rule cards", { k: "deck", area: "Grammar" }], ["Spend 20 minutes with Desmos: graph a line, find an intersection, find a vertex", { k: "ext", url: "https://www.desmos.com/calculator" }]] },
     { title: "Math under the clock", tasks: [["Take a timed Math section: an in-app mock, or a Khan Academy practice test Math section (log it in Log a test)", { k: "mock", parts: ["math"], alt: "khan" }], ["Review every miss in the results", { k: "mockreview" }], ["Pacing drill: 10 math questions with the timer on (about 1½ minutes each)", { k: "practice", doms: ["alg", "adv", "psda", "geo"], n: 10, timed: true }], ["Geometry Lab: Missions 1 and 2 (parallel lines, triangle angles)", { k: "lab", m: [1, 2] }]] },
     { title: "Dress rehearsal", heavy: true, tasks: [["2-minute warm-up first: your top 5 rules", { k: "deck", top: 5 }], ["Take Bluebook {TEST} Practice Test 2 in one sitting, starting at the same time as the real test", BB], ["Take only the scheduled 10-minute break"], ["Enter the results in the Log a test tab", { k: "log", src: "bluebook" }]] },
-    { title: "Review the rehearsal", tasks: [["Review every miss from Practice Test 2", MYP], ["Compare your Progress page with Test 1 and note what improved", { k: "visit", tab: "matrix" }], ["Your focus set: 20 questions picked from your misses", { k: "focus", n: 20 }], ["Geometry Lab: Missions 3 and 4 (Pythagoras, SOH CAH TOA)", { k: "lab", m: [3, 4] }]] },
+    { title: "Review the rehearsal", tasks: [["Test review: go through your Practice Test 2 misses and say what really happened", { k: "treview" }], ["Compare your Progress page with Test 1 and note what improved", { k: "visit", tab: "matrix" }], ["Your focus set: 20 questions picked from your misses", { k: "focus", n: 20 }], ["Geometry Lab: Missions 3 and 4 (Pythagoras, SOH CAH TOA)", { k: "lab", m: [3, 4] }]] },
     { title: "Learn the new question types", tasks: [["Concept Lab: Missions 1 to 3 (how many solutions, none or infinitely many, line meets parabola)", { k: "lab", p: "cx", m: [1, 2, 3] }], ["Concept Lab: Mission 7 (notes questions: do exactly what the goal asks)", { k: "lab", p: "cx", m: [7] }], ["Concept Lab: Missions 4 to 6 (factors and zeros, shifting graphs, fraction equations)", { k: "lab", p: "cx", m: [4, 5, 6] }], ["Your focus set: 15 questions to practice what you just learned", { k: "focus", n: 15 }], ["Retry the Mistake notebook", { k: "notebook" }]] },
     { title: "Light review", light: true, tasks: [["Flip through your strategy cards and read your night-before sheet (Learn tab)", { k: "visit", tab: "review" }], ["One 10-question mixed practice set, nothing more", { k: "practice", n: 10 }], ["Charge the device, update Bluebook, and run its exam readiness check", BB], "Pack what the school asks for: device, charger, admission info", "Lights out by 10 pm", ["Geometry Lab: Missions 5 to 7 (similar triangles, area and volume, shortcuts) and the cheat sheet", { k: "lab", m: [5, 6, 7] }]] },
     { title: "Test day", light: true, tasks: ["Eat a real breakfast", "Take care on Module 1: it decides whether Module 2 is the harder set", "Never leave a question blank; wrong answers cost nothing", "Use Desmos and the reference sheet to check math answers"] }
@@ -280,9 +280,18 @@
   // Focus set = question types chosen automatically: from test reviews (FOCUS, set on the server
   // after a Bluebook review) plus the student's own misses in the app (S.tstat).
   let FOCUS = null; // { items: [{type, w, why}], source, updated }
+  let REVIEWS = []; // test reviews written after an official practice test: [{id, title, date, summary, items}]
   function focusWeights() {
     const W = {};
     for (const it of (FOCUS && FOCUS.items) || []) W[it.type] = { w: it.w || 3, lv: it.lv || null, why: it.why || (FOCUS.source || "Test review") };
+    for (const rv of REVIEWS) {
+      const mine = ((S.treview || {})[rv.id] || {}).r || {};
+      for (const it of rv.items || []) {
+        const a = mine[it.q]; if (!it.ty || !a || !["new", "forgot"].includes(a.c)) continue;
+        if (W[it.ty]) { W[it.ty].w += 2; W[it.ty].why += " · you said you " + (a.c === "new" ? "never learned it" : "forgot how"); }
+        else W[it.ty] = { w: 4, lv: 1, why: rv.title + " " + it.q + ": you said you " + (a.c === "new" ? "never learned it" : "forgot how") };
+      }
+    }
     for (const [ty, [att, miss, last]] of Object.entries(S.tstat || {})) {
       if (att < 3) continue;
       const rate = miss / att;
@@ -412,15 +421,15 @@
   let TAB = "today";
   // Five destinations, one place per job: Today (the plan), Learn (Lab, flashcards, rules), Practice (questions),
   // Tests (mocks, logging, official tests), Me (progress, rewards, friends, account). Related views share a sub-nav.
-  const GROUP = { today: "today", review: "review", practice: "practice", mock: "mock", log: "mock", matrix: "matrix", rewards: "matrix", friends: "matrix", account: "matrix" };
-  const SUBS = { mock: [["mock", "Mock test"], ["log", "Log a test"]], matrix: [["matrix", "Progress"], ["rewards", "Rewards"], ["friends", "Friends"], ["account", "Account"]] };
+  const GROUP = { today: "today", review: "review", practice: "practice", mock: "mock", log: "mock", treview: "mock", matrix: "matrix", rewards: "matrix", friends: "matrix", account: "matrix" };
+  const SUBS = { mock: [["mock", "Mock test"], ["log", "Log a test"], ["treview", "Test review"]], matrix: [["matrix", "Progress"], ["rewards", "Rewards"], ["friends", "Friends"], ["account", "Account"]] };
   function renderSubnav(t) {
     const sn = document.querySelector("nav.subnav"); if (!sn) return;
     const subs = !GUEST && !ADMIN && SUBS[GROUP[t]];
     sn.hidden = !subs; sn.textContent = "";
     if (subs) subs.forEach(([k, label]) => { const b = el("button", { type: "button", "data-tab": k, "aria-current": k === t ? "page" : false, onclick: () => show(k) }, label); sn.append(b); });
   }
-  const RENDERERS_OK = (t) => ["today", "practice", "mock", "review", "matrix", "log", "rewards", "friends", "account"].includes(t);
+  const RENDERERS_OK = (t) => ["today", "practice", "mock", "review", "matrix", "log", "treview", "rewards", "friends", "account"].includes(t);
   document.querySelectorAll("nav.tabs button").forEach((b) => b.addEventListener("click", () => show(b.dataset.tab)));
   ["aStreak", "aLevel"].forEach((id) => { const b = document.getElementById(id); if (b) b.addEventListener("click", () => { if (!GUEST && !ADMIN) show("rewards"); }); });
   function show(t) {
@@ -459,7 +468,7 @@
     setLbl("practice", GUEST ? "Try practice" : "Practice"); setLbl("mock", GUEST ? "Try a test" : "Tests");
     const fn = document.getElementById("footNote"); if (fn) fn.textContent = GUEST ? "Create a free student account to save progress and unlock the full site." : "Progress saves on this device first, then to your account.";
     if (!RENDERERS_OK(TAB)) { TAB = "today"; document.querySelectorAll("section.panel").forEach((x) => (x.hidden = x.id !== "p-today")); }
-    renderHeader(); ({ today: renderToday, practice: renderPractice, mock: renderMock, review: renderReview, matrix: renderMatrix, log: renderLog, rewards: renderRewards, friends: renderFriends, account: renderAccount })[TAB](); }
+    renderHeader(); ({ today: renderToday, practice: renderPractice, mock: renderMock, review: renderReview, matrix: renderMatrix, log: renderLog, treview: renderTReview, rewards: renderRewards, friends: renderFriends, account: renderAccount })[TAB](); }
 
   /* ================= Today ================= */
   function taskList(day, only, moved) {
@@ -497,6 +506,7 @@
     else if (g.k === "mock") { S.lastMock && (S.lastMock.showResults = false); show("mock"); }
     else if (g.k === "mockreview") { completeTask(day, i); save(); if (S.lastMock && S.lastMock.result) S.lastMock.showResults = true; show("mock"); }
     else if (g.k === "log") show("log");
+    else if (g.k === "treview") show("treview");
     else if (g.k === "visit") { completeTask(day, i); save(); show(g.tab); }
     else if (g.k === "lab") { const lab = labState(g.p), next = g.m.find((n) => !(lab[n] && lab[n].s)) || g.m[0]; location.href = LABS[g.p || "geo"].page + "#l" + next; return; }
     window.scrollTo({ top: 0 });
@@ -556,6 +566,7 @@
     }
     if (ev.k === "mock") return g.k === "mock" && g.parts.every((x) => ev.parts.includes(x));
     if (ev.k === "log") return (g.k === "log" && (!g.src || g.src === ev.src)) || (g.k === "mock" && g.alt && g.alt === ev.src);
+    if (ev.k === "treview") return g.k === "treview";
     if (ev.k === "deck") return g.k === "deck" && (g.area || "") === (ev.spec.area || "") && !!g.top === !!ev.spec.top;
     return false;
   }
@@ -970,6 +981,7 @@
     if (g.k === "mock") return g.parts.includes("rw") && g.parts.includes("math") ? 145 : g.parts.includes("rw") ? 64 : 70;
     if (g.k === "mockreview") return 15;
     if (g.k === "log") return 5;
+    if (g.k === "treview") return 20;
     if (g.k === "visit") return 10;
     if (g.k === "lab") return 8 * g.m.length;
     if (g.k === "ext") return /Practice Test 2 in one sitting/.test(t) ? 135 : /Read the explanation|Review every miss/.test(t) ? 20 : /Install|Download|Charge/.test(t) ? 10 : 15;
@@ -1816,6 +1828,97 @@
       el("button", { class: "btn small primary", type: "button", onclick: () => { LOGSRC = src; show("log"); } }, "Open Log a test"));
   }
 
+  /* ================= Test review =================
+     After an official practice test, the parent's review of every miss (sorted into knew it / new type /
+     repeat gap / hit or miss) shows up here. The student says what really happened on each one, plus when
+     focus slipped. Answers live in S.treview[id] = { r: { [q]: { c, note, at } }, focus: [...], note, done }.
+     "Never learned it" and "forgot how" raise that question type in the focus set (focusWeights). */
+  const TR_CAT = { knew: ["Knew it", "You got this type right elsewhere"], new: ["New type", "You hadn't missed this type before"], repeat: ["Repeat gap", "Missed on both tests"], mixed: ["Hit or miss", "Right about half the time"] };
+  const TR_WHY = [["careless", "Careless slip"], ["time", "Rushed or ran out of time"], ["focus", "Lost focus"], ["guess", "Guessed"], ["forgot", "Learned it, forgot how"], ["new", "Never learned it"]];
+  const TR_MODS = [["rw1", "Reading & Writing, Module 1"], ["rw2", "Reading & Writing, Module 2"], ["m1", "Math, Module 1"], ["m2", "Math, Module 2"]];
+  let TR_FILTER = "all";
+  function trState(id) { const all = S.treview || (S.treview = {}); return all[id] || (all[id] = { r: {}, focus: [], note: "" }); }
+  function renderTReview() {
+    const p = $("#p-treview"); p.textContent = "";
+    if (!REVIEWS.length) {
+      p.append(el("div", { class: "card" }, el("h2", { text: "Test review" }), el("p", { class: "muted", style: "margin-top:.4em", text: "After you take a Bluebook practice test, a review of every question you missed shows up here. You'll go through each one and say what really happened." })));
+      return;
+    }
+    const rv = REVIEWS[REVIEWS.length - 1], st = trState(rv.id), items = rv.items || [];
+    const answered = items.filter((it) => st.r[it.q] && st.r[it.q].c).length;
+    const sm = rv.summary || {};
+    p.append(el("div", { class: "card tr-head" },
+      el("div", { class: "eyebrow", text: "Test review" }),
+      el("h2", { text: rv.title }),
+      el("p", { class: "muted", text: sm.line || "" }),
+      el("div", { class: "tr-prog" }, el("div", { class: "tr-bar" }, el("i", { style: "width:" + Math.round((answered / Math.max(1, items.length)) * 100) + "%" })), el("span", { text: answered + " of " + items.length + " reviewed" })),
+      el("p", { class: "tr-how", text: "For each miss, read what we think happened. Then tap what really happened, and add a sentence if you want. Your answers change which questions show up in your focus set." })));
+    // the four groups
+    const counts = {}; items.forEach((it) => (counts[it.cat] = (counts[it.cat] || 0) + 1));
+    p.append(el("div", { class: "tr-tiles" }, Object.entries(TR_CAT).filter(([k]) => counts[k]).map(([k, [name, desc]]) =>
+      el("button", { class: "tr-tile c-" + k + (TR_FILTER === k ? " on" : ""), "aria-pressed": String(TR_FILTER === k), onclick: () => { TR_FILTER = TR_FILTER === k ? "all" : k; renderTReview(); } },
+        el("b", { text: String(counts[k]) }), el("span", { class: "n", text: name }), el("span", { class: "d", text: desc })))));
+    // where the misses fell, question by question
+    if (sm.len) p.append(el("div", { class: "card tr-strips" }, el("h3", { text: "Where the misses fell" }),
+      TR_MODS.filter(([m]) => sm.len[m]).map(([m, name]) => el("div", { class: "tr-strip" }, el("span", { class: "l", text: name.replace("Reading & Writing", "R&W") }),
+        el("span", { class: "sq", style: "grid-template-columns:repeat(" + sm.len[m] + ",minmax(0,1fr))" }, Array.from({ length: sm.len[m] }, (_, i) => { const it = items.find((x) => x.mod === m && x.n === i + 1); return el("i", { class: it ? "x c-" + it.cat : "", title: "Question " + (i + 1) + (it ? ": " + it.type : "") }); })),
+        el("span", { class: "v", text: items.filter((x) => x.mod === m).length + " missed" }))),
+      sm.finding ? el("p", { class: "tr-find", text: sm.finding }) : null));
+    if (TR_FILTER !== "all") p.append(el("div", { class: "row", style: "align-items:center;gap:10px" }, el("span", { class: "muted", text: "Showing: " + TR_CAT[TR_FILTER][0] }), el("button", { class: "btn small ghost", onclick: () => { TR_FILTER = "all"; renderTReview(); } }, "Show all")));
+    // each miss, grouped by module
+    TR_MODS.forEach(([m, name]) => {
+      const list = items.filter((it) => it.mod === m && (TR_FILTER === "all" || it.cat === TR_FILTER)); if (!list.length) return;
+      p.append(el("h3", { class: "tr-mod", text: name }));
+      list.forEach((it) => p.append(trItem(rv, st, it)));
+    });
+    // overall reflection
+    const fx = el("div", { class: "card tr-wrap" }, el("h3", { text: "Last two questions" }),
+      el("p", { text: "When did you lose focus? Tap every part where it happened." }),
+      el("div", { class: "tr-why" }, [...TR_MODS, ["none", "I didn't lose focus"]].map(([k, name]) => el("button", { class: "chipbtn" + (st.focus.includes(k) ? " on" : ""), "aria-pressed": String(st.focus.includes(k)), onclick: () => {
+        if (k === "none") st.focus = st.focus.includes("none") ? [] : ["none"]; else { st.focus = st.focus.filter((x) => x !== "none"); st.focus = st.focus.includes(k) ? st.focus.filter((x) => x !== k) : [...st.focus, k]; }
+        save(); renderTReview(); } }, name))),
+      el("label", { class: "tr-lbl", for: "trNote" }, "What made it hard to focus, and what would help on test day?"),
+      (() => { const ta = el("textarea", { id: "trNote", rows: "3", placeholder: "For example: I got tired after the break, or I spent too long on one question" }); ta.value = st.note || ""; ta.addEventListener("input", () => { st.note = ta.value; save(); }); return ta; })());
+    p.append(fx);
+    const complete = answered === items.length && st.focus.length > 0;
+    p.append(el("div", { class: "card tr-done" + (st.done ? " ok" : "") },
+      st.done ? el("p", { text: "✓ Review finished. Thanks: your answers are saved and your focus set already uses them." }) :
+        el("p", { text: complete ? "All done. Finish to save your review." : "Finish all " + items.length + " misses and the focus question, then tap Finish." }),
+      st.done ? null : el("button", { class: "btn primary", disabled: !complete, onclick: () => { st.done = today(); addXP(25, "test review"); planEvent({ k: "treview" }); save(); toast("Review saved. Nice work."); renderTReview(); } }, "Finish the review")));
+  }
+  function trItem(rv, st, it) {
+    const a = st.r[it.q] || {};
+    const card = el("div", { class: "card tr-item c-" + it.cat + (a.c ? " answered" : "") },
+      el("div", { class: "tr-top" }, el("span", { class: "tr-q", text: it.q }), el("span", { class: "tr-cat c-" + it.cat, text: TR_CAT[it.cat][0] })),
+      el("div", { class: "tr-type", text: it.type }),
+      el("div", { class: "tr-ans" }, el("span", { text: "You: " }), el("b", { class: "bad", text: it.his }), el("span", { text: "  ·  Correct: " }), el("b", { class: "good", text: it.cor })),
+      el("p", { class: "tr-what" }, el("b", { text: "What we think happened: " }), it.what),
+      it.lab ? el("a", { class: "btn small", href: it.lab }, it.labText || "Learn it") : null,
+      el("p", { class: "tr-ask", text: "What really happened?" }),
+      el("div", { class: "tr-why" }, TR_WHY.map(([k, name]) => el("button", { class: "chipbtn" + (a.c === k ? " on" : ""), "aria-pressed": String(a.c === k), onclick: () => { st.r[it.q] = Object.assign({}, st.r[it.q], { c: k, at: today() }); save(); const nc = trItem(rv, st, it); card.replaceWith(nc); refreshTRProg(rv, st); } }, name))));
+    const ta = el("textarea", { rows: "2", "aria-label": "Your explanation for " + it.q, placeholder: "Your explanation (optional)" }); ta.value = a.note || "";
+    ta.addEventListener("input", () => { st.r[it.q] = Object.assign({}, st.r[it.q], { note: ta.value }); save(); });
+    card.append(ta);
+    return card;
+  }
+  function refreshTRProg(rv, st) {
+    const items = rv.items || [], answered = items.filter((it) => st.r[it.q] && st.r[it.q].c).length;
+    const bar = document.querySelector("#p-treview .tr-bar i"), txt = document.querySelector("#p-treview .tr-prog span");
+    if (bar) bar.style.width = Math.round((answered / Math.max(1, items.length)) * 100) + "%"; if (txt) txt.textContent = answered + " of " + items.length + " reviewed";
+    const fin = document.querySelector("#p-treview .tr-done button"); if (fin) fin.disabled = !(answered === items.length && st.focus.length > 0);
+  }
+  // Admin view: what the student said in each review.
+  function treviewAdmin(D) {
+    const out = [];
+    for (const [id, st] of Object.entries(D.treview || {})) {
+      const r = Object.values(st.r || {}), cnt = {}; r.forEach((a) => a.c && (cnt[a.c] = (cnt[a.c] || 0) + 1));
+      const why = TR_WHY.filter(([k]) => cnt[k]).map(([k, n]) => n.toLowerCase() + " " + cnt[k]).join(", ");
+      out.push(el("li", { text: "Test review (" + id + "): " + r.filter((a) => a.c).length + " answered" + (st.done ? ", finished" : "") + (why ? " · " + why : "") + (st.focus && st.focus.length ? " · lost focus: " + st.focus.join(", ") : "") + (st.note ? " · “" + st.note + "”" : "") }));
+      const notes = Object.entries(st.r || {}).filter(([, a]) => a.note).map(([q, a]) => q + ": " + a.note);
+      if (notes.length) out.push(el("li", { class: "muted", text: "Notes: " + notes.join(" | ") }));
+    }
+    return out;
+  }
   function renderLog() {
     const p = $("#p-log"); p.textContent = "";
     const link = (href, text) => el("a", { href, target: "_blank", rel: "noopener" }, text);
@@ -2426,6 +2529,7 @@
       el("li", { text: "Plan tasks checked off: " + tasksDone }),
       ws ? el("li", { text: "This week's goals: " + ws.done + " of " + ws.total + " done (" + ws.q + " of " + ws.qTarget + " questions)" }) : null,
       el("li", { text: "Review deck: " + Object.keys(x.D.deck || {}).length + " strategy cards · badges earned: " + Object.keys(x.D.badges || {}).length }),
+      ...treviewAdmin(x.D),
       el("li", { text: "Concept Lab: " + ((x.D.lab2 && x.D.lab2.done) || []).length + " of 7 missions" + (x.D.lab2 && x.D.lab2.done && x.D.lab2.done.length ? " (" + x.D.lab2.done.join(", ") + ")" : "") }),
       el("li", { text: "Geometry Lab: " + ((x.D.lab && x.D.lab.done) || []).length + " of 7 missions" + (x.D.lab && x.D.lab.done && x.D.lab.done.length ? " (" + x.D.lab.done.join(", ") + ")" + (x.D.lab.stars ? ", " + x.D.lab.stars + " first try" : "") : "") }),
       exams.length ? el("li", { text: "Tests planned: " + exams.join("; ") }) : null,
@@ -2529,7 +2633,7 @@
     // Switch between the public site (signed out) and a student's own progress (signed in).
     setGuest(g) {
       g = !!g; if (g === GUEST) return;
-      GUEST = g; HOLD = false; P = null; ADMIN = null; SOC = null; CH = null; FOCUS = null; clearInterval(pTick); clearInterval(mTick); tool = null;
+      GUEST = g; HOLD = false; P = null; ADMIN = null; SOC = null; CH = null; FOCUS = null; REVIEWS = []; clearInterval(pTick); clearInterval(mTick); tool = null;
       const pop = document.getElementById("pop"); if (pop) pop.textContent = "";
       S = load(storeKey());
       TAB = !GUEST && S.mock && S.mock.phase !== "done" ? "mock" : "today";
@@ -2545,7 +2649,11 @@
       S.rewards = row.rewards.filter((r) => r && r.label && r.xp > 0).map((r) => Object.assign({ claimed: false }, old[r.id] ? { claimed: old[r.id].claimed, notified: old[r.id].notified } : {}, { id: String(r.id), label: String(r.label), xp: Math.round(+r.xp) }));
       save(); if (TAB === "rewards") render();
     },
-    setFocus(row) { FOCUS = row && Array.isArray(row.items) ? { items: row.items, source: row.source, updated: row.updated_at } : null; seedDeck(); if (!GUEST && (TAB === "today" || TAB === "practice")) render(); },
+    setFocus(row) {
+      const all = row && Array.isArray(row.items) ? row.items : [];
+      REVIEWS = all.filter((x) => x && typeof x.type === "string" && x.type.startsWith("review:") && x.review).map((x) => Object.assign({ id: x.type.slice(7) }, x.review));
+      FOCUS = row && all.length ? { items: all.filter((x) => !(typeof x.type === "string" && x.type.startsWith("review:"))), source: row.source, updated: row.updated_at } : null;
+      if (TAB === "treview") render(); seedDeck(); if (!GUEST && (TAB === "today" || TAB === "practice")) render(); },
     setSocial(api) { SOC = api && !GUEST ? { api } : null; CH = null; socialBadge(); if (SOC) socialLoad(TAB === "friends"); },
     onSettings(fn) { settingsHooks.push(fn); },
     // Record which account this device's progress belongs to (does not count as a change).
