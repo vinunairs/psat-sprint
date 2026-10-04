@@ -282,6 +282,7 @@ header.hero .back{display:none}
           <p class="key">A + B + C = 180°</p>
           <p>The <b>exterior angle</b> at a corner = the two inside angles <b>that don't touch it</b>. In the figure, the outside wedge at B is literally a coral piece (A) plus a teal piece (C).</p>
           <p><b>Isosceles:</b> two equal angles sit across from two equal sides.</p>
+          <p><b>Shapes with more sides:</b> split them into triangles from one corner. A shape with n sides makes n − 2 triangles, so its inside angles add to <span class="m">(n − 2) × 180°</span>. Pentagon: 3 × 180 = 540°. If all the angles are equal (a regular shape), divide by n: 540 ÷ 5 = 108°. The outside angles of any shape add to 360°.</p>
           <p class="trap"><b>Trap:</b> the inside angle right next to the exterior angle is not part of it. Those two add to 180.</p></div></div>
         <div class="stage locked" data-st="w"><div class="sh"><span class="sn">3</span><h3>Walk through it</h3></div><p class="lockmsg">Finish step 2 to unlock.</p><div class="body">
           <p class="q">In triangle ABC, angle A = <span class="m">50°</span> and angle C = <span class="m">65°</span>. Side AB is extended past B. Find the exterior angle at B, then figure out which sides are equal.</p>
@@ -916,7 +917,8 @@ const WHICH=[
   ['Two angles of a triangle known, need the third','180 − the two','2'],
   ['Outside angle of a triangle','Add the two far inside angles','2'],
   ['Two equal sides (isosceles)','Angles across from them are equal','2'],
-  ['Angles in a ratio, like 2 : 3 : 4','Add the parts, divide 180 by that','2']]],
+  ['Angles in a ratio, like 2 : 3 : 4','Add the parts, divide 180 by that','2'],
+  ['Inside angles of a shape with n sides','Sum = (n − 2) × 180. All equal? Divide by n','2']]],
  ['Right triangles',[
   ['Two sides known, need the third','a² + b² = c²','3'],
   ['Given the hypotenuse and one leg','Subtract: b² = c² − a²','3'],
@@ -952,6 +954,7 @@ const DRILL=[
  ['A circle is cut out of a square. Find the shaded area.',['Add the two areas','Square area − circle area','Pythagoras','Area × k²'],1,'Shaded region → whole − part.'],
  ['A rectangle\'s length and width both grow 10%. Area change?',['+20%','+10%','Multiply 1.1 × 1.1','Can\'t tell'],2,'Percent changes multiply: 1.21, so +21%.'],
  ['A triangle\'s outside angle at one corner.',['180 − that corner\'s inside angle, or add the two far angles','Always 90°','Same as the corner next to it','360 − all three'],0,'Both work. The fastest is adding the two far inside angles.'],
+ ['A regular hexagon (6 equal sides and angles). You need one inside angle.',['180 ÷ 6','(6 − 2) × 180, then ÷ 6','360 ÷ 6','6 × 180'],1,'Inside angles add to (n − 2) × 180 = 720. All equal, so each is 720 ÷ 6 = 120°.'],
  ['Right triangle. You know the side next to the angle and the side across from it. Need the angle.',['sin⁻¹','cos⁻¹','tan⁻¹','Pythagoras'],2,'Opposite and adjacent → tan, and you need the angle → tan⁻¹.']];
 let dOrder=[],dI=0,dScore=0,dMiss=false;
 function drillStart(){dOrder=DRILL.map((_,i)=>i).sort(()=>Math.random()-.5);dI=0;dScore=0;drillShow()}

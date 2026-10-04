@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="icons/favicon.svg">
+<title>Concept Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400..800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: a drafting-table workbook on graph paper. One mission on screen at a time.
+   Desktop: stages (play → rule → walk-through → your turn) on the left, the live figure pinned on the right. Phone: figure on top.
+   One color code in every figure: coral = opposite, teal = adjacent, amber = hypotenuse. */
+:root{
+  --paper:#eef2f6; --grid:#dbe3ec; --card:#ffffff; --ink:#15233b; --muted:#56657c; --line:#cdd7e3;
+  --accent:#2a46c9; --accent-soft:#e3e8fb;
+  --opp:#e2552c; --adj:#138f81; --hyp:#c58700;
+  --good:#1d8a4a; --bad:#c43c3c;
+  --f-display:"Unbounded","Arial Black",system-ui,sans-serif;
+  --f-body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-math:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0e1520; --grid:#18222f; --card:#151f2d; --ink:#e5ecf6; --muted:#97a6bb; --line:#2a384c;
+  --accent:#8ea2ff; --accent-soft:#1f2a4a; --opp:#ff7b57; --adj:#3fcbb8; --hyp:#f2c14a; --good:#52c47e; --bad:#ff7a7a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#0e1520; --grid:#18222f; --card:#151f2d; --ink:#e5ecf6; --muted:#97a6bb; --line:#2a384c;
+  --accent:#8ea2ff; --accent-soft:#1f2a4a; --opp:#ff7b57; --adj:#3fcbb8; --hyp:#f2c14a; --good:#52c47e; --bad:#ff7a7a; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.55;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:24px 24px}
+.wrap{max-width:1100px;margin:0 auto;padding-inline:16px;padding-block:0 64px}
+h1,h2{font-family:var(--f-display);text-wrap:balance;letter-spacing:-.01em;margin:0}
+h1{font-size:clamp(26px,5.4vw,42px);line-height:1.05;font-weight:700}
+h2{font-size:clamp(20px,3.4vw,26px);font-weight:700;line-height:1.15}
+h3{font-size:12px;letter-spacing:.1em;text-transform:uppercase;margin:0;color:var(--muted)}
+p{margin:0}
+.m{font-family:var(--f-math);font-size:.92em;white-space:nowrap}
+.c-opp{color:var(--opp);font-weight:700}.c-adj{color:var(--adj);font-weight:700}.c-hyp{color:var(--hyp);font-weight:700}.c-acc{color:var(--accent);font-weight:700}
+
+.hero{padding-block:28px 14px;display:grid;gap:10px}
+.statrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pill{font-family:var(--f-math);font-size:13px;padding:5px 12px;border-radius:999px;background:var(--card);border:1px solid var(--line);font-variant-numeric:tabular-nums}
+.pill b{color:var(--accent)}
+
+nav.lessons{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--paper);border-bottom:1px solid var(--line);margin-inline:-16px;padding:8px 16px;overflow-x:auto;white-space:nowrap;scrollbar-width:thin}
+nav.lessons a{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ink);text-decoration:none;padding:6px 10px;border-radius:8px;margin-right:2px;border:1.5px solid transparent}
+nav.lessons a:hover{background:var(--card)}
+nav.lessons a.on{border-color:var(--accent);background:var(--card)}
+nav.lessons a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+nav.lessons .n{font-family:var(--f-math);font-size:11px;min-width:22px;height:22px;padding:0 4px;border-radius:11px;display:inline-grid;place-items:center;border:1.5px solid var(--muted);color:var(--muted)}
+nav.lessons a.done .n{background:var(--good);border-color:var(--good);color:var(--card)}
+nav.lessons .sep{display:inline-block;width:1px;height:20px;background:var(--line);margin:0 8px;vertical-align:middle}
+
+/* start view */
+.path{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px}
+@media (max-width:820px){.path{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:480px){.path{grid-template-columns:minmax(0,1fr)}}
+.mcard{background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:6px;text-align:left;font-weight:400;color:var(--ink);cursor:pointer}
+.mcard:hover{border-color:var(--accent);background:var(--card);color:var(--ink)}
+.mcard .k{font-family:var(--f-math);font-size:12px;color:var(--accent);font-weight:700}
+.mcard .t{font-family:var(--f-display);font-size:16px;font-weight:700;line-height:1.2}
+.mcard .s{font-size:14px;color:var(--muted)}
+.mcard .st{font-family:var(--f-math);font-size:12px}
+.how{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-top:16px;display:grid;gap:8px;max-width:760px}
+.how ol{margin:0;padding-left:20px}.how li{margin:3px 0}
+.bigbtn{font-size:16px;padding:10px 18px;justify-self:start}
+
+/* mission layout */
+section.view{margin-top:22px}
+.lhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px;margin-bottom:16px}
+.lnum{font-family:var(--f-math);font-size:14px;color:var(--accent);font-weight:700}
+.lhead .time{font-family:var(--f-math);font-size:12px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
+.figcol{position:sticky;top:64px;order:2;min-width:0}
+.stages{display:grid;gap:14px;min-width:0;order:1}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}.figcol{position:static;order:0}}
+.fig{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:10px}
+.fig svg{width:100%;height:auto;display:block;max-height:380px;touch-action:none}
+.controls{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center}
+.controls label{font-size:14px;display:flex;align-items:center;gap:8px;flex:1 1 190px;min-width:0}
+.controls label span{font-family:var(--f-math);min-width:3.6em;font-variant-numeric:tabular-nums}
+input[type=range]{flex:1;min-width:80px;accent-color:var(--accent)}
+button{font-family:var(--f-body);font-size:14px;font-weight:700;border-radius:8px;border:1.5px solid var(--accent);background:var(--accent-soft);color:var(--ink);padding:7px 12px;cursor:pointer}
+button:hover{background:var(--accent);color:var(--card)}
+button:disabled{opacity:.5;cursor:default}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.seg{display:inline-flex;border:1.5px solid var(--accent);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:transparent}
+.seg button:hover{background:var(--accent-soft);color:var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--card)}
+.readout{font-family:var(--f-math);font-size:13.5px;background:var(--paper);border-radius:8px;padding:10px 12px;line-height:1.75;font-variant-numeric:tabular-nums;overflow-x:auto}
+.readout .big{font-size:15px;font-weight:700}
+
+/* stages */
+.stage{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:10px;transition:opacity .3s}
+.stage .sh{display:flex;align-items:center;gap:10px}
+.stage .sn{font-family:var(--f-math);font-weight:700;font-size:13px;width:26px;height:26px;border-radius:50%;display:inline-grid;place-items:center;background:var(--accent-soft);color:var(--accent);flex:none}
+.stage.ok .sn{background:var(--good);color:var(--card)}
+.stage .sh h3{color:var(--ink);font-size:13px}
+.stage.locked{opacity:.42}
+.stage.locked .body{display:none}
+.stage .lockmsg{display:none;font-size:14px;color:var(--muted)}
+.stage.locked .lockmsg{display:block}
+.body{display:grid;gap:10px}
+.goal{font-size:17px}
+.goal b{color:var(--accent)}
+.status{font-size:15px;padding:10px 12px;border-radius:8px;background:var(--paper)}
+.status.win{background:color-mix(in srgb,var(--good) 15%,var(--card));border:1.5px solid var(--good)}
+.linkbtn{background:none;border:0;padding:0;color:var(--muted);font-weight:400;text-decoration:underline;justify-self:start;font-size:13px}
+.linkbtn:hover{background:none;color:var(--ink)}
+.rule p+p{margin-top:2px}
+.rule .trap{border-left:4px solid var(--bad);padding:6px 0 6px 12px}
+.rule .key{font-family:var(--f-math);font-size:17px;padding:8px 12px;background:var(--paper);border-radius:8px;justify-self:start;max-width:100%;overflow-x:auto}
+
+/* walk-through */
+.wstep{border-left:3px solid var(--line);padding:2px 0 2px 12px;display:grid;gap:8px}
+.wstep.cur{border-left-color:var(--accent)}
+.wstep.done{border-left-color:var(--good)}
+.wstep .p{font-size:16px}
+.wstep .ans{font-family:var(--f-math);font-size:14px;color:var(--good);font-weight:700}
+.wstep .ex{font-size:14px;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips button{font-family:var(--f-math);font-weight:500;background:var(--paper);border:1.5px solid var(--line);text-align:left}
+.chips button:hover{background:var(--accent-soft);color:var(--ink);border-color:var(--accent)}
+.chips button.wrong{border-color:var(--bad);text-decoration:line-through;opacity:.7}
+.chips button.right{border-color:var(--good);background:color-mix(in srgb,var(--good) 18%,var(--card))}
+.numrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.numrow input{font-family:var(--f-math);font-size:16px;width:8em;padding:7px 10px;border-radius:8px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink)}
+.hint{font-size:14px;padding:8px 12px;border-radius:8px;background:color-mix(in srgb,var(--hyp) 14%,var(--card));border:1px solid color-mix(in srgb,var(--hyp) 50%,var(--card))}
+.hint.show{background:color-mix(in srgb,var(--bad) 10%,var(--card));border-color:color-mix(in srgb,var(--bad) 45%,var(--card))}
+.praise{font-weight:700;color:var(--good)}
+.q{font-size:17px;max-width:70ch}
+.why ol{margin:6px 0 0;padding-left:20px}
+.nextbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:14px 16px;border-radius:12px;background:color-mix(in srgb,var(--good) 14%,var(--card));border:1.5px solid var(--good)}
+.nextbar p{font-weight:700}
+
+.wgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}
+@media (max-width:760px){.wgrid{grid-template-columns:minmax(0,1fr)}}
+.wcard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:4px;min-width:0}
+.wrow{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) auto;gap:10px;align-items:baseline;padding:8px 0;border-top:1px solid var(--line)}
+.wrow:first-of-type{border-top:0}
+.wrow .if{font-size:15px}.wrow .use{font-family:var(--f-math);font-size:13.5px;font-weight:700;color:var(--accent)}
+.wrow a{font-family:var(--f-math);font-size:11px;color:var(--muted);text-decoration:none;border:1px solid var(--line);border-radius:6px;padding:2px 6px;white-space:nowrap}
+.wrow a:hover{color:var(--ink);border-color:var(--accent)}
+@media (max-width:480px){.wrow{grid-template-columns:minmax(0,1fr) auto}.wrow .use{grid-column:1/2}}
+.drill{background:var(--card);border:1.5px dashed var(--line);border-radius:12px;padding:16px;margin-top:22px;display:grid;gap:10px;max-width:760px}
+/* bonus + sheet */
+.bonus-note{background:var(--card);border:1.5px dashed var(--muted);border-radius:12px;padding:12px 16px;font-size:15px;margin-bottom:16px;max-width:760px}
+.sheet{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:700px){.sheet{grid-template-columns:minmax(0,1fr)}}
+.sheet .col{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.sheet ul{margin:8px 0 0;padding-left:18px}.sheet li{margin:4px 0}
+
+/* svg */
+.k-ink{stroke:var(--ink);fill:none}.k-dim{stroke:var(--muted);fill:none;opacity:.55}
+.k-opp{stroke:var(--opp);fill:none}.k-adj{stroke:var(--adj);fill:none}.k-hyp{stroke:var(--hyp);fill:none}.k-acc{stroke:var(--accent);fill:none}
+.w-opp{fill:var(--opp);fill-opacity:.28;stroke:var(--opp);stroke-width:1.5}
+.w-adj{fill:var(--adj);fill-opacity:.28;stroke:var(--adj);stroke-width:1.5}
+.w-hyp{fill:var(--hyp);fill-opacity:.3;stroke:var(--hyp);stroke-width:1.5}
+.w-acc{fill:var(--accent);fill-opacity:.18;stroke:var(--accent);stroke-width:1.5}
+.f-tri{fill:var(--accent);fill-opacity:.07}
+.face-t{fill:var(--hyp);fill-opacity:.32;stroke:var(--ink)}.face-r{fill:var(--adj);fill-opacity:.3;stroke:var(--ink)}.face-f{fill:var(--opp);fill-opacity:.26;stroke:var(--ink)}
+.lbl{fill:var(--ink);font-family:var(--f-math)}.lbl-m{fill:var(--muted);font-family:var(--f-math)}
+.t-opp{fill:var(--opp);font-family:var(--f-math);font-weight:700}.t-adj{fill:var(--adj);font-family:var(--f-math);font-weight:700}
+.t-hyp{fill:var(--hyp);font-family:var(--f-math);font-weight:700}.t-acc{fill:var(--accent);font-family:var(--f-math);font-weight:700}
+.dot{fill:var(--ink)}.handle{fill:var(--accent);cursor:grab}.grid-l{stroke:var(--grid)}
+.ghost{animation:fadein .7s ease both}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+.pop{animation:pop .5s ease}
+@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.03)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.ghost,.pop{animation:none}.stage{transition:none}}
+[hidden]{display:none!important}
+body{margin:0}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.back{display:inline-block;margin-top:14px;font-size:14px;color:var(--accent);text-decoration:none;font-weight:700}
+.back:hover{text-decoration:underline}
+
+/* Match Test Prep Hub: same fonts, accent and background, plus an app bar with a way back to Today */
+:root{--accent:#4F46E5;--accent-soft:#EEF0FF;--paper:#F5F6FB;--f-display:"Plus Jakarta Sans",system-ui,sans-serif;--f-body:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--accent:#8B8CFA;--accent-soft:#1F2350;--paper:#0B1020}}
+body{background-image:none!important}
+.appbar-lab{position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;background:color-mix(in srgb,var(--card) 92%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.appbar-lab .brand{display:flex;align-items:center;gap:10px;font-weight:800;color:var(--ink);text-decoration:none}
+.appbar-lab .brand svg{width:30px;height:30px}
+.appbar-lab .home{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 14px;border-radius:99px;background:var(--accent);color:#fff;font-weight:750;text-decoration:none;font-size:14px}
+header.hero .back{display:none}
+/* Concept Lab extras */
+.notes{background:var(--paper);border-radius:10px;padding:12px 14px;font-size:14.5px}
+.notes h3{margin-bottom:6px}
+.notes ul{margin:0;padding-left:18px}.notes li{margin:3px 0}
+.goalbox{border:1.5px solid var(--accent);border-radius:10px;padding:10px 12px;font-size:15px;background:var(--accent-soft)}
+.sortrow{display:grid;gap:8px;padding:10px 0;border-top:1px solid var(--line)}
+.sortrow p{font-size:15px}
+.sortrow .btns{display:flex;gap:8px;flex-wrap:wrap}
+.sortrow .btns button{font-weight:600}
+.sortrow.right p{color:var(--good)}
+.sortrow .why{font-size:13.5px;color:var(--muted)}
+.dotc{stroke:var(--card);stroke-width:2}
+.f-acc{fill:var(--accent)}.f-opp{fill:var(--opp)}.f-adj{fill:var(--adj)}.f-hyp{fill:var(--hyp)}
+.verdict{font-weight:800}
+</style>
+</head>
+<body>
+<div class="appbar-lab"><a class="brand" href="./"><svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="lgl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6366F1"/><stop offset="1" stop-color="#A855F7"/></linearGradient></defs><rect width="32" height="32" rx="9" fill="url(#lgl)"/><path d="M9 16.8l4.6 4.6L23.5 11" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Lab</a><a class="home" href="./">← Back to Today</a></div>
+<div class="wrap">
+  <header class="hero">
+    <h1>Concept Lab</h1>
+    <p style="color:var(--muted);max-width:62ch">The question types from Practice Test 2 that school hasn't covered yet. Learn each idea here first, then practice it.</p>
+    <div class="statrow">
+      <span class="pill" id="countdown">PSAT: Oct 7</span>
+      <span class="pill">Missions done: <b id="prog">0</b> / 7</span>
+      <span class="pill">First-try stars: <b id="stars">0</b></span>
+      <a class="pill" href="geometry.html" style="text-decoration:none;color:var(--ink)">Geometry Lab →</a>
+    </div>
+  </header>
+
+  <nav class="lessons" aria-label="Missions">
+    <a href="#start" data-v="start"><span class="n">▸</span>Start</a>
+    <a href="#l1" data-v="l1" data-l="1"><span class="n">1</span>How many solutions</a>
+    <a href="#l2" data-v="l2" data-l="2"><span class="n">2</span>None or infinite</a>
+    <a href="#l3" data-v="l3" data-l="3"><span class="n">3</span>Line meets parabola</a>
+    <a href="#l4" data-v="l4" data-l="4"><span class="n">4</span>Factors &amp; zeros</a>
+    <a href="#l5" data-v="l5" data-l="5"><span class="n">5</span>Shifting graphs</a>
+    <a href="#l6" data-v="l6" data-l="6"><span class="n">6</span>Fraction equations</a>
+    <a href="#l7" data-v="l7" data-l="7"><span class="n">7</span>Notes → goal</a>
+    <span class="sep"></span>
+    <a href="#sheet" data-v="sheet"><span class="n">★</span>Cheat sheet</a>
+  </nav>
+
+  <!-- START -->
+  <section class="view" id="start">
+    <h2>Seven missions. Learn it here, then practice it.</h2>
+    <div class="how">
+      <h3>How each mission works · about 8 minutes</h3>
+      <ol>
+        <li><b>Play.</b> Move the graph until you hit the target. Notice what changes.</li>
+        <li><b>The rule.</b> The idea in one line, plus the trap.</li>
+        <li><b>Walk through it.</b> A PSAT-style problem, one small step at a time.</li>
+        <li><b>Your turn.</b> A new problem, no steps. Get it first try for a star.</li>
+      </ol>
+      <p>Missions 1–6 are Advanced Math, the area that cost the most points on Practice Test 2. Mission 7 is a Reading and Writing method that works on every "use the notes" question.</p>
+      <button class="bigbtn" id="go">Start Mission 1</button>
+    </div>
+    <div class="path" id="path"></div>
+  </section>
+
+  <!-- MISSION 1 -->
+  <section class="view" id="l1" hidden>
+    <div class="lhead"><span class="lnum">Mission 1</span><h2>How many solutions? Ask the discriminant</h2><span class="time">≈ 8 min</span></div>
+    <div class="grid">
+      <div class="figcol"><div class="fig">
+        <svg id="fig1" viewBox="0 0 360 300" role="img" aria-label="Parabola y = x squared plus b x plus c on a grid"></svg>
+        <div class="controls">
+          <label for="s1b">b <input id="s1b" type="range" min="-6" max="6" value="2"><span id="v1b"></span></label>
+          <label for="s1c">c <input id="s1c" type="range" min="-6" max="9" value="-3"><span id="v1c"></span></label>
+        </div>
+        <div class="readout" id="r1"></div>
+      </div></div>
+      <div class="stages" data-lesson="1">
+        <div class="stage" data-st="g"><div class="sh"><span class="sn">1</span><h3>Play</h3></div><div class="body">
+          <p class="goal">Move the sliders until the parabola <b>just touches</b> the x-axis at one point.</p>
+          <p>Watch the number <span class="m">b² − 4ac</span> in the box as you slide. What is it when the curve just touches?</p>
+          <div class="status" data-status>Not there yet. Keep sliding.</div>
+          <button class="linkbtn" data-skip>Skip this step</button></div></div>
+        <div class="stage locked" data-st="r"><div class="sh"><span class="sn">2</span><h3>The rule</h3></div><p class="lockmsg">Finish step 1 to unlock.</p><div class="body rule">
+          <p>Solutions of <span class="m">ax² + bx + c = 0</span> are where the parabola crosses the x-axis. The <b>discriminant</b> tells you how many, without solving:</p>
+          <p class="key">D = b² − 4ac</p>
+          <p><b>D &gt; 0</b> → two solutions. <b>D = 0</b> → exactly one. <b>D &lt; 0</b> → no real solutions.</p>
+          <p>"Has exactly one solution, find k" means: <b>set D = 0 and solve for k</b>.</p>
+          <p class="trap"><b>Trap:</b> get everything on one side, <span class="m">= 0</span>, first. And keep the sign: in <span class="m">x² − 6x + 9</span>, b is <span class="m">−6</span>.</p></div></div>
+        <div class="stage locked" data-st="w"><div class="sh"><span class="sn">3</span><h3>Walk through it</h3></div><p class="lockmsg">Finish step 2 to unlock.</p><div class="body">
+          <p class="q">The equation <span class="m">x² − 6x + k = 0</span>, where k is a constant, has exactly one real solution. What is k?</p>
+          <div data-walk></div></div></div>
+        <div class="stage locked" data-st="s"><div class="sh"><span class="sn">4</span><h3>Your turn</h3></div><p class="lockmsg">Finish step 3 to unlock.</p><div class="body" data-solo></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MISSION 2 -->
+  <section class="view" id="l2" hidden>
+    <div class="lhead"><span class="lnum">Mission 2</span><h2>One solution, none, or infinitely many</h2><span class="time">≈ 8 min</span></div>
+    <div class="grid">
+      <div class="figcol"><div class="fig">
+        <svg id="fig2" viewBox="0 0 360 300" role="img" aria-label="Two lines on a grid"></svg>
+        <div class="controls">
+          <label for="s2m">slope <input id="s2m" type="range" min="-4" max="4" step="0.5" value="-1"><span id="v2m"></span></label>
+          <label for="s2b">intercept <input id="s2b" type="range" min="-5" max="5" value="3"><span id="v2b"></span></label>
+        </div>
+        <div class="readout" id="r2"></div>
+      </div></div>
+      <div class="stages" data-lesson="2">
+        <div class="stage" data-st="g"><div class="sh"><span class="sn">1</span><h3>Play</h3></div><div class="body">
+          <p class="goal">The <b class="c-adj">teal</b> line is fixed. Move the <b class="c-opp">coral</b> line so the two lines <b>never meet</b>.</p>
+          <p>Then try to make them the same line. What has to match?</p>
+          <div class="status" data-status>Not there yet. Keep sliding.</div>
+          <button class="linkbtn" data-skip>Skip this step</button></div></div>
+        <div class="stage locked" data-st="r"><div class="sh"><span class="sn">2</span><h3>The rule</h3></div><p class="lockmsg">Finish step 1 to unlock.</p><div class="body rule">
+          <p>Simplify both sides until it looks like <span class="m">ax + b = cx + d</span>. Then compare:</p>
+          <p class="key">x-parts differ → one solution</p>
+          <p><b>Same x-part, different number</b> → no solution (like 12 = 10, never true). Parallel lines.</p>
+          <p><b>Same x-part, same number</b> → infinitely many solutions (both sides identical). Same line.</p>
+          <p>For a system of two lines: different slopes cross once; same slope, different intercept never meet; same slope and intercept are the same line.</p>
+          <p class="trap"><b>Trap:</b> distribute first. <span class="m">4(x + 3)</span> is <span class="m">4x + 12</span>, not <span class="m">4x + 3</span>.</p></div></div>
+        <div class="stage locked" data-st="w"><div class="sh"><span class="sn">3</span><h3>Walk through it</h3></div><p class="lockmsg">Finish step 2 to unlock.</p><div class="body">
+          <p class="q">In the equation <span class="m">4(x + 3) = ax + 12</span>, a is a constant. The equation has infinitely many solutions. What is a?</p>
+          <div data-walk></div></div></div>
+        <div class="stage locked" data-st="s"><div class="sh"><span class="sn">4</span><h3>Your turn</h3></div><p class="lockmsg">Finish step 3 to unlock.</p><div class="body" data-solo></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MISSION 3 -->
+  <section class="view" id="l3" hidden>
+    <div class="lhead"><span class="lnum">Mission 3</span><h2>Where a line meets a parabola</h2><span class="time">≈ 9 min</span></div>
+    <div class="grid">
+      <div class="figcol"><div class="fig">
+        <svg id="fig3" viewBox="0 0 360 300" role="img" aria-label="Parabola and a line on a grid"></svg>
+        <div class="controls">
+          <label for="s3m">slope <input id="s3m" type="range" min="-4" max="4" value="1"><span id="v3m"></span></label>
+          <label for="s3b">intercept <input id="s3b" type="range" min="-6" max="6" value="2"><span id="v3b"></span></label>
+        </div>
+        <div class="readout" id="r3"></div>
+      </div></div>
+      <div class="stages" data-lesson="3">
+        <div class="stage" data-st="g"><div class="sh"><span class="sn">1</span><h3>Play</h3></div><div class="body">
+          <p class="goal">Move the <b class="c-opp">line</b> until it touches the <b class="c-acc">parabola</b> at <b>exactly one point</b>.</p>
+          <p>Count the dots as you slide: 2, 1 or 0. Each dot is one solution of the system.</p>
+          <div class="status" data-status>Not there yet. Keep sliding.</div>
+          <button class="linkbtn" data-skip>Skip this step</button></div></div>
+        <div class="stage locked" data-st="r"><div class="sh"><span class="sn">2</span><h3>The rule</h3></div><p class="lockmsg">Finish step 1 to unlock.</p><div class="body rule">
+          <p>A solution of the system is a point on <b>both</b> graphs. To find it:</p>
+          <p class="key">set the two y's equal → move everything to one side → solve</p>
+          <p>Each x you get is one crossing. Plug it into the <b>line</b> (easier) to get y.</p>
+          <p>"How many solutions?" → the discriminant of that combined equation (Mission 1).</p>
+          <p><b>Fastest check:</b> type both equations into Desmos and tap where they cross.</p>
+          <p class="trap"><b>Trap:</b> reread what it asks for: x, y, or something like x + y.</p></div></div>
+        <div class="stage locked" data-st="w"><div class="sh"><span class="sn">3</span><h3>Walk through it</h3></div><p class="lockmsg">Finish step 2 to unlock.</p><div class="body">
+          <p class="q">Solve the system: <span class="m">y = x² − 4x + 1</span> and <span class="m">y = 2x − 7</span>.</p>
+          <div data-walk></div></div></div>
+        <div class="stage locked" data-st="s"><div class="sh"><span class="sn">4</span><h3>Your turn</h3></div><p class="lockmsg">Finish step 3 to unlock.</p><div class="body" data-solo></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MISSION 4 -->
+  <section class="view" id="l4" hidden>
+    <div class="lhead"><span class="lnum">Mission 4</span><h2>Factors and zeros are the same thing</h2><span class="time">≈ 8 min</span></div>
+    <div class="grid">
+      <div class="figcol"><div class="fig">
+        <svg id="fig4" viewBox="0 0 360 300" role="img" aria-label="Cubic polynomial with three zeros"></svg>
+        <div class="controls">
+          <label for="s4a">zero 1 <input id="s4a" type="range" min="-4" max="4" value="-3"><span id="v4a"></span></label>
+          <label for="s4b">zero 2 <input id="s4b" type="range" min="-4" max="4" value="0"><span id="v4b"></span></label>
+          <label for="s4c">zero 3 <input id="s4c" type="range" min="-4" max="4" value="2"><span id="v4c"></span></label>
+        </div>
+        <div class="readout" id="r4"></div>
+      </div></div>
+      <div class="stages" data-lesson="4">
+        <div class="stage" data-st="g"><div class="sh"><span class="sn">1</span><h3>Play</h3></div><div class="body">
+          <p class="goal">Make the graph cross the x-axis at <b>−2</b>, <b>1</b> and <b>3</b>.</p>
+          <p>Watch the factored form in the box. When the graph crosses at −2, what does the factor look like?</p>
+          <div class="status" data-status>Not there yet. Keep sliding.</div>
+          <button class="linkbtn" data-skip>Skip this step</button></div></div>
+        <div class="stage locked" data-st="r"><div class="sh"><span class="sn">2</span><h3>The rule</h3></div><p class="lockmsg">Finish step 1 to unlock.</p><div class="body rule">
+          <p>These four statements all mean the same thing:</p>
+          <p class="key">x = a is a zero ⇔ (x − a) is a factor ⇔ p(a) = 0 ⇔ the graph crosses at a</p>
+          <p><b>Is (x − 2) a factor?</b> Plug in 2. If you get 0, yes. If not, the number you get is the <b>remainder</b> when you divide by (x − 2).</p>
+          <p class="trap"><b>Trap:</b> the sign flips. A zero at −2 gives <span class="m">(x + 2)</span>. And <span class="m">(2x − 1)</span> gives a zero at <span class="m">x = 1/2</span>, not 1.</p></div></div>
+        <div class="stage locked" data-st="w"><div class="sh"><span class="sn">3</span><h3>Walk through it</h3></div><p class="lockmsg">Finish step 2 to unlock.</p><div class="body">
+          <p class="q"><span class="m">p(x) = x³ − 2x² − 5x + 6</span>. Is <span class="m">(x − 1)</span> a factor of p(x)? What about <span class="m">(x + 1)</span>?</p>
+          <div data-walk></div></div></div>
+        <div class="stage locked" data-st="s"><div class="sh"><span class="sn">4</span><h3>Your turn</h3></div><p class="lockmsg">Finish step 3 to unlock.</p><div class="body" data-solo></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MISSION 5 -->
+  <section class="view" id="l5" hidden>
+    <div class="lhead"><span class="lnum">Mission 5</span><h2>Shifting graphs, exponentials included</h2><span class="time">≈ 9 min</span></div>
+    <div class="grid">
+      <div class="figcol"><div class="fig">
+        <svg id="fig5" viewBox="0 0 360 300" role="img" aria-label="A graph and its shifted copy"></svg>
+        <div class="controls">
+          <div class="seg" role="group" aria-label="Graph"><button id="m5sq" aria-pressed="true">y = x²</button><button id="m5ex" aria-pressed="false">y = 2ˣ</button></div>
+          <label for="s5h">right <input id="s5h" type="range" min="-4" max="4" value="0"><span id="v5h"></span></label>
+          <label for="s5k">up <input id="s5k" type="range" min="-4" max="6" value="0"><span id="v5k"></span></label>
+        </div>
+        <div class="readout" id="r5"></div>
+      </div></div>
+      <div class="stages" data-lesson="5">
+        <div class="stage" data-st="g"><div class="sh"><span class="sn">1</span><h3>Play</h3></div><div class="body">
+          <p class="goal">Move the parabola <b>3 right</b> and <b>2 down</b>.</p>
+          <p>Watch the equation. Moving right puts a <b>minus</b> inside the parentheses. Then switch to <span class="m">2ˣ</span> and move it up: where does it cross the y-axis now?</p>
+          <div class="status" data-status>Not there yet. Keep sliding.</div>
+          <button class="linkbtn" data-skip>Skip this step</button></div></div>
+        <div class="stage locked" data-st="r"><div class="sh"><span class="sn">2</span><h3>The rule</h3></div><p class="lockmsg">Finish step 1 to unlock.</p><div class="body rule">
+          <p class="key">y = f(x − h) + k</p>
+          <p><b>Outside</b> (+k) moves it up k, the way it looks. <b>Inside</b> works backwards: <span class="m">f(x − 3)</span> moves <b>right</b> 3, <span class="m">f(x + 4)</span> moves <b>left</b> 4.</p>
+          <p>A point (x, y) on f moves to (x + h, y + k).</p>
+          <p><b>Exponentials</b> <span class="m">y = a · bˣ</span>: a is the starting value (the y-intercept). b is what you multiply by each step: <span class="m">b = 1 + r</span> for growth, <span class="m">b = 1 − r</span> for decay. <span class="m">0.9</span> means losing 10% each step.</p>
+          <p>Adding k to an exponential moves the y-intercept to <span class="m">a + k</span> and the flat line it approaches (asymptote) from y = 0 to y = k.</p>
+          <p class="trap"><b>Trap:</b> <span class="m">f(x − 6)</span> is right 6, not left. When unsure, plug in one point and check.</p></div></div>
+        <div class="stage locked" data-st="w"><div class="sh"><span class="sn">3</span><h3>Walk through it</h3></div><p class="lockmsg">Finish step 2 to unlock.</p><div class="body">
+          <p class="q">Six quick ones: shifts first, then exponentials.</p>
+          <div data-walk></div></div></div>
+        <div class="stage locked" data-st="s"><div class="sh"><span class="sn">4</span><h3>Your turn</h3></div><p class="lockmsg">Finish step 3 to unlock.</p><div class="body" data-solo></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MISSION 6 -->
+  <section class="view" id="l6" hidden>
+    <div class="lhead"><span class="lnum">Mission 6</span><h2>Equations with fractions: clear them first</h2><span class="time">≈ 8 min</span></div>
+    <div class="grid">
+      <div class="figcol"><div class="fig">
+        <svg id="fig6" viewBox="0 0 360 300" role="img" aria-label="Graphs of 6 over x and x minus 1"></svg>
+        <div class="controls">
+          <label for="s6">x <input id="s6" type="range" min="-5" max="6" step="0.5" value="1"><span id="v6"></span></label>
+          <button data-play="s6">Play</button>
+        </div>
+        <div class="readout" id="r6"></div>
+      </div></div>
+      <div class="stages" data-lesson="6">
+        <div class="stage" data-st="g"><div class="sh"><span class="sn">1</span><h3>Play</h3></div><div class="body">
+          <p class="goal">Equation: <span class="m">6/x = x − 1</span>. Slide x until <b>both sides are equal</b>.</p>
+          <p>The left side is the <b class="c-acc">blue</b> curve, the right side is the <b class="c-opp">coral</b> line. Equal sides = where they cross. There are two answers. Can you find both?</p>
+          <div class="status" data-status>Not there yet. Keep sliding.</div>
+          <button class="linkbtn" data-skip>Skip this step</button></div></div>
+        <div class="stage locked" data-st="r"><div class="sh"><span class="sn">2</span><h3>The rule</h3></div><p class="lockmsg">Finish step 1 to unlock.</p><div class="body rule">
+          <p class="key">multiply EVERY term by the common denominator</p>
+          <p>The fractions disappear and it becomes a normal linear or quadratic equation.</p>
+          <p>One fraction on each side? Cross multiply: <span class="m">a/b = c/d → ad = bc</span>.</p>
+          <p><b>Always check:</b> an answer that makes any denominator 0 doesn't count. Throw it out.</p>
+          <p class="trap"><b>Trap:</b> multiplying only the fractions. In <span class="m">x/3 + x/4 = 7</span>, the 7 gets multiplied too.</p></div></div>
+        <div class="stage locked" data-st="w"><div class="sh"><span class="sn">3</span><h3>Walk through it</h3></div><p class="lockmsg">Finish step 2 to unlock.</p><div class="body">
+          <p class="q">Part 1: <span class="m">x/3 + x/4 = 7</span>. Part 2: <span class="m">6/x = x − 1</span>.</p>
+          <div data-walk></div></div></div>
+        <div class="stage locked" data-st="s"><div class="sh"><span class="sn">4</span><h3>Your turn</h3></div><p class="lockmsg">Finish step 3 to unlock.</p><div class="body" data-solo></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MISSION 7 -->
+  <section class="view" id="l7" hidden>
+    <div class="lhead"><span class="lnum">Mission 7</span><h2>Notes → goal: do exactly what it asks</h2><span class="time">≈ 8 min</span></div>
+    <div class="grid">
+      <div class="figcol"><div class="fig">
+        <div class="notes"><h3>A student's notes</h3><ul>
+          <li>The axolotl is a salamander from lakes near Mexico City.</li>
+          <li>Unlike most salamanders, it keeps its gills and lives in water its whole life.</li>
+          <li>It can regrow lost legs and parts of its heart and spine.</li>
+          <li>Scientists study it to learn how body tissue regrows.</li>
+          <li>Its close relative, the tiger salamander, loses its gills and moves onto land as an adult.</li>
+        </ul></div>
+        <div class="goalbox"><b>Goal:</b> contrast the axolotl with the tiger salamander.</div>
+        <div id="sort7"></div>
+      </div></div>
+      <div class="stages" data-lesson="7">
+        <div class="stage" data-st="g"><div class="sh"><span class="sn">1</span><h3>Play</h3></div><div class="body">
+          <p class="goal">Every sentence in the box is <b>true</b>. Sort each one: does it do the goal, or not?</p>
+          <p>That's the whole trick. All four choices on the test match the notes. Only one does the job the question names.</p>
+          <div class="status" data-status>Sort all four sentences.</div>
+          <button class="linkbtn" data-skip>Skip this step</button></div></div>
+        <div class="stage locked" data-st="r"><div class="sh"><span class="sn">2</span><h3>The rule</h3></div><p class="lockmsg">Finish step 1 to unlock.</p><div class="body rule">
+          <p class="key">read the goal first, skip the notes</p>
+          <p><b>1.</b> Read the question. Find the goal: the verb (contrast, emphasize, introduce, explain) and what it's about.</p>
+          <p><b>2.</b> Go straight to the choices. Ask one question per choice: <b>does it do THAT?</b> Being true isn't enough.</p>
+          <p><b>3.</b> Match the signal: <b>contrast</b> → both things plus "while / unlike / whereas". <b>Similarity</b> → both things plus "both / like". <b>Unfamiliar audience</b> → says what the thing is. <b>Aim of a study</b> → "to find out…".</p>
+          <p class="trap"><b>Trap:</b> the most detailed or most interesting choice. And reading all the notes first wastes a minute you need at the end.</p></div></div>
+        <div class="stage locked" data-st="w"><div class="sh"><span class="sn">3</span><h3>Walk through it</h3></div><p class="lockmsg">Finish step 2 to unlock.</p><div class="body">
+          <p class="q">Same notes, new goals.</p>
+          <div data-walk></div></div></div>
+        <div class="stage locked" data-st="s"><div class="sh"><span class="sn">4</span><h3>Your turn</h3></div><p class="lockmsg">Finish step 3 to unlock.</p><div class="body" data-solo></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHEAT SHEET -->
+  <section class="view" id="sheet" hidden>
+    <h2 style="margin-bottom:14px">Cheat sheet</h2>
+    <div class="sheet">
+      <div class="col"><h3>Advanced Math</h3><ul>
+        <li><b>How many solutions</b> (quadratic): <span class="m">D = b² − 4ac</span>. Positive 2, zero 1, negative 0. "Exactly one" → set D = 0.</li>
+        <li><b>Linear: none or infinite.</b> Simplify to <span class="m">ax + b = cx + d</span>. Same x-part + different number → none. Everything the same → infinitely many.</li>
+        <li><b>Line meets parabola:</b> set the y's equal, everything on one side, solve. Desmos: tap the crossings.</li>
+        <li><b>Factor ⇔ zero:</b> <span class="m">(x − a)</span> is a factor exactly when <span class="m">p(a) = 0</span>. Zero at −2 → <span class="m">(x + 2)</span>.</li>
+        <li><b>Remainder:</b> dividing by <span class="m">(x − a)</span> leaves <span class="m">p(a)</span>.</li>
+        <li><b>Shifts:</b> <span class="m">f(x − h) + k</span> → right h, up k. Inside works backwards.</li>
+        <li><b>Exponentials:</b> <span class="m">a · bˣ</span>, a = start (y-intercept), b = 1 + r growth, 1 − r decay.</li>
+        <li><b>Fractions:</b> multiply every term by the common denominator. Throw out answers that make a denominator 0.</li>
+      </ul></div>
+      <div class="col"><h3>Reading &amp; Writing: notes questions</h3><ul>
+        <li>Read the <b>question</b> first. Skip the notes.</li>
+        <li>Underline the goal: contrast, similarity, introduce, emphasize, explain.</li>
+        <li>Every choice is true. Ask: <b>does it do THAT?</b></li>
+        <li>Contrast → names both things and uses while / unlike / whereas.</li>
+        <li>Unfamiliar audience → says what the thing is.</li>
+      </ul>
+      <h3 style="margin-top:16px">Test-day pacing</h3><ul>
+        <li>Check the clock at question 11 of each math module.</li>
+        <li>Over 90 seconds on one question? Flag it, guess, move on, come back.</li>
+        <li>Never leave a blank. Wrong answers cost nothing.</li>
+      </ul></div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s);
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const P=(x,y)=>({x,y});
+const r1=n=>Math.round(n*10)/10,r2=n=>Math.round(n*100)/100;
+const L=(a,b,cls,w=2.5,dash)=>`<line x1="${r1(a.x)}" y1="${r1(a.y)}" x2="${r1(b.x)}" y2="${r1(b.y)}" class="${cls}" stroke-width="${w}" stroke-linecap="round"${dash?` stroke-dasharray="${dash}"`:''}/>`;
+const T=(p,s,cls='lbl',size=14,anchor='middle')=>`<text x="${r1(p.x)}" y="${r1(p.y)}" class="${cls}" font-size="${size}" text-anchor="${anchor}" dominant-baseline="middle">${s}</text>`;
+const N=n=>n<0?'−'+Math.abs(n):String(n);             // −3
+const SG=n=>n<0?' − '+Math.abs(n):' + '+n;            //  + 3 /  − 3
+const TX=c=>c===1?' + x':c===-1?' − x':SG(c)+'x';
+const fac=a=>a===0?'x':'(x'+SG(-a)+')';                // zero a → (x − a)
+function lin(m,b){let s=m===0?'':m===1?'x':m===-1?'−x':N(m)+'x';if(b!==0)s+=s?SG(b):N(b);return s||'0'}
+
+/* ===== coordinate plane ===== */
+function plane(id,v,lab=2){const W=360,H=300,X=x=>(x-v[0])/(v[1]-v[0])*W,Y=y=>H-(y-v[2])/(v[3]-v[2])*H;let g=`<defs><clipPath id="${id}c"><rect width="${W}" height="${H}"/></clipPath></defs>`;
+  for(let x=Math.ceil(v[0]);x<=v[1];x++)g+=L(P(X(x),0),P(X(x),H),'grid-l',1);
+  for(let y=Math.ceil(v[2]);y<=v[3];y++)g+=L(P(0,Y(y)),P(W,Y(y)),'grid-l',1);
+  g+=L(P(X(0),0),P(X(0),H),'k-dim',1.5)+L(P(0,Y(0)),P(W,Y(0)),'k-dim',1.5);
+  for(let x=Math.ceil(v[0]/lab)*lab;x<=v[1];x+=lab)if(x)g+=T(P(X(x),Y(0)+11),N(x),'lbl-m',10);
+  for(let y=Math.ceil(v[2]/lab)*lab;y<=v[3];y+=lab)if(y)g+=T(P(X(0)-5,Y(y)),N(y),'lbl-m',10,'end');
+  return {X,Y,v,bg:g,clip:id+'c'}}
+function curve(p,f,cls,w=3,dash){let d='',pen=false;const v=p.v;for(let i=0;i<=480;i++){const x=v[0]+(v[1]-v[0])*i/480,y=f(x);
+    if(!isFinite(y)||Math.abs(y)>200){pen=false;continue}d+=(pen?'L':'M')+r1(p.X(x))+' '+r1(p.Y(y));pen=true}
+  return `<path d="${d}" class="${cls}" stroke-width="${w}" fill="none" clip-path="url(#${p.clip})"${dash?` stroke-dasharray="${dash}"`:''} stroke-linejoin="round"/>`}
+const dot=(p,x,y,cls='f-acc',r=6)=>`<circle cx="${r1(p.X(x))}" cy="${r1(p.Y(y))}" r="${r}" class="${cls} dotc"/>`;
+
+/* ===== progress state ===== */
+const KEY='cxlab-v1';let S={};try{S=JSON.parse(localStorage.getItem(KEY)||'{}')||{}}catch(e){S={}}
+const st=n=>(S[n]=S[n]||{g:0,r:0,w:0,s:0});
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+const PRAISE=['Nice.','Yes!','Exactly.','That\'s it.','Clean.','Locked in.','You got it.','Right on.'];
+const praise=()=>PRAISE[Math.floor(Math.random()*PRAISE.length)];
+const COUNT=7;
+
+/* ===== stage unlocking ===== */
+function refreshStages(n){const box=document.querySelector(`.stages[data-lesson="${n}"]`);if(!box)return;const s=st(n);
+  const set=(k,unlocked,ok)=>{const el=box.querySelector(`[data-st="${k}"]`);el.classList.toggle('locked',!unlocked);el.classList.toggle('ok',!!ok)};
+  set('g',true,s.g);set('r',s.g,s.g);set('w',s.g,s.w);set('s',s.w,s.s);syncProg()}
+function goalHit(n,msg){const s=st(n);const box=document.querySelector(`.stages[data-lesson="${n}"] [data-st="g"]`);if(!box)return;
+  const el=box.querySelector('[data-status]');
+  if(!s.g){s.g=1;save();refreshStages(n);el.classList.add('win','pop');el.innerHTML=`<span class="praise">${praise()}</span> ${msg}<br><b>Step 2 is open below.</b>`;
+    const nxt=box.parentElement.querySelector('[data-st="r"]');setTimeout(()=>nxt.scrollIntoView({behavior:reduce?'auto':'smooth',block:'nearest'}),500)}}
+function goalStatus(n,html){const s=st(n);if(s.g)return;const el=document.querySelector(`.stages[data-lesson="${n}"] [data-status]`);if(el)el.innerHTML=html}
+document.querySelectorAll('[data-skip]').forEach(b=>b.addEventListener('click',()=>{const n=b.closest('.stages').dataset.lesson;const s=st(n);
+  if(!s.g){s.g=1;save();b.previousElementSibling.innerHTML='Skipped. You can still play with the figure any time.';refreshStages(n)}}));
+
+/* ===== guided walk-through ===== */
+function walk(n,steps){const host=document.querySelector(`.stages[data-lesson="${n}"] [data-walk]`);let i=0,miss=0;const s=st(n);
+  if(s.w)i=steps.length;
+  function render(){let h='';
+    steps.forEach((x,k)=>{if(k<i){h+=`<div class="wstep done"><p class="p">${x.p}</p><p class="ans">✓ ${x.show}</p>${x.ok?`<p class="ex">${x.ok}</p>`:''}</div>`}
+      else if(k===i){h+=`<div class="wstep cur"><p class="p"><b>Step ${k+1} of ${steps.length}.</b> ${x.p}</p>`;
+        if(x.o)h+=`<div class="chips">${x.o.map((o,j)=>`<button data-j="${j}">${o}</button>`).join('')}</div>`;
+        else h+=`<div class="numrow"><input type="text" inputmode="decimal" id="w${n}-${k}" aria-label="Your answer" autocomplete="off"><button data-check>Check</button></div>`;
+        h+=`<div data-fb></div></div>`}});
+    if(i>=steps.length)h+=`<div class="status win"><span class="praise">Walk-through done.</span> Step 4 is open: same idea, new numbers, no steps this time.</div>`;
+    host.innerHTML=h;
+    const cur=host.querySelector('.wstep.cur');if(!cur)return;const x=steps[i],fb=cur.querySelector('[data-fb]');
+    const right=()=>{i++;miss=0;if(i>=steps.length){s.w=1;save();refreshStages(n)}render();
+      const nx=host.querySelector('.wstep.cur')||host.lastElementChild;if(nx)nx.scrollIntoView({behavior:reduce?'auto':'smooth',block:'nearest'})};
+    const wrong=(btn)=>{miss++;if(btn)btn.classList.add('wrong');
+      if(miss===1)fb.innerHTML=`<p class="hint"><b>Hint:</b> ${x.hint}</p>`;
+      else{fb.innerHTML=`<p class="hint show"><b>Answer:</b> ${x.show}. ${x.ok||''}</p><button data-go>Got it, next step</button>`;fb.querySelector('[data-go]').addEventListener('click',right)}};
+    if(x.o)cur.querySelectorAll('.chips button').forEach(b=>b.addEventListener('click',()=>{if(+b.dataset.j===x.a){b.classList.add('right');setTimeout(right,reduce?0:350)}else wrong(b)}));
+    else{const inp=cur.querySelector('input'),chk=()=>{const raw=inp.value.replace(',','.').replace('−','-').trim();let v=parseFloat(raw);
+        if(/^-?\d+\s*\/\s*\d+$/.test(raw)){const [a,b]=raw.split('/');v=parseFloat(a)/parseFloat(b)}
+        if(isNaN(v)){fb.innerHTML='<p class="hint">Type a number.</p>';return}
+        if(Math.abs(v-x.a)<=(x.tol||0.001))right();else wrong()};
+      cur.querySelector('[data-check]').addEventListener('click',chk);inp.addEventListener('keydown',e=>{if(e.key==='Enter')chk()})}}
+  render()}
+
+/* ===== solo question ===== */
+function solo(n,d){const host=document.querySelector(`.stages[data-lesson="${n}"] [data-solo]`);let miss=0;const s=st(n);
+  host.innerHTML=`<p class="q">${d.q}</p><div class="chips">${d.o.map((o,j)=>`<button data-j="${j}">${'ABCD'[j]})&nbsp; ${o}</button>`).join('')}</div><div data-fb></div>`;
+  const fb=host.querySelector('[data-fb]');
+  const finish=(clean)=>{if(!s.s){s.s=clean?2:1;save();refreshStages(n)}
+    fb.innerHTML=`<div class="why"><p class="praise">${clean?'First try. That\'s a star. ★':'Got there.'}</p><ol>${d.why.map(w=>`<li>${w}</li>`).join('')}</ol></div>${nextBar(n)}`;bindNext(fb)};
+  host.querySelectorAll('.chips button').forEach(b=>b.addEventListener('click',()=>{const j=+b.dataset.j;
+    if(j===d.a){host.querySelectorAll('.chips button').forEach(x=>x.disabled=true);b.classList.add('right');finish(miss===0)}
+    else{miss++;b.classList.add('wrong');b.disabled=true;fb.innerHTML=`<p class="hint"><b>Hint:</b> ${d.hint}</p>`}}));
+  if(s.s){host.querySelectorAll('.chips button').forEach((x,j)=>{x.disabled=true;if(j===d.a)x.classList.add('right')});
+    fb.innerHTML=`<div class="why"><ol>${d.why.map(w=>`<li>${w}</li>`).join('')}</ol></div>${nextBar(n)}`;bindNext(fb)}}
+const TITLES={1:'How many solutions',2:'None or infinitely many',3:'Line meets parabola',4:'Factors and zeros',5:'Shifting graphs',6:'Fraction equations',7:'Notes → goal'};
+const BLURB={1:'b² − 4ac counts the solutions without solving.',2:'Same x-part? Then it\'s none or infinitely many.',3:'Set the y\'s equal. Each crossing is a solution.',4:'Zero at a means a factor (x − a).',5:'Inside works backwards. a · bˣ starts at a.',6:'Multiply every term. Check for zero denominators.',7:'Every choice is true. Pick the one that does the job.'};
+function nextBar(n){const nn=+n+1;return nn<=COUNT?`<div class="nextbar" style="margin-top:12px"><p>Mission ${n} complete. Short break, then:</p><button data-next="l${nn}">Mission ${nn}: ${TITLES[nn]}</button></div>`
+  :`<div class="nextbar" style="margin-top:12px"><p>All seven missions done. Now practice them in the app, or read the cheat sheet:</p><button data-next="sheet">Cheat sheet</button></div>`}
+function bindNext(el){el.querySelectorAll('[data-next]').forEach(b=>b.addEventListener('click',()=>show(b.dataset.next)))}
+
+/* ===== views ===== */
+const views=[...document.querySelectorAll('section.view')].map(s=>s.id);
+function show(id){if(!views.includes(id))id='start';document.querySelectorAll('section.view').forEach(s=>s.hidden=s.id!==id);
+  document.querySelectorAll('nav.lessons a').forEach(a=>a.classList.toggle('on',a.dataset.v===id));
+  try{history.replaceState(null,'','#'+id)}catch(e){}
+  if(id==='start')renderPath();window.scrollTo({top:0,behavior:'auto'});
+  const on=document.querySelector('nav.lessons a.on');if(on)on.scrollIntoView({block:'nearest',inline:'center'})}
+document.querySelectorAll('nav.lessons a').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();show(a.dataset.v)}));
+function nextMission(){for(let n=1;n<=COUNT;n++)if(!st(n).s)return 'l'+n;return 'sheet'}
+$('#go').addEventListener('click',()=>show(nextMission()));
+function renderPath(){$('#path').innerHTML=Array.from({length:COUNT},(_,i)=>i+1).map(n=>{const s=st(n);const stat=s.s?(s.s===2?'✓ done · ★ first try':'✓ done'):s.g?'in progress':'not started';
+  return `<button class="mcard" data-next="l${n}"><span class="k">Mission ${n}</span><span class="t">${TITLES[n]}</span><span class="s">${BLURB[n]}</span><span class="st" style="color:${s.s?'var(--good)':'var(--muted)'}">${stat}</span></button>`}).join('');bindNext($('#path'))}
+function syncProg(){let d=0,stars=0;for(let n=1;n<=COUNT;n++){const s=st(n);if(s.s)d++;if(s.s===2)stars++}
+  $('#prog').textContent=d;$('#stars').textContent=stars;
+  document.querySelectorAll('nav.lessons a[data-l]').forEach(a=>a.classList.toggle('done',!!st(a.dataset.l).s));
+  $('#go').textContent=d===COUNT?'Review the cheat sheet':d===0?'Start Mission 1':'Continue: '+TITLES[+nextMission().slice(1)]}
+
+/* ===== slider sweep ===== */
+const anims={};
+function sweep(id,ms=4200){const inp=document.getElementById(id);if(anims[id]){cancelAnimationFrame(anims[id]);anims[id]=0;return}
+  if(reduce){inp.value=inp.value==inp.max?inp.min:inp.max;inp.dispatchEvent(new Event('input'));return}
+  const lo=+inp.min,hi=+inp.max,step=+inp.step||1,t0=performance.now();
+  const f=now=>{const u=(now-t0)/ms;if(u>=1){anims[id]=0;return}inp.value=Math.round((lo+(hi-lo)*(0.5-0.5*Math.cos(u*2*Math.PI)))/step)*step;inp.dispatchEvent(new Event('input'));anims[id]=requestAnimationFrame(f)};
+  anims[id]=requestAnimationFrame(f)}
+document.querySelectorAll('[data-play]').forEach(b=>b.addEventListener('click',()=>sweep(b.dataset.play)));
+
+/* ===== M1 discriminant ===== */
+function d1(){const b=+$('#s1b').value,c=+$('#s1c').value;$('#v1b').textContent=N(b);$('#v1c').textContent=N(c);
+  const p=plane('f1',[-8,8,-8,10]);let s=p.bg+curve(p,x=>x*x+b*x+c,'k-acc');
+  const D=b*b-4*c;const roots=D>0?[(-b-Math.sqrt(D))/2,(-b+Math.sqrt(D))/2]:D===0?[-b/2]:[];
+  roots.forEach(x=>s+=dot(p,x,0,'f-opp',7));$('#fig1').innerHTML=s;
+  const n=roots.length,word=n===2?'two solutions':n===1?'exactly one solution':'no real solutions';
+  $('#r1').innerHTML=`y = x²${b?TX(b):''}${c?SG(c):''}<br>a = 1, b = ${N(b)}, c = ${N(c)}<br>D = (${N(b)})² − 4(1)(${N(c)}) = <b>${N(D)}</b><br><span class="big verdict">${D>0?'D > 0':D===0?'D = 0':'D < 0'} → ${word}</span>`;
+  if(D===0)goalHit(1,`D = b² − 4ac = 0 and the curve just touches: <b>exactly one solution</b>. Positive D crosses twice, negative D never touches.`);
+  else goalStatus(1,`D = <b>${N(D)}</b>. ${D>0?'It crosses twice. Raise c, or move b toward 0.':'It floats above the axis. Lower c, or push b away from 0.'}`)}
+['#s1b','#s1c'].forEach(id=>$(id).addEventListener('input',d1));
+
+/* ===== M2 lines ===== */
+function d2(){const m=+$('#s2m').value,b=+$('#s2b').value;$('#v2m').textContent=N(m);$('#v2b').textContent=N(b);
+  const p=plane('f2',[-6,6,-6,6]);let s=p.bg+curve(p,x=>2*x+1,'k-adj',4)+curve(p,x=>m*x+b,'k-opp',3,m===2&&b===1?'8 6':'');
+  let verdict;
+  if(m!==2){const x=(1-b)/(m-2),y=2*x+1;if(Math.abs(x)<=6&&Math.abs(y)<=6)s+=dot(p,x,y,'f-acc',7);verdict=`Different slopes → they cross once → <b>one solution</b>`}
+  else if(b!==1)verdict=`Same slope, different intercept → parallel → <b>no solution</b>`;
+  else verdict=`Same slope, same intercept → same line → <b>infinitely many solutions</b>`;
+  $('#fig2').innerHTML=s;
+  $('#r2').innerHTML=`<span class="c-adj">y = 2x + 1</span><br><span class="c-opp">y = ${lin(m,b)}</span><br>as one equation: 2x + 1 = ${lin(m,b)}<br><span class="big">${verdict}</span>`;
+  if(m===2&&b!==1)goalHit(2,`Same slope (2), different intercepts: parallel lines never meet, so <b>no solution</b>. Now slide the intercept to 1: same line, <b>infinitely many</b>.`);
+  else goalStatus(2,m===2?'That\'s the same line: infinitely many solutions. Now make them never meet.':`Slope is <b>${N(m)}</b>. Lines with different slopes always cross somewhere. What slope does the teal line have?`)}
+['#s2m','#s2b'].forEach(id=>$(id).addEventListener('input',d2));
+
+/* ===== M3 line meets parabola ===== */
+function d3(){const m=+$('#s3m').value,b=+$('#s3b').value;$('#v3m').textContent=N(m);$('#v3b').textContent=N(b);
+  const p=plane('f3',[-6,6,-6,10]);let s=p.bg+curve(p,x=>x*x-2,'k-acc',3)+curve(p,x=>m*x+b,'k-opp',3);
+  const D=m*m+4*(b+2);const xs=D>0?[(m-Math.sqrt(D))/2,(m+Math.sqrt(D))/2]:D===0?[m/2]:[];
+  xs.forEach(x=>s+=dot(p,x,m*x+b,'f-hyp',7));$('#fig3').innerHTML=s;
+  const cc=-(b+2);
+  $('#r3').innerHTML=`<span class="c-acc">y = x² − 2</span> &nbsp;and&nbsp; <span class="c-opp">y = ${lin(m,b)}</span><br>set equal: x² − 2 = ${lin(m,b)}<br>one side: x²${m?TX(-m):''}${cc?SG(cc):''} = 0<br>D = ${N(m*m)} − 4(1)(${N(cc)}) = <b>${N(D)}</b> → <span class="big">${xs.length} ${xs.length===1?'point':'points'}</span>`;
+  if(D===0)goalHit(3,`The line just touches the parabola. Set equal and move everything over: the discriminant is 0, so <b>one solution</b>. Missions 1 and 3 are the same idea.`);
+  else goalStatus(3,`${xs.length} crossing${xs.length===1?'':'s'}. ${D>0?'Lower the line or tilt it.':'The line misses. Raise it.'}`)}
+['#s3m','#s3b'].forEach(id=>$(id).addEventListener('input',d3));
+
+/* ===== M4 factors and zeros ===== */
+function d4(){const z=[+$('#s4a').value,+$('#s4b').value,+$('#s4c').value];['a','b','c'].forEach((k,i)=>$('#v4'+k).textContent=N(z[i]));
+  const p=plane('f4',[-6,6,-10,10]);const f=x=>(x-z[0])*(x-z[1])*(x-z[2])/4;
+  let s=p.bg+curve(p,f,'k-acc',3);z.forEach(a=>s+=dot(p,a,0,'f-opp',7));$('#fig4').innerHTML=s;
+  $('#r4').innerHTML=`zeros: x = ${z.map(N).join(', ')}<br><span class="big">p(x) = ${z.map(fac).join('')}</span><br>check: p(${N(z[0])}) = ${z.map(a=>'('+N(z[0])+SG(-a)+')').join('')} = 0`;
+  const sorted=[...z].sort((a,b)=>a-b).join();
+  if(sorted==='-2,1,3')goalHit(4,`Zeros at −2, 1 and 3 give p(x) = (x + 2)(x − 1)(x − 3). A zero at −2 gives the factor <b>(x + 2)</b>: the sign flips.`);
+  else goalStatus(4,`Crossing at <b>${z.map(N).join(', ')}</b>. Target: −2, 1 and 3.`)}
+['#s4a','#s4b','#s4c'].forEach(id=>$(id).addEventListener('input',d4));
+
+/* ===== M5 shifts ===== */
+let mode5='sq';
+function d5(){const h=+$('#s5h').value,k=+$('#s5k').value;$('#v5h').textContent=N(h);$('#v5k').textContent=N(k);
+  const p=plane('f5',[-6,6,-4,10]);const base=mode5==='sq'?x=>x*x:x=>Math.pow(2,x);
+  let s=p.bg+curve(p,base,'k-dim',2.5,'6 5')+curve(p,x=>base(x-h)+k,'k-acc',3.5);
+  const inner=h===0?'x':'x'+SG(-h);
+  let eq,extra;
+  if(mode5==='sq'){eq=`y = ${h===0?'x²':'('+inner+')²'}${k?SG(k):''}`;s+=dot(p,0,0,'f-hyp',5)+dot(p,h,k,'f-opp',7);extra=`vertex (0, 0) → <b>(${N(h)}, ${N(k)})</b>`}
+  else{eq=`y = 2<sup>${inner}</sup>${k?SG(k):''}`;const yi=Math.pow(2,-h)+k;s+=L(P(0,p.Y(k)),P(360,p.Y(k)),'k-opp',1.5,'4 4')+dot(p,0,yi,'f-opp',7);
+    extra=`y-intercept: 2<sup>${N(-h)}</sup>${k?SG(k):''} = <b>${r2(yi)}</b><br>flat line it approaches: <b>y = ${N(k)}</b>`}
+  $('#fig5').innerHTML=s;
+  const moves=[h?(h>0?'right '+h:'left '+(-h)):'',k?(k>0?'up '+k:'down '+(-k)):''].filter(Boolean).join(', ')||'not moved';
+  $('#r5').innerHTML=`<span class="big">${eq}</span><br>moved: ${moves}<br>${extra}`;
+  if(mode5==='sq'&&h===3&&k===-2)goalHit(5,`Right 3 and down 2 is <b>y = (x − 3)² − 2</b>. Right puts a minus inside. Now tap <b>y = 2ˣ</b> and slide "up": the y-intercept moves from 1 to 1 + k.`);
+  else if(mode5==='sq')goalStatus(5,`Now: ${moves}. Target: right 3, down 2.`)}
+['#s5h','#s5k'].forEach(id=>$(id).addEventListener('input',d5));
+function setMode5(m){mode5=m;$('#m5sq').setAttribute('aria-pressed',m==='sq');$('#m5ex').setAttribute('aria-pressed',m==='ex');d5()}
+$('#m5sq').addEventListener('click',()=>setMode5('sq'));$('#m5ex').addEventListener('click',()=>setMode5('ex'));
+
+/* ===== M6 fractions ===== */
+function d6(){const x=+$('#s6').value;$('#v6').textContent=N(x);
+  const p=plane('f6',[-6,6,-8,8]);let s=p.bg+curve(p,t=>6/t,'k-acc',3)+curve(p,t=>t-1,'k-opp',3);
+  s+=L(P(p.X(x),0),P(p.X(x),300),'k-hyp',1.5,'4 4');
+  const left=x===0?null:6/x,right=x-1;
+  if(left!==null&&Math.abs(left)<=8)s+=dot(p,x,left,'f-acc',6);if(Math.abs(right)<=8)s+=dot(p,x,right,'f-opp',6);
+  $('#fig6').innerHTML=s;
+  const eq=left!==null&&Math.abs(left-right)<1e-9;
+  $('#r6').innerHTML=`x = ${N(x)}<br><span class="c-acc">left: 6/x = ${left===null?'undefined (can\'t divide by 0)':N(r2(left))}</span><br><span class="c-opp">right: x − 1 = ${N(r2(right))}</span><br><span class="big">${eq?'Equal! x = '+N(x)+' is a solution.':'Not equal yet.'}</span>`;
+  if(eq)goalHit(6,`At x = ${N(x)} both sides equal ${N(right)}. The other answer is x = ${x===3?'−2':'3'}. Algebra finds both at once: multiply by x and solve <span class="m">x² − x − 6 = 0</span>.`);
+  else goalStatus(6,x===0?'x = 0 makes 6/x undefined. Any answer that makes a denominator 0 is thrown out.':`Left ${N(r2(left))}, right ${N(r2(right))}. Keep sliding.`)}
+$('#s6').addEventListener('input',d6);
+$('#s6').addEventListener('pointerdown',()=>{if(anims.s6){cancelAnimationFrame(anims.s6);anims.s6=0}});
+
+/* ===== M7 notes → goal sorting ===== */
+const SORT7=[
+ {t:'The axolotl can regrow lost legs and parts of its heart and spine.',y:false,why:'True, but it only talks about the axolotl. No contrast.'},
+ {t:'While the tiger salamander loses its gills and moves onto land as an adult, the axolotl keeps its gills and stays in water its whole life.',y:true,why:'Names both animals and uses "while" to show the difference.'},
+ {t:'The axolotl and the tiger salamander are close relatives.',y:false,why:'Names both, but it shows a similarity, not a contrast.'},
+ {t:'Scientists study the axolotl to learn how body tissue regrows.',y:false,why:'True, but it\'s about research. The tiger salamander isn\'t mentioned.'}];
+const sortAns={};
+function d7(){const host=$('#sort7');host.innerHTML=SORT7.map((x,i)=>{const a=sortAns[i];const ok=a!==undefined&&a===x.y;
+  return `<div class="sortrow${ok?' right':''}"><p>${x.t}</p><div class="btns"><button data-i="${i}" data-y="1" ${ok?'disabled':''}>Does the goal</button><button data-i="${i}" data-y="0" ${ok?'disabled':''}>Doesn't</button></div>${a!==undefined?`<p class="why">${ok?'✓ ':'✗ Not quite. '}${x.why}</p>`:''}</div>`}).join('');
+  host.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{sortAns[b.dataset.i]=b.dataset.y==='1';d7()}));
+  const done=SORT7.every((x,i)=>sortAns[i]===x.y);
+  if(done)goalHit(7,`Only one sentence does the goal, even though all four are true. That's every "use the notes" question: find the job, then find the one choice that does it.`);
+  else goalStatus(7,`Sorted correctly: <b>${SORT7.filter((x,i)=>sortAns[i]===x.y).length} of 4</b>.`)}
+
+/* ===== walk-throughs ===== */
+walk(1,[
+ {p:'Name a, b and c.',o:['a = 1, b = −6, c = k','a = 1, b = 6, c = k','a = k, b = −6, c = 1'],a:0,show:'a = 1, b = −6, c = k',hint:'a goes with x², b with x (keep its sign), c is the plain number.',ok:'b keeps its minus sign.'},
+ {p:'"Exactly one real solution" means the discriminant is…',o:['0','positive','negative'],a:0,show:'D = 0',hint:'One solution = the parabola just touches the x-axis.',ok:''},
+ {p:'D = b² − 4ac = (−6)² − 4(1)(k). What is (−6)²? Type it.',a:36,show:'36',hint:'Negative times negative is positive.',ok:''},
+ {p:'Set it to zero: 36 − 4k = 0. Type k.',a:9,show:'k = 9',hint:'4k = 36',ok:''},
+ {p:'Check: x² − 6x + 9 = (x − 3)². How many solutions does (x − 3)² = 0 have?',o:['One: x = 3','Two','None'],a:0,show:'One: x = 3',hint:'(x − 3)² is zero only when x − 3 = 0.',ok:'A perfect square always has exactly one solution. The answer is k = 9.'}]);
+walk(2,[
+ {p:'First, distribute the left side: 4(x + 3) = ?',o:['4x + 3','4x + 12','x + 12'],a:1,show:'4x + 12',hint:'Multiply the 4 by both terms inside.',ok:''},
+ {p:'Now it reads 4x + 12 = ax + 12. The numbers already match (12 and 12). For infinitely many solutions, the x-parts must…',o:['match too','be different'],a:0,show:'match too',hint:'Infinitely many means the two sides are identical.',ok:''},
+ {p:'Type a.',a:4,show:'a = 4',hint:'Match 4x with ax.',ok:'Both sides become 4x + 12. Any x works.'},
+ {p:'Twist: if the right side were 4x + 10 instead, how many solutions?',o:['None','One','Infinitely many'],a:0,show:'None',hint:'Subtract 4x from both sides. What\'s left?',ok:'You get 12 = 10, which is never true. Same x-part, different number → no solution.'}]);
+walk(3,[
+ {p:'Both equations equal y. Set them equal to each other:',o:['x² − 4x + 1 = 2x − 7','x² − 4x + 1 = 0','2x − 7 = 0'],a:0,show:'x² − 4x + 1 = 2x − 7',hint:'If y = A and y = B, then A = B.',ok:''},
+ {p:'Move everything to the left side. Which do you get?',o:['x² − 6x + 8 = 0','x² − 2x − 6 = 0','x² − 6x − 6 = 0'],a:0,show:'x² − 6x + 8 = 0',hint:'Subtract 2x: −4x − 2x. Add 7: 1 + 7.',ok:'−4x − 2x = −6x and 1 + 7 = 8.'},
+ {p:'Factor: two numbers that multiply to 8 and add to −6.',o:['(x − 2)(x − 4)','(x + 2)(x + 4)','(x − 1)(x − 8)'],a:0,show:'(x − 2)(x − 4)',hint:'−2 × −4 = 8 and −2 + −4 = −6.',ok:'So x = 2 or x = 4.'},
+ {p:'Find y when x = 4. Use the line, y = 2x − 7. Type y.',a:1,show:'y = 1',hint:'2 × 4 − 7',ok:'The other point: x = 2 gives y = −3. Solutions: (2, −3) and (4, 1).'},
+ {p:'A test might ask for the product of the x-values instead. Type it.',a:8,show:'8',hint:'2 × 4',ok:'Always reread what the question asks for before bubbling.'}]);
+walk(4,[
+ {p:'To test whether (x − 1) is a factor, which number do you plug in?',o:['1','−1','0'],a:0,show:'x = 1',hint:'(x − a) is a factor when p(a) = 0. Here a = 1.',ok:''},
+ {p:'p(1) = 1 − 2 − 5 + 6. Type it.',a:0,show:'p(1) = 0',hint:'1³ = 1, 2(1)² = 2, 5(1) = 5.',ok:''},
+ {p:'p(1) = 0, so (x − 1) is…',o:['a factor','not a factor'],a:0,show:'a factor',hint:'Zero means factor.',ok:''},
+ {p:'Now test (x + 1). Plug in x = −1: p(−1) = −1 − 2 + 5 + 6. Type it.',a:8,show:'p(−1) = 8',hint:'(−1)³ = −1, −2(−1)² = −2, −5(−1) = +5.',ok:'8 isn\'t 0, so (x + 1) is not a factor. 8 is the remainder when you divide p(x) by (x + 1).'},
+ {p:'p(3) = 0 too. Which factor does that give?',o:['(x − 3)','(x + 3)','3x'],a:0,show:'(x − 3)',hint:'The sign flips: a zero at 3 gives x minus 3.',ok:'The zeros of p are 1, 3 and −2, so p(x) = (x − 1)(x − 3)(x + 2).'}]);
+walk(5,[
+ {p:'The graph of y = f(x) + 6 is the graph of f moved…',o:['up 6','down 6','right 6','left 6'],a:0,show:'up 6',hint:'Outside the parentheses works the way it looks.',ok:''},
+ {p:'The graph of y = f(x + 6) is the graph of f moved…',o:['left 6','right 6','up 6'],a:0,show:'left 6',hint:'Inside the parentheses works backwards.',ok:''},
+ {p:'Where is the vertex of y = (x − 2)² − 5?',o:['(2, −5)','(−2, −5)','(2, 5)'],a:0,show:'(2, −5)',hint:'x − 2 inside → right 2. − 5 outside → down 5.',ok:''},
+ {p:'f(x) = 3 · 2ˣ. Type f(0).',a:3,show:'f(0) = 3',hint:'2⁰ = 1.',ok:'In a · bˣ, a is always the y-intercept: the starting value.'},
+ {p:'Where does y = 3 · 2ˣ + 4 cross the y-axis? Type the y-value.',a:7,show:'y = 7',hint:'Start value 3, then shifted up 4.',ok:''},
+ {p:'A population is modeled by 500(0.9)ᵗ, with t in years. Each year the population…',o:['grows by 9%','shrinks by 10%','shrinks by 90%','grows by 90%'],a:1,show:'shrinks by 10%',hint:'0.9 = 1 − 0.10.',ok:'b below 1 means decay. 1 − 0.9 = 0.10, so it loses 10% a year.'}]);
+walk(6,[
+ {p:'Part 1: x/3 + x/4 = 7. What is the common denominator of 3 and 4? Type it.',a:12,show:'12',hint:'The smallest number both 3 and 4 divide into.',ok:''},
+ {p:'Multiply every term by 12. Which equation do you get?',o:['4x + 3x = 84','4x + 3x = 7','x + x = 84'],a:0,show:'4x + 3x = 84',hint:'12 · x/3 = 4x, 12 · x/4 = 3x, and the 7 gets multiplied too.',ok:''},
+ {p:'Type x.',a:12,show:'x = 12',hint:'7x = 84',ok:'Check: 12/3 + 12/4 = 4 + 3 = 7. ✓'},
+ {p:'Part 2: 6/x = x − 1. Multiply both sides by x. Which do you get?',o:['6 = x² − x','6 = x − 1','6x = x² − x'],a:0,show:'6 = x² − x',hint:'x · (6/x) = 6, and x · (x − 1) = x² − x.',ok:''},
+ {p:'x² − x − 6 = 0 factors to (x − 3)(x + 2) = 0. Type the positive solution.',a:3,show:'x = 3',hint:'Set each factor to zero.',ok:'x = −2 works too: 6/(−2) = −3 and −2 − 1 = −3. Neither makes a denominator 0, so both count.'}]);
+walk(7,[
+ {p:'New goal: <b>introduce the axolotl to an audience unfamiliar with it.</b> What does a reader who has never heard of it need first?',o:['What an axolotl is','What scientists hope to learn','How it compares to a relative'],a:0,show:'What an axolotl is',hint:'"Unfamiliar audience" is the signal.',ok:''},
+ {p:'Which choice does that?',o:['Scientists study how axolotls regrow tissue.','The axolotl, a salamander from lakes near Mexico City, can regrow lost legs.','Unlike the tiger salamander, the axolotl keeps its gills.'],a:1,show:'The axolotl, a salamander from lakes near Mexico City, can regrow lost legs.',hint:'Find the one that tells you what an axolotl is.',ok:'Only this one says what it is (a salamander) and where it lives.'},
+ {p:'New goal: <b>explain why scientists are interested in the axolotl.</b> Which choice does that?',o:['The axolotl keeps its gills its whole life.','Because it can regrow legs and parts of its heart and spine, the axolotl helps scientists learn how body tissue regrows.','The axolotl lives in lakes near Mexico City.'],a:1,show:'Because it can regrow…, the axolotl helps scientists learn how body tissue regrows.',hint:'Look for a reason ("because") tied to the scientists.',ok:'The goal says "why", so the answer gives a reason.'}]);
+
+/* ===== your turn ===== */
+solo(1,{q:'How many real solutions does 2x² − 3x + 5 = 0 have?',o:['Zero','Exactly one','Exactly two','Infinitely many'],a:0,
+  hint:'a = 2, b = −3, c = 5. Find b² − 4ac.',why:['D = (−3)² − 4(2)(5) = 9 − 40 = −31.','Negative → the parabola never touches the x-axis → no real solutions.']});
+solo(2,{q:'In the equation 3(2x − 1) + x = kx − 3, k is a constant. The equation has infinitely many solutions. What is k?',o:['3','6','7','−3'],a:2,
+  hint:'Distribute and combine the left side first.',why:['Left side: 6x − 3 + x = 7x − 3.','7x − 3 = kx − 3 for every x only when k = 7.','6 is the trap: it forgets the extra + x.']});
+solo(3,{q:'How many solutions does this system have? y = x² + 1 and y = 2x',o:['Zero','Exactly one','Exactly two','Infinitely many'],a:1,
+  hint:'Set them equal, move everything to one side, then use the discriminant.',why:['x² + 1 = 2x → x² − 2x + 1 = 0.','D = (−2)² − 4(1)(1) = 0 → exactly one.','It factors to (x − 1)² = 0: the line touches the parabola at (1, 2).']});
+solo(4,{q:'What are the zeros of f(x) = (x − 3)(2x + 5)?',o:['x = 3 and x = −5/2','x = −3 and x = 5/2','x = 3 and x = −5','x = 3 and x = 5/2'],a:0,
+  hint:'Set each factor equal to zero and solve.',why:['x − 3 = 0 → x = 3.','2x + 5 = 0 → x = −5/2.','"−5" is the trap: you still have to divide by 2.']});
+solo(5,{q:'The graph of y = f(x) passes through the point (2, 5). Which point must be on the graph of y = f(x − 3) + 1?',o:['(5, 6)','(−1, 6)','(5, 4)','(−1, 4)'],a:0,
+  hint:'x − 3 inside → right 3. + 1 outside → up 1.',why:['Right 3: x goes from 2 to 5.','Up 1: y goes from 5 to 6.','So (5, 6). (−1, 6) is the trap of moving the wrong way.']});
+solo(6,{q:'What is the solution to 2/(x − 1) = 4/(x + 1)?',o:['1','2','3','5'],a:2,
+  hint:'One fraction on each side: cross multiply.',why:['2(x + 1) = 4(x − 1)','2x + 2 = 4x − 4 → 6 = 2x → x = 3.','Check: 2/2 = 1 and 4/4 = 1. ✓ (x = 1 can never be the answer: it makes a denominator 0.)']});
+solo(7,{q:'<b>Notes:</b> Honeybees live in colonies of tens of thousands. Bumblebee colonies usually have a few hundred bees. Both pollinate crops. Bumblebees can shake pollen loose from flowers such as tomatoes by buzzing; honeybees can\'t do this.<br><br>The student wants to <b>emphasize a difference in how the two bees pollinate</b>. Which choice best does this?',
+  o:['Both honeybees and bumblebees pollinate crops.','Honeybee colonies can hold tens of thousands of bees, while bumblebee colonies usually have a few hundred.','Bumblebees can shake pollen loose from flowers such as tomatoes by buzzing, a method honeybees can\'t use.','Bumblebees pollinate tomato flowers.'],a:2,
+  hint:'The goal has two parts: a difference, and it has to be about pollinating.',why:['A is a similarity.','B is a difference, but about colony size, not pollinating. That\'s the trap.','C names both bees, shows a difference, and it\'s about pollinating. ✓','D only mentions one bee.']});
+
+/* ===== countdown ===== */
+(function(){const now=new Date(),t=new Date(now.getFullYear(),now.getMonth(),now.getDate()),d=Math.round((new Date(2026,9,7)-t)/864e5);
+  $('#countdown').innerHTML=d>1?`PSAT in <b>${d}</b> days`:d===1?'PSAT is <b>tomorrow</b>':d===0?'PSAT is <b>today</b>':'PSAT: Oct 7, 2026'})();
+
+/* ===== boot ===== */
+d1();d2();d3();d4();d5();d6();d7();
+for(let n=1;n<=COUNT;n++)refreshStages(n);
+for(let n=1;n<=COUNT;n++)if(st(n).g){const el=document.querySelector(`.stages[data-lesson="${n}"] [data-status]`);if(el){el.classList.add('win');el.innerHTML='Done. Play with the figure any time.'}}
+show((location.hash||'').slice(1)||'start');
+window.addEventListener('hashchange',()=>{const id=(location.hash||'').slice(1);if(id&&views.includes(id))show(id)});
+})();
+</script>
+</body>
+</html>

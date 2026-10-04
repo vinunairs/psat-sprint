@@ -111,3 +111,17 @@ Each sprint task in `PLAN_TEMPLATE` is text or `[text, action]`. Tapping the tex
 
 ## Focus set (automatic)
 Home and Practice show **Your focus set**: 20 questions weighted toward the question types a student actually misses. Two inputs, no manual picking: (1) `public.focus_targets` — question types written after a test review (for example, from a Bluebook score report); students can read only their own row and nothing on the client can write it; (2) the student's own results per question type (`tstat`: attempts, misses), which add weight to types they keep missing and lower it once they're mostly right. Types are generator names (`gen:sec_fanboys`) or hand-written bank skills (`bank:Textual evidence`); an item can set a starting level (`lv`), which climbs automatically once the student gets that type right.
+
+## Concept Lab (concepts.html)
+
+A second guided Lab, built after Bluebook Practice Test 2, for question types the student hadn't been taught yet. Same format as the Geometry Lab (play → rule → walk-through → your turn), progress in localStorage `cxlab-v1`, synced to `S.lab2` and shown in the admin view and the Telegram report.
+
+1. How many solutions (discriminant, "exactly one solution, find k")
+2. One, none or infinitely many (linear equations and systems)
+3. Line meets parabola (systems with a quadratic)
+4. Factors and zeros (factor theorem, remainder)
+5. Shifting graphs, exponentials included
+6. Equations with fractions (clear denominators, extraneous answers)
+7. Notes → goal (rhetorical synthesis method)
+
+Plan tasks use `{ k: "lab", p: "cx", m: [...] }`; `p` omitted means the Geometry Lab. The Geometry Lab's Mission 2 now also covers polygon angle sums.

@@ -36,8 +36,8 @@
     { title: "Math under the clock", tasks: [["Take a timed Math section: an in-app mock, or a Khan Academy practice test Math section (log it in Log a test)", { k: "mock", parts: ["math"], alt: "khan" }], ["Review every miss in the results", { k: "mockreview" }], ["Pacing drill: 10 math questions with the timer on (about 1½ minutes each)", { k: "practice", doms: ["alg", "adv", "psda", "geo"], n: 10, timed: true }], ["Geometry Lab: Missions 1 and 2 (parallel lines, triangle angles)", { k: "lab", m: [1, 2] }]] },
     { title: "Dress rehearsal", heavy: true, tasks: [["2-minute warm-up first: your top 5 rules", { k: "deck", top: 5 }], ["Take Bluebook {TEST} Practice Test 2 in one sitting, starting at the same time as the real test", BB], ["Take only the scheduled 10-minute break"], ["Enter the results in the Log a test tab", { k: "log", src: "bluebook" }]] },
     { title: "Review the rehearsal", tasks: [["Review every miss from Practice Test 2", MYP], ["Compare your Progress page with Test 1 and note what improved", { k: "visit", tab: "matrix" }], ["Your focus set: 20 questions picked from your misses", { k: "focus", n: 20 }], ["Geometry Lab: Missions 3 and 4 (Pythagoras, SOH CAH TOA)", { k: "lab", m: [3, 4] }]] },
-    { title: "Reading under the clock", tasks: [["Take a timed Reading and Writing section: an in-app mock, or a Khan Academy practice test section (log it in Log a test)", { k: "mock", parts: ["rw"], alt: "khan" }], ["Review every miss in the results", { k: "mockreview" }], ["Retry the Mistake notebook", { k: "notebook" }], ["Geometry Lab: Missions 5 and 6 (similar triangles, area and volume)", { k: "lab", m: [5, 6] }]] },
-    { title: "Light review", light: true, tasks: [["Flip through your strategy cards and read your night-before sheet (Learn tab)", { k: "visit", tab: "review" }], ["One 10-question mixed practice set, nothing more", { k: "practice", n: 10 }], ["Charge the device, update Bluebook, and run its exam readiness check", BB], "Pack what the school asks for: device, charger, admission info", "Lights out by 10 pm", ["Geometry Lab: Mission 7 (test-day shortcuts) and the cheat sheet", { k: "lab", m: [7] }]] },
+    { title: "Learn the new question types", tasks: [["Concept Lab: Missions 1 to 3 (how many solutions, none or infinitely many, line meets parabola)", { k: "lab", p: "cx", m: [1, 2, 3] }], ["Concept Lab: Mission 7 (notes questions: do exactly what the goal asks)", { k: "lab", p: "cx", m: [7] }], ["Concept Lab: Missions 4 to 6 (factors and zeros, shifting graphs, fraction equations)", { k: "lab", p: "cx", m: [4, 5, 6] }], ["Your focus set: 15 questions to practice what you just learned", { k: "focus", n: 15 }], ["Retry the Mistake notebook", { k: "notebook" }]] },
+    { title: "Light review", light: true, tasks: [["Flip through your strategy cards and read your night-before sheet (Learn tab)", { k: "visit", tab: "review" }], ["One 10-question mixed practice set, nothing more", { k: "practice", n: 10 }], ["Charge the device, update Bluebook, and run its exam readiness check", BB], "Pack what the school asks for: device, charger, admission info", "Lights out by 10 pm", ["Geometry Lab: Missions 5 to 7 (similar triangles, area and volume, shortcuts) and the cheat sheet", { k: "lab", m: [5, 6, 7] }]] },
     { title: "Test day", light: true, tasks: ["Eat a real breakfast", "Take care on Module 1: it decides whether Module 2 is the harder set", "Never leave a question blank; wrong answers cost nothing", "Use Desmos and the reference sheet to check math answers"] }
   ];
 
@@ -498,26 +498,32 @@
     else if (g.k === "mockreview") { completeTask(day, i); save(); if (S.lastMock && S.lastMock.result) S.lastMock.showResults = true; show("mock"); }
     else if (g.k === "log") show("log");
     else if (g.k === "visit") { completeTask(day, i); save(); show(g.tab); }
-    else if (g.k === "lab") { const lab = labState(), next = g.m.find((n) => !(lab[n] && lab[n].s)) || g.m[0]; location.href = "geometry.html#l" + next; return; }
+    else if (g.k === "lab") { const lab = labState(g.p), next = g.m.find((n) => !(lab[n] && lab[n].s)) || g.m[0]; location.href = LABS[g.p || "geo"].page + "#l" + next; return; }
     window.scrollTo({ top: 0 });
   }
   // Geometry Lab (geometry.html) keeps its own progress in this browser: {1: {g, r, w, s}, ...}; s = mission finished.
-  function labState() { try { return JSON.parse(localStorage.getItem("gtlab-v2") || "{}") || {}; } catch (e) { return {}; } }
+  // Two Labs: geometry.html (Geometry & Trig, synced to S.lab) and concepts.html (Concept Lab, synced to S.lab2).
+  const LABS = { geo: { key: "gtlab-v2", field: "lab", page: "geometry.html", n: 7 }, cx: { key: "cxlab-v1", field: "lab2", page: "concepts.html", n: 7 } };
+  function labState(p) { try { return JSON.parse(localStorage.getItem(LABS[p || "geo"].key) || "{}") || {}; } catch (e) { return {}; } }
   // Copy Lab progress into the synced state (admin view, Telegram) and tick Lab plan tasks that are finished.
   // Missions done on any device add up (the account keeps the union), and a finished mission ticks its plan
   // task even if the plan schedules it for a later day, so doing the Lab outside the plan still counts.
   function labSync() {
     if (GUEST) return;
-    const lab = labState(), cur = S.lab || {}, log = Object.assign({}, cur.log || {});
-    const local = [1, 2, 3, 4, 5, 6, 7].filter((n) => lab[n] && lab[n].s);
-    local.forEach((n) => { if (!log[n]) log[n] = today(); });
-    const done = [...new Set([...(cur.done || []), ...local])].sort((a, b) => a - b);
-    const starSet = new Set([...(cur.starList || []), ...local.filter((n) => lab[n].s === 2)]);
     let changed = false;
-    if ((cur.done || []).join() !== done.join() || (cur.starList || []).length !== starSet.size) { S.lab = { done, stars: starSet.size, starList: [...starSet], log, at: today() }; changed = true; }
+    const doneBy = {};
+    for (const [p, L] of Object.entries(LABS)) {
+      const lab = labState(p), cur = S[L.field] || {}, log = Object.assign({}, cur.log || {});
+      const local = Array.from({ length: L.n }, (_, i) => i + 1).filter((n) => lab[n] && lab[n].s);
+      local.forEach((n) => { if (!log[n]) log[n] = today(); });
+      const done = [...new Set([...(cur.done || []), ...local])].sort((a, b) => a - b);
+      const starSet = new Set([...(cur.starList || []), ...local.filter((n) => lab[n].s === 2)]);
+      if ((cur.done || []).join() !== done.join() || (cur.starList || []).length !== starSet.size) { S[L.field] = { done, stars: starSet.size, starList: [...starSet], log, at: today() }; changed = true; }
+      doneBy[p] = done;
+    }
     if (planMode() === "sprint") {
       plan().forEach((d) => d.go.forEach((g, i) => {
-        if (g && g.k === "lab" && !S.tasks[d.date + "#" + i] && g.m.every((n) => done.includes(n))) { completeTask(d, i); changed = true; }
+        if (g && g.k === "lab" && !S.tasks[d.date + "#" + i] && g.m.every((n) => doneBy[g.p || "geo"].includes(n))) { completeTask(d, i); changed = true; }
       }));
     }
     if (changed) save();
@@ -668,11 +674,17 @@
 
   /* Geometry & Trig Lab: a separate guided page (geometry.html), shown to signed-in students only. */
   function labCard() {
-    return el("div", { class: "card mission" },
+    const cx = ((S.lab2 && S.lab2.done) || []).length;
+    return el("div", null, el("div", { class: "card mission" },
+      el("div", { class: "eyebrow", text: "Interactive lessons · New question types" }),
+      el("h2", { text: "Concept Lab" }),
+      el("p", { class: "muted", style: "margin-top:.3em", text: "Learn the Advanced Math types from Practice Test 2 (how many solutions, factors, shifts, fraction equations) and the notes-question method, before practicing them." }),
+      el("div", { class: "row", style: "margin-top:12px;align-items:center" }, el("a", { class: "btn primary", href: "concepts.html" }, cx ? (cx >= 7 ? "Review the Concept Lab" : "Continue the Concept Lab") : "Open the Concept Lab"), el("span", { class: "muted", style: "font-size:13.5px", text: cx + " of 7 missions done" }))),
+      el("div", { class: "card mission" },
       el("div", { class: "eyebrow", text: "Interactive lessons · Geometry & Trig" }),
       el("h2", { text: "Geometry & Trig Lab" }),
       el("p", { class: "muted", style: "margin-top:.3em", text: "Seven short missions with moving figures, each ending in a real PSAT-style problem." }),
-      (() => { const n = ((S.lab && S.lab.done) || []).length; return el("div", { class: "row", style: "margin-top:12px;align-items:center" }, el("a", { class: "btn primary", href: "geometry.html" }, n ? (n >= 7 ? "Review the Lab" : "Continue the Lab") : "Open the Lab"), el("span", { class: "muted", style: "font-size:13.5px", text: n + " of 7 missions done" })); })());
+      (() => { const n = ((S.lab && S.lab.done) || []).length; return el("div", { class: "row", style: "margin-top:12px;align-items:center" }, el("a", { class: "btn primary", href: "geometry.html" }, n ? (n >= 7 ? "Review the Lab" : "Continue the Lab") : "Open the Lab"), el("span", { class: "muted", style: "font-size:13.5px", text: n + " of 7 missions done" })); })()));
   }
   function renderToday() {
     if (GUEST) return renderLanding();
@@ -2414,6 +2426,7 @@
       el("li", { text: "Plan tasks checked off: " + tasksDone }),
       ws ? el("li", { text: "This week's goals: " + ws.done + " of " + ws.total + " done (" + ws.q + " of " + ws.qTarget + " questions)" }) : null,
       el("li", { text: "Review deck: " + Object.keys(x.D.deck || {}).length + " strategy cards · badges earned: " + Object.keys(x.D.badges || {}).length }),
+      el("li", { text: "Concept Lab: " + ((x.D.lab2 && x.D.lab2.done) || []).length + " of 7 missions" + (x.D.lab2 && x.D.lab2.done && x.D.lab2.done.length ? " (" + x.D.lab2.done.join(", ") + ")" : "") }),
       el("li", { text: "Geometry Lab: " + ((x.D.lab && x.D.lab.done) || []).length + " of 7 missions" + (x.D.lab && x.D.lab.done && x.D.lab.done.length ? " (" + x.D.lab.done.join(", ") + ")" + (x.D.lab.stars ? ", " + x.D.lab.stars + " first try" : "") : "") }),
       exams.length ? el("li", { text: "Tests planned: " + exams.join("; ") }) : null,
       el("li", { text: "Joined " + (x.row.joined ? new Date(x.row.joined).toLocaleDateString() : "—") + " · last sign-in " + (x.row.last_sign_in ? new Date(x.row.last_sign_in).toLocaleDateString() : "—") })));

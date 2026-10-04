@@ -57,7 +57,7 @@ function summary(s: any, date: string) {
   const L: string[] = [`📚 <b>${esc(name)}</b> · ${dayLabel(date)}${left != null && left >= 0 ? ` · ${left === 0 ? kind + " is today" : left + " day" + (left === 1 ? "" : "s") + " to the " + kind}` : ""}`];
   const tasks = Object.keys(D.tasks || {}).filter((k) => k.startsWith(date + "#")).length;
   const a = (D.activity || {})[date] || {}, t = (D.time || {})[date];
-  const labToday = D.lab && Object.values(D.lab.log || {}).includes(date);
+  const labToday = [D.lab, D.lab2].some((x) => x && Object.values(x.log || {}).includes(date));
   if (!tasks && !a.q && !a.mock && !(t && t.f > 60) && !labToday) { L.push("⚠️ No study activity yet today."); return L.join("\n"); }
   L.push(`✅ Plan tasks done today: ${tasks}`);
   if (t) {
@@ -80,6 +80,10 @@ function summary(s: any, date: string) {
     const todayM = Object.entries(D.lab.log || {}).filter(([, d]) => d === date).map(([n]) => n);
     L.push(`🧩 Geometry Lab: ${D.lab.done.length} of 7 missions done${todayM.length ? " (today: Mission " + todayM.join(", ") + ")" : ""}`);
   }
+  if (D.lab2 && D.lab2.done) {
+    const todayM = Object.entries(D.lab2.log || {}).filter(([, d]) => d === date).map(([n]) => n);
+    L.push(`💡 Concept Lab: ${D.lab2.done.length} of 7 missions done${todayM.length ? " (today: Mission " + todayM.join(", ") + ")" : ""}`);
+  }
   return L.join("\n");
 }
 
@@ -92,7 +96,7 @@ function short(s: any, date: string, brief?: { done: boolean; opened: boolean; r
   const tasks = Object.keys(D.tasks || {}).filter((k) => k.startsWith(date + "#")).length;
   const a = (D.activity || {})[date] || {}, t = (D.time || {})[date];
   const head = `<b>${esc(name)}</b>${left != null && left >= 0 ? " · " + (left === 0 ? kind + " today" : left + "d to " + kind) : ""}`;
-  const labToday = Object.entries((D.lab && D.lab.log) || {}).filter(([, d]) => d === date).length;
+  const labToday = Object.entries((D.lab && D.lab.log) || {}).filter(([, d]) => d === date).length + Object.entries((D.lab2 && D.lab2.log) || {}).filter(([, d]) => d === date).length;
   if (!tasks && !a.q && !a.mock && !(t && t.f > 60) && !labToday) return `${head}\n⚠️ No study today${brief ? (brief.done ? " · 📰 Brief ✓" : brief.opened ? " · 📰 Brief " + brief.read + "/" + brief.total : " · 📰 Brief not opened") : ""}`;
   const bits = [`✅ ${tasks} task${tasks === 1 ? "" : "s"}`];
   if (t && t.f >= 60) bits.push(`⏱ ${mins(t.f)} min`);
