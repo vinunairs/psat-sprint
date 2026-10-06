@@ -53,7 +53,11 @@
       let a1, b1, a2, b2;
       do { a1 = r.nz(-4, 5); b1 = r.nz(-4, 5); a2 = r.nz(-4, 5); b2 = r.nz(-4, 5); } while (a1 * b2 - a2 * b1 === 0 || (L === 2 && Math.abs(b1) !== Math.abs(b2) && Math.abs(a1) !== Math.abs(a2)));
       e1 = [a1, b1, a1 * x + b1 * y]; e2 = [a2, b2, a2 * x + b2 * y];
-      how = `Solve by elimination or substitution (or graph both lines in Desmos and click the intersection). The solution is (${fmtN(x)}, ${fmtN(y)}).`;
+      const cf = (n) => (n === 1 ? "" : n === -1 ? "−" : fmtN(n)), B = b1 * a2 - b2 * a1, CC = e1[2] * a2 - e2[2] * a1;
+      const step1 = a1 === a2 ? `Eliminate x. Both equations already have ${cf(a1)}x, so subtract the second equation from the first: ${cf(b1 - b2)}y = ${fmtN(e1[2] - e2[2])}, so y = ${fmtN(y)}.`
+        : a1 === -a2 ? `Eliminate x. The x-terms are opposites (${cf(a1)}x and ${cf(a2)}x), so add the equations: ${cf(b1 + b2)}y = ${fmtN(e1[2] + e2[2])}, so y = ${fmtN(y)}.`
+        : `Eliminate x. Multiply the first equation by ${fmtN(a2)} and the second by ${fmtN(a1)}, so both x-terms become ${cf(a1 * a2)}x. Subtract the second from the first: ${cf(B)}y = ${fmtN(CC)}, so y = ${fmtN(y)}.`;
+      how = `${step1} Substitute y = ${fmtN(y)} into the first equation: ${cf(a1)}x${sgn(b1 * y)} = ${fmtN(e1[2])}, so ${cf(a1)}x = ${fmtN(e1[2] - b1 * y)} and x = ${fmtN(x)}. Check in Desmos: graph both lines and tap where they cross, (${fmtN(x)}, ${fmtN(y)}).`;
     }
     const ask = L === 3 ? r.pick(["x", "y", "x + y"]) : r.pick(["x", "y"]);
     const ans = ask === "x" ? x : ask === "y" ? y : x + y;

@@ -1135,6 +1135,19 @@
     return wrap;
   }
   // Feedback in the same shape every time, so the method sticks: spot it, solve it, watch for the trap, remember the rule.
+  // Worked steps for a missed question: the question's own steps if it has them, otherwise its explanation
+  // split into one idea per line ("…, so …" starts a new step), ending with the answer.
+  function workSteps(q) {
+    let parts = [];
+    if (q.steps && q.steps.length) parts = q.steps.slice();
+    else {
+      String(q.e || "").split(/(?<=[.!?])\s+(?=[A-Z0-9"“(√−\-])/).forEach((sen) => {
+        sen.split(/(?:,|;)\s+so\s+/).forEach((x, i) => { x = x.trim(); if (x) parts.push(i ? "So " + x : x); });
+      });
+    }
+    parts = parts.map((x) => x.charAt(0).toUpperCase() + x.slice(1)).filter((x) => x.length > 1);
+    return parts;
+  }
   function explainBox(q, picked) {
     const ok = isRight(q, picked), blank = picked == null || picked === "";
     const sid = STRAT.strategyFor(q), c = STRAT.cards[sid], isMath = DOM[q.d] && DOM[q.d].sec === "math";
@@ -1145,8 +1158,17 @@
     // Calm layout: a short verdict, the picture, the explanation and the one rule to remember. The rest folds away.
     return el("div", { class: "explain fb" + (ok ? " ok" : " miss") },
       el("div", { class: "fb-head" }, el("strong", { class: "fb-verdict", text: verdict }), chose ? el("span", { class: "muted", text: "You chose " + (q.type === "spr" ? supify(chose) : LETTERS[picked]) + "." }) : null),
-      q.efig || q.steps ? row("See it", el("div", { class: "seeit" }, q.efig || q.fig ? figView(q.efig || q.fig) : null, q.steps ? el("ol", { class: "seeit-steps" }, q.steps.map((x) => el("li", { text: supify(x) }))) : null)) : null,
-      row("Why", el("p", { text: supify(q.e) })),
+      q.efig || (ok && q.steps) || (!ok && q.steps && (q.efig || q.fig)) ? row("See it", el("div", { class: "seeit" }, q.efig || q.fig ? figView(q.efig || q.fig) : null, ok && q.steps ? el("ol", { class: "seeit-steps" }, q.steps.map((x) => el("li", { text: supify(x) }))) : null)) : null,
+      ok ? row("Why", el("p", { text: supify(q.e) })) : isMath ? row("Step by step",
+        el("ol", { class: "fb-steps" }, workSteps(q).map((x) => el("li", { text: supify(x) })),
+          el("li", { class: "fb-ans" }, el("b", { text: "Answer: " }), supify(answerText(q))))) : null,
+      ok || !isMath ? null : row("How to solve this type", el("ol", { class: "fb-ol" }, c.steps.map((x) => el("li", { text: x })))),
+      // Reading and grammar: the method for this type, step by step, then how it applies here and the trap to avoid.
+      !ok && !isMath ? row("Step by step",
+        el("ol", { class: "fb-steps" }, c.steps.map((x) => el("li", { class: "fb-gen", text: x })),
+          el("li", {}, el("b", { text: "In this question: " }), supify(q.e)),
+          c.trap ? el("li", {}, el("b", { text: "Why the wrong choices tempt you: " }), c.trap) : null,
+          el("li", { class: "fb-ans" }, el("b", { text: "Answer: " }), supify(answerText(q))))) : null,
       el("div", { class: "fb-remember" }, el("span", { class: "eyebrow", text: "Remember · " + c.name }), el("p", { text: c.say || c.rule }),
         GUEST ? null : el("button", { class: "btn small" + (inDeck ? " ghost" : ""), onclick: (e) => {
           if (S.deck[sid]) { delete S.deck[sid]; e.target.textContent = "Save to my flashcards"; e.target.classList.remove("ghost"); }
@@ -1156,9 +1178,9 @@
       el("details", { class: "fb-more" }, el("summary", { text: "Learn the pattern" }),
         el("div", { class: "fb-more-body" },
           row("Spot it", el("p", { text: c.spot })),
-          row("Method", el("ol", { class: "fb-ol" }, c.steps.map((x) => el("li", { text: x })))),
+          ok ? row("Method", el("ol", { class: "fb-ol" }, c.steps.map((x) => el("li", { text: x })))) : null,
           isMath && c.desmos ? row("Desmos", el("p", { text: c.desmos })) : null,
-          row(ok ? "Watch for" : "The trap", el("p", { text: c.trap })),
+          ok || isMath ? row(ok ? "Watch for" : "The trap", el("p", { text: c.trap })) : null,
           q.t ? row("Tip", el("p", { text: supify(q.t) })) : null,
           c.say && c.say !== c.rule ? row("Full rule", el("p", { text: c.rule })) : null)));
   }

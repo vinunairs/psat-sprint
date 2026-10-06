@@ -471,3 +471,10 @@ body:not(.guest) #footNote{display:none}
 .tr-fmeta{display:grid;gap:1px;min-width:0}
 .tr-fty{font-weight:750}.tr-fsaid{font-size:12.5px;color:var(--graphite)}
 .tr-frow.started .tr-q{color:var(--good)}
+
+/* Step-by-step explanation on a missed question */
+.fb-steps{list-style:none;counter-reset:st;margin:0;padding:0;display:grid;gap:8px}
+.fb-steps li{counter-increment:st;position:relative;padding-left:34px;line-height:1.5}
+.fb-steps li::before{content:counter(st);position:absolute;left:0;top:0;width:24px;height:24px;border-radius:50%;background:var(--pencil-soft,#EEF0FF);color:var(--pencil,#4F46E5);font-weight:800;font-size:12.5px;display:grid;place-items:center}
+.fb-steps li.fb-ans::before{content:"✓";background:var(--good);color:#fff}
+.fb-steps li.fb-ans{font-weight:600}
