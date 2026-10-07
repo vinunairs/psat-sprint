@@ -38,6 +38,11 @@
       if (pushing) { pending = true; return; }
       pushing = true; status = "syncing"; paint();
       const s = app.state;
+      // Never overwrite a newer copy (another device, or this tab waking up after hours asleep): load it instead.
+      try {
+        const { data: cur } = await sb.from("progress").select("client_updated_ms").eq("user_id", user.id).maybeSingle();
+        if (cur && Number(cur.client_updated_ms) > (s.updatedAt || 0) + 1000) { pushing = false; pending = false; await pull(false); return; }
+      } catch (e) { }
       const { error } = await sb.from("progress").upsert({ user_id: user.id, data: s, client_updated_ms: s.updatedAt || Date.now() }, { onConflict: "user_id" });
       pushing = false;
       if (error) { status = navigator.onLine ? "error" : "offline"; paint(); }
