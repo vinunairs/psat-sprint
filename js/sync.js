@@ -33,6 +33,40 @@
       setChip("synced", "Synced" + (lastSynced ? " " + lastSynced.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : ""));
     }
 
+    // Combine two copies of one student's progress. Day-by-day records (activity, study time, plan tasks, Lab
+    // missions, fix-it list, flashcards, badges) are joined; for a day both copies have, the fuller one wins.
+    // Running totals (skill stats, XP) keep the larger copy so nothing is counted twice.
+    function mergeProgress(remote, local) {
+      const R = JSON.parse(JSON.stringify(remote || {})), L = local || {};
+      let changed = false;
+      const byDay = (k, size) => { const a = R[k] || (R[k] = {}), b = L[k] || {};
+        for (const [d, v] of Object.entries(b)) if (!a[d] || size(v) > size(a[d])) { a[d] = v; changed = true; } };
+      byDay("activity", (v) => (v && v.q) || 0);
+      byDay("time", (v) => (v && v.f) || 0);
+      const union = (k) => { const a = R[k] || (R[k] = {}), b = L[k] || {}; for (const [x, v] of Object.entries(b)) if (!(x in a)) { a[x] = v; changed = true; } };
+      ["tasks", "badges", "deck", "seeded", "planWeak", "seenBank"].forEach(union);
+      for (const k of ["lab", "lab2"]) {
+        const a = R[k], b = L[k]; if (!b || !b.done) continue;
+        if (!a || !a.done) { R[k] = b; changed = true; continue; }
+        const done = [...new Set([...a.done, ...b.done])].sort((x, y) => x - y);
+        if (done.length !== a.done.length) { a.done = done; changed = true; }
+        a.log = Object.assign({}, b.log || {}, a.log || {});
+        a.starList = [...new Set([...(a.starList || []), ...(b.starList || [])])]; a.stars = a.starList.length;
+      }
+      for (const [id, b] of Object.entries(L.treview || {})) {
+        const T = R.treview || (R.treview = {}), a = T[id];
+        if (!a) { T[id] = b; changed = true; continue; }
+        const fix = Object.assign({}, b.fix || {}, a.fix || {}); if (Object.keys(fix).length !== Object.keys(a.fix || {}).length) { a.fix = fix; changed = true; }
+        a.r = Object.assign({}, b.r || {}, a.r || {}); if (!a.done && b.done) { a.done = b.done; a.focus = b.focus; a.note = b.note; changed = true; }
+      }
+      const keys = new Set((R.mistakes || []).map((m) => m.key || m.uid));
+      for (const m of L.mistakes || []) if (!keys.has(m.key || m.uid)) { (R.mistakes || (R.mistakes = [])).push(m); changed = true; }
+      const ids = new Set((R.tests || []).map((t) => t.id));
+      for (const t of L.tests || []) if (!ids.has(t.id)) { (R.tests || (R.tests = [])).push(t); changed = true; }
+      if ((L.xp || 0) > (R.xp || 0)) { R.xp = L.xp; changed = true; }
+      if ((L.answered || 0) > (R.answered || 0)) { for (const k of ["answered", "stats", "sub", "tstat", "qtime", "strat"]) if (L[k] != null) R[k] = L[k]; changed = true; }
+      return { data: R, changed };
+    }
     async function pushNow() {
       if (!user) return;
       if (pushing) { pending = true; return; }
@@ -91,8 +125,16 @@
       }
       if (remoteMs > localMs + 1000 && !app.busy) {
         if (localMs > 0) keepCopy();
-        app.replace(data.data); done();
-        if (first) app.toast("Loaded your latest progress from your account", true);
+        // This device has its own days of work (studied here, then another device saved later): combine them
+        // instead of dropping this device's work, then upload the combined copy.
+        const merged = local.owner === user.id && localMs > 0 ? mergeProgress(data.data, local) : null;
+        if (merged && merged.changed) {
+          merged.data.updatedAt = Date.now(); app.replace(merged.data); app.setOwner(user.id); await pushNow();
+          if (first) app.toast("Combined your progress from this device and your account", true);
+        } else {
+          app.replace(data.data); done();
+          if (first) app.toast("Loaded your latest progress from your account", true);
+        }
       } else if (localMs > remoteMs + 1000) {
         app.setOwner(user.id); await pushNow();
       } else done();
