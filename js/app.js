@@ -1867,7 +1867,7 @@
      repeat gap / hit or miss) shows up here. The student says what really happened on each one, plus when
      focus slipped. Answers live in S.treview[id] = { r: { [q]: { c, note, at } }, focus: [...], note, done }.
      "Never learned it" and "forgot how" raise that question type in the focus set (focusWeights). */
-  const TR_CAT = { knew: ["Knew it", "You got this type right elsewhere"], new: ["New type", "Not on Test 1, or only an easy version"], repeat: ["Repeat gap", "Missed on both tests"], mixed: ["Hit or miss", "Right about half the time"] };
+  const TR_CAT = { knew: ["Knew it", "You got this type right elsewhere"], new: ["New type", "Not on earlier tests, or only an easy version"], repeat: ["Repeat gap", "Missed on earlier tests too"], mixed: ["Hit or miss", "Right about half the time"] };
   const TR_WHY = [["careless", "Careless slip"], ["time", "Rushed or ran out of time"], ["focus", "Lost focus"], ["guess", "Guessed"], ["forgot", "Learned it, forgot how"], ["new", "Never learned it"]];
   const TR_MODS = [["rw1", "Reading & Writing, Module 1"], ["rw2", "Reading & Writing, Module 2"], ["m1", "Math, Module 1"], ["m2", "Math, Module 2"]];
   let TR_FILTER = "all", TR_EDIT = false;
