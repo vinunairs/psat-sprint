@@ -114,6 +114,17 @@ const ok = (cond, msg) => { console.log((cond ? "  ✓ " : "  ✗ ") + msg); if 
     ok((await page.textContent(".who")).includes("Prayaga"), "greets her by name");
     await shot("03-home"); await noHScroll("home");
 
+    // --- mission first: practice tiles are locked and nudge to the mission until it's done
+    ok((await page.$$(".tile.locked")).length === 3, "Math path, Word Power and Level Up tiles are locked before the mission");
+    await page.click(".tile:has-text('Math path')"); await page.waitForSelector("#sheet h2");
+    ok((await page.textContent("#sheet h2")).includes("Do your mission first"), "locked tile shows the 'Do your mission first' nudge");
+    await shot("03b-mission-first"); await page.click("#sheet .btn:has-text('Later')");
+    await page.click(".nav button:has-text('Math')"); await page.waitForSelector(".lockcard");
+    await page.click(".stop.next"); await page.waitForSelector("#sheet .pane"); await page.click("#sheet .btn:has-text('Practice 8')");
+    await page.waitForSelector("#sheet h2:has-text('Do your mission first')");
+    ok(!(await page.$("#runner")), "math-path practice is blocked before the mission");
+    await page.click("#sheet .btn:has-text('Later')"); await page.click(".nav button >> nth=0"); await page.waitForSelector(".mission");
+
     // --- daily mission: answer everything (about 2/3 right), check feedback, finish
     await page.click(".mission .btn.primary");
     await page.waitForSelector("#runner .qcard");
@@ -166,6 +177,7 @@ const ok = (cond, msg) => { console.log((cond ? "  ✓ " : "  ✗ ") + msg); if 
     ok(sawTyped && (sawPassage || sawFig), `saw typed answers${sawPassage ? ", a passage" : ""}${sawFig ? ", a figure" : ""}${sawTwoPart ? ", a two-part item" : ""}${sawChoose2 ? ", a choose-two item" : ""}`);
     await page.click(".done-wrap .btn.primary");
     await page.waitForTimeout(2000);
+    ok((await page.$$(".tile.locked")).length === 0, "practice tiles unlock after the mission");
     const up = db.fast_progress.find((r) => r.user_id === KID.id);
     ok(up && up.data.days[today].set === 1, "progress uploaded to fast_progress");
     ok(!calls.some((c) => /\/rest\/v1\/progress/.test(c.p)), "never touched the PSAT progress table");
@@ -186,7 +198,27 @@ const ok = (cond, msg) => { console.log((cond ? "  ✓ " : "  ✗ ") + msg); if 
       if (await page.$("#runner .opts >> nth=1")) await page.click("#runner .opts >> nth=1 >> .opt >> nth=0");
       await page.click("#runner .run-foot .btn"); await page.waitForSelector("#runner .feedback"); await page.click("#runner .run-foot .btn");
     }
-    await page.waitForSelector(".done-wrap"); ok(true, "quick practice set finishes"); await page.click(".done-wrap .btn.primary");
+    await page.waitForSelector(".done-wrap"); ok(true, "quick practice set finishes");
+    ok(!(await page.$(".done-wrap :text('Too easy?')")), "no 'Too easy?' after a short or imperfect set");
+    await page.click(".done-wrap .btn.primary");
+
+    // --- "Too easy?": 8/8 at level 3, fast → offer the grade-5 version of the topic
+    const tooId = await page.evaluate(() => { const S = window.__fast.S, id = window.__fast.E.pathNext(S).id; S.skills[id] = Object.assign(S.skills[id] || { n: 0, c: 0, h: [], run: 0, miss: 0 }, { lv: 3 }); return id; });
+    await page.click(".nav button:has-text('Math')"); await page.click(".stop.next"); await page.click("#sheet .btn:has-text('Practice 8')"); await page.waitForSelector("#runner .qcard");
+    for (let i = 0; i < 8; i++) {
+      const it = await page.evaluate((k) => window.__fast.runner.items[k], i);
+      if (it.t) await page.fill("#runner .ans-in input", it.ans);
+      else if (Array.isArray(it.a)) { for (const k of it.a) await page.click(`#runner .opts .opt >> nth=${k}`); }
+      else await page.click(`#runner .opts .opt >> nth=${it.a}`);
+      await page.click("#runner .run-foot .btn"); await page.waitForSelector("#runner .feedback.ok"); await page.click("#runner .run-foot .btn");
+    }
+    await page.waitForSelector(".done-wrap");
+    ok(!!(await page.$(".done-wrap :text('Too easy? Try Level Up!')")), `8/8 at level 3 in under 90 s offers Level Up (${tooId})`);
+    await shot("09b-too-easy");
+    await page.click(".done-wrap .btn:has-text('Try Level Up')"); await page.waitForSelector("#runner .qcard");
+    const upSkill = await page.evaluate(() => window.__fast.runner.items[0].skill);
+    ok(upSkill === (await page.evaluate((id) => window.FASTSkills.STRETCH_FOR[id], tooId)) && !!(await page.$("#runner .chip:has-text('Grade 5')")), `Level Up launches the grade-5 set on the same topic (${upSkill})`);
+    await page.click("#runner .run-top .btn"); await page.click("#sheet .btn:has-text('Take a break')");
     await page.click(".nav button:has-text('Math')"); await page.click(".seg button:has-text('Level Up')"); await page.waitForSelector(".skl");
     ok((await page.$$(".skl")).length === 11, "Level Up zone lists 11 grade-5 skills"); await shot("10-level-up");
 
@@ -208,11 +240,20 @@ const ok = (cond, msg) => { console.log((cond ? "  ✓ " : "  ✗ ") + msg); if 
     await page.click(".btn:has-text('I read both')"); await page.waitForSelector("textarea");
     await page.fill("textarea >> nth=1", "I believe recess should come before lunch.");
     await page.click(".btn:has-text('Start writing')"); await page.waitForSelector("textarea.essay");
+    // conventions fix-its block turning in until they're fixed
+    await page.fill("textarea.essay", "i think recess should come first becuase kids are to hungry later. Their is more time to play and the the food tastes better. Its a good plan. Kids can run around and get their energy out before they sit down. Teachers say students listen better after recess, and the cafeteria is calmer too. Schools that tried it saw less food thrown away.\n\nIn conclusion recess first");
+    ok((await page.textContent(".row:has(textarea.essay), .row:has-text('words')")).includes("✏️"), "live fix-it count while writing");
+    await page.click(".btn:has-text('Check my essay')"); await page.waitForSelector(".fixits");
+    const hints = await page.$$(".fixits li"); ok(hints.length >= 6, `fix-it hints shown (${hints.length})`);
+    ok(await page.isDisabled(".btn:has-text('hints to turn it in')"), "turn-in is locked until the fix-its are addressed");
+    await shot("15b-fixits");
+    await page.click(".fixits .btn"); await page.waitForSelector("textarea.essay");
     const essay = "Picture this: the bell rings and everyone races outside.\n\nI believe students should have recess before lunch because they eat more and waste less food. According to the first source, schools that tried recess first threw away less food.\n\nAnother reason is that students calm down. For example, the article says kids come back ready to learn. This shows that a break helps.\n\nHowever, some people worry that kids will be too hungry. Still, lunch comes right after, so nobody waits long.\n\nIn conclusion, recess should come before lunch because kids eat better and focus better. If schools try it, students will be healthier and happier.";
     await page.fill("textarea.essay", essay);
     await shot("14-essay-write");
     await page.click(".btn:has-text('Check my essay')"); await page.waitForSelector(".checks");
     await page.click(".selfcheck input >> nth=0"); await shot("15-essay-check");
+    ok(!(await page.$(".fixits")), "fixed essay has no fix-it hints");
     await page.click(".btn:has-text('Turn it in')"); await page.waitForTimeout(400);
     const S2 = await page.evaluate(() => window.__fast.S);
     ok(S2.essays.length === 1 && S2.essays[0].words > 90, `essay saved (${S2.essays[0] && S2.essays[0].words} words)`);

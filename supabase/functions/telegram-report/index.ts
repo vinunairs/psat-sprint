@@ -148,7 +148,6 @@ async function briefCoach(chat: number) {
 }
 
 // FAST Prep (grade 4 FAST + i-Ready): one block per learner from fast_progress.data.days[date].
-const FAST_SUB: Record<string, string> = { math: "➗ Math", reading: "📚 Reading", writing: "✏️ Writing", stretch: "🚀 Level Up" };
 const FAST_SKILL: Record<string, string> = {
   "m.fr.equiv": "Equivalent fractions", "m.fr.compare": "Compare fractions", "m.fr.decomp": "Break apart fractions", "m.fr.addsub": "Add/subtract fractions", "m.fr.word": "Fraction word problems",
   "m.fr.times": "Fraction × whole", "m.fr.tenths": "Tenths & hundredths", "m.dec.notation": "Decimals", "m.dec.ops": "Decimal sums", "m.gr.angles": "Types of angles", "m.gr.measure": "Measure angles",
@@ -174,33 +173,42 @@ async function fastLearners() {
   return (L || []).map((l: { user_id: string; first_name: string; grade: string }) => ({ ...l, D: ((P || []).find((p: { user_id: string }) => p.user_id === l.user_id) || { data: {} }).data || {}, scores: (F || []).filter((f: { user_id: string }) => f.user_id === l.user_id) }));
 }
 type BriefInfo = { done: boolean; opened: boolean; read: number; total: number };
+// "Mission done: yes/no · Practiced: Math 9/10, Reading 3/4 · skipped Writing" — so skipped subjects stand out.
+const FAST_SUBJ: Record<string, string> = { math: "Math", reading: "Reading", writing: "Writing", stretch: "Level Up" };
+const num = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+// deno-lint-ignore no-explicit-any
+function fastMissionLine(d: any) {
+  const sub = (d && d.sub) || {};
+  const did = Object.keys(FAST_SUBJ).filter((k) => (sub[k] && sub[k][0]) || (k === "writing" && d && d.essays));
+  const parts = did.map((k) => (sub[k] && sub[k][0] ? `${FAST_SUBJ[k]} ${num(sub[k][1])}/${sub[k][0]}` : "") + (k === "writing" && d.essays ? `${sub[k] && sub[k][0] ? " + " : "Writing "}${d.essays} essay${d.essays > 1 ? "s" : ""}` : ""));
+  const skipped = ["math", "reading", "writing"].filter((k) => !did.includes(k)).map((k) => FAST_SUBJ[k]);
+  return `Mission done: ${d && d.set ? "yes ✅" : "no ❌"} · Practiced: ${parts.length ? parts.join(", ") : "nothing yet"}${parts.length && skipped.length ? ` · skipped ${skipped.join(", ")}` : ""}`;
+}
 const briefBit = (b?: BriefInfo) => (b ? (b.done ? "📰 ✓" : b.opened ? "📰 " + b.read + "/" + b.total : "📰 ✗") : "");
 // deno-lint-ignore no-explicit-any
 function fastShort(f: any, date: string, brief?: BriefInfo) {
   const D = f.D, d = (D.days || {})[date], st = D.streak || {};
   const streak = st.last === date || st.last === prevDate(date) ? st.cur || 0 : 0;
   const head = `<b>${esc(f.first_name)}</b> · FAST Gr${esc(f.grade)}${streak > 1 ? ` · 🔥${streak}` : ""}`;
-  if (!d || (!d.q && !d.essays)) return `${head}\n⚠️ No FAST practice today${brief ? " · " + briefBit(brief) : ""}`;
-  const bits = [d.set ? "✅ mission" : "⏳ mission not finished"];
+  if (!d || (!d.q && !d.essays)) return `${head}\n${fastMissionLine(d)}\n⚠️ No FAST practice today${brief ? " · " + briefBit(brief) : ""}`;
+  const bits: string[] = [];
   if (d.sec >= 60) bits.push(`⏱ ${mins(d.sec)} min`);
-  if (d.q) bits.push(`📝 ${d.c}/${d.q} (${Math.round((d.c / d.q) * 100)}%)`);
+  if (d.q) bits.push(`📝 ${num(d.c)}/${d.q} (${Math.round((d.c / d.q) * 100)}%)`);
   if (brief) bits.push(briefBit(brief));
-  const subs = Object.entries(d.sub || {}).map(([k, v]) => `${FAST_SUB[k] || k} ${(v as number[])[1]}/${(v as number[])[0]}`);
   const flags: string[] = [];
   for (const [id, v] of Object.entries(d.sk || {})) { const [n, c] = v as number[]; if (n >= 3 && c / n < 0.6) flags.push(`${FAST_SKILL[id] || id} ${c}/${n}`); }
   if (d.essays) flags.push(`✍️ wrote ${d.essays} essay${d.essays > 1 ? "s" : ""}`);
   for (const c of (D.claims || []).filter((x: { at: string }) => x.at === date)) flags.push(`🎁 claimed “${esc(c.label)}”`);
-  return `${head}\n${bits.join(" · ")}${subs.length ? "\n   " + subs.join(" · ") : ""}${flags.length ? "\n⚠️ " + flags.slice(0, 3).join(" · ") : ""}`;
+  return `${head}\n${fastMissionLine(d)}${bits.length ? "\n" + bits.join(" · ") : ""}${flags.length ? "\n⚠️ " + flags.slice(0, 3).join(" · ") : ""}`;
 }
 // deno-lint-ignore no-explicit-any
 function fastFull(f: any, date: string, brief?: { line: string }) {
   const D = f.D, d = (D.days || {})[date], st = D.streak || {};
   const L = [`🧮 <b>${esc(f.first_name)}</b> · FAST Prep (grade ${esc(f.grade)}) · ${dayLabel(date)}`];
+  L.push(fastMissionLine(d));
   if (!d || (!d.q && !d.essays)) L.push("⚠️ No FAST practice yet today.");
   else {
-    L.push(`${d.set ? "✅ Daily mission done" : "⏳ Daily mission not finished"} · ⏱ ${mins(d.sec || 0)} min · 📝 ${d.c}/${d.q} right (${d.q ? Math.round((d.c / d.q) * 100) : 0}%)`);
-    const subs = Object.entries(d.sub || {}).map(([k, v]) => `${FAST_SUB[k] || k} ${(v as number[])[1]}/${(v as number[])[0]}`);
-    if (subs.length) L.push("   " + subs.join(" · "));
+    L.push(`⏱ ${mins(d.sec || 0)} min · 📝 ${num(d.c)}/${d.q} right (${d.q ? Math.round((d.c / d.q) * 100) : 0}%)`);
     const sk = Object.entries(d.sk || {}).sort((x, y) => (x[1] as number[])[1] / (x[1] as number[])[0] - (y[1] as number[])[1] / (y[1] as number[])[0]).map(([id, v]) => `${FAST_SKILL[id] || id} ${(v as number[])[1]}/${(v as number[])[0]}`);
     if (sk.length) L.push("🎯 Skills today: " + sk.slice(0, 8).join(" · "));
     if (d.essays) L.push(`✍️ Essays turned in today: ${d.essays} (score them in the parent view)`);

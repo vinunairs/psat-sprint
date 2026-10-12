@@ -94,7 +94,7 @@
   async function boot() {
     if (!window.supabase) { app.innerHTML = '<div class="signin"><p class="err">Couldn\'t load. Check the internet connection and reload.</p></div>'; return; }
     sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "implicit" } });
-    window.__fast = { get S() { return S; }, sb, E, push, pull, render: () => render() };
+    window.__fast = { get S() { return S; }, get runner() { return runner; }, sb, E, push, pull, render: () => render() };
     const { data } = await sb.auth.getSession();
     sb.auth.onAuthStateChange((ev, session) => {
       if (ev === "PASSWORD_RECOVERY") return setTimeout(showReset, 0);
@@ -231,11 +231,12 @@
 
     // Next stops
     const next = E.pathNext(S), grid = h("div", { class: "grid2", style: "margin-top:14px" });
-    grid.append(tile("🍡", "Math path", `Next stop: ${next.name}`, () => openSkill(next.id)));
+    const locked = !missionDone();
+    grid.append(tile("🍡", "Math path", locked ? "🔒 Do your mission first — it has your next path stop in it!" : `Next stop: ${next.name}`, () => (locked ? missionFirst() : openSkill(next.id)), false, locked));
     const wk = S.essays.filter((e) => e.at >= E.addDays(date, -6)).length;
     grid.append(tile("✏️", wk ? "Writing ✓ this week" : "Weekly essay", wk ? "Nice work! Try a writing workout." : "Write one FAST-style essay this week (+100 🪙)", () => go("writing"), wk > 0));
-    grid.append(tile("🌸", "Word Power", "8 quick vocabulary questions", () => startRun({ title: "Word Power", items: E.wordPower(S, 8, R()), kind: "practice" })));
-    grid.append(tile("🚀", "Level Up zone", "Try 5th-grade questions!", () => go("math", "stretch")));
+    grid.append(tile("🌸", "Word Power", locked ? "🔒 Unlocks after your mission" : "8 quick vocabulary questions", gated(() => startRun({ title: "Word Power", items: E.wordPower(S, 8, R()), kind: "practice" })), false, locked));
+    grid.append(tile("🚀", "Level Up zone", locked ? "🔒 Unlocks after your mission" : "Try 5th-grade questions!", gated(() => go("math", "stretch")), false, locked));
     main.append(grid);
 
     // This week strip
@@ -246,13 +247,27 @@
     }
     main.append(h("div", { class: "card", style: "margin-top:14px" }, h("h3", { text: "This week" }), days, h("p", { class: "small muted", text: "🍡 mission done · 🌱 practiced" })));
   }
-  function tile(ic, title, text, onclick, done) { return h("button", { class: "tile" + (done ? " done" : ""), onclick }, h("span", { class: "ic", text: ic }), h("b", { text: title }), h("span", { text })); }
+  // Practice outside the mission unlocks once today's mission is done (the mission is the main path).
+  const missionDone = () => { const d = S && S.days[E.today()]; return !!(d && d.set); };
+  const gated = (fn) => (...args) => (missionDone() ? fn(...args) : missionFirst());
+  function missionFirst() {
+    const run = S.run && S.run.date === E.today() ? S.run : null;
+    sheet((p, close) => {
+      p.append(h("div", { style: "width:110px;margin:0 auto", html: SQ.svg(S.buddy || "mochi", { cls: "dance-bounce" }) }),
+        h("h2", { class: "center", text: "Do your mission first! 🎯" }),
+        h("p", { class: "center", text: "Today's mission is your main practice: math (with your next path stop), reading and word power — about 10–15 minutes. Finish it and this unlocks, plus you get the mission bonus! 🪙" }),
+        run && run.i ? h("p", { class: "center small muted", text: `You're ${run.i} of ${run.items.length} questions in.` }) : null,
+        h("div", { class: "row", style: "justify-content:center" }, h("button", { class: "btn primary", onclick: () => { close(); startMission(); } }, run && run.i ? "Keep going ▶" : "Start mission ▶"), h("button", { class: "btn ghost", onclick: close }, "Later")));
+    });
+  }
+  function tile(ic, title, text, onclick, done, locked) { return h("button", { class: "tile" + (done ? " done" : "") + (locked ? " locked" : ""), onclick }, h("span", { class: "ic", text: ic }), h("b", { text: title }), h("span", { text })); }
 
   /* ---------- Math ---------- */
   function pageMath(main) {
     const view = sub.math || "path";
     main.append(h("div", { class: "row", style: "margin-bottom:6px" }, h("h1", { class: "grow", text: "Math" }),
       h("div", { class: "seg" }, ["path", "stretch"].map((v) => h("button", { "aria-pressed": String(view === v), onclick: () => go("math", v) }, v === "path" ? "Math path" : "🚀 Level Up")))));
+    if (!missionDone()) main.append(h("div", { class: "card flat lockcard" }, h("b", { text: "🔒 Practice here unlocks after today's mission" }), h("p", { class: "small", text: "Your mission already has your next path stop in it. You can still peek at any stop's quick lesson." }), h("button", { class: "btn primary small", onclick: () => startMission() }, "Go to my mission ▶")));
     if (view === "stretch") return stretchPage(main);
     main.append(h("p", { class: "muted", text: "Fractions first, then shapes & measuring, then multiplying & dividing, then big numbers. Get 2 ⭐ to move on — the glowing stop is next!" }));
     const next = E.pathNext(S).id;
@@ -271,9 +286,9 @@
   function stretchPage(main) {
     main.append(h("div", { class: "card hero stack" }, h("h2", { text: "🚀 Level Up zone" }),
       h("p", { text: "These are 5th-grade skills! i-Ready gives harder questions when you get answers right, so practicing these helps you keep climbing. It's okay to find them tricky — that's how brains grow." }),
-      h("div", { class: "row" }, h("button", { class: "btn primary", onclick: () => startRun({ title: "Level Up mix", items: E.stretchSet(S, 8, R()), kind: "practice" }) }, "Level Up mix (8)"),
-        h("button", { class: "btn", onclick: () => { const ps = E.passageSet(S, null, R(), { lv: 5 }); if (ps) startRun({ title: ps.passage.title, items: ps.items, kind: "practice" }); } }, "📖 Level Up reading"),
-        h("button", { class: "btn", onclick: () => startRun({ title: "Level Up words", items: E.wordPower(S, 8, R(), 5), kind: "practice" }) }, "🌸 Level Up words"))));
+      h("div", { class: "row" }, h("button", { class: "btn primary", onclick: gated(() => startRun({ title: "Level Up mix", items: E.stretchSet(S, 8, R()), kind: "practice" })) }, "Level Up mix (8)"),
+        h("button", { class: "btn", onclick: gated(() => { const ps = E.passageSet(S, null, R(), { lv: 5 }); if (ps) startRun({ title: ps.passage.title, items: ps.items, kind: "practice" }); }) }, "📖 Level Up reading"),
+        h("button", { class: "btn", onclick: gated(() => startRun({ title: "Level Up words", items: E.wordPower(S, 8, R(), 5), kind: "practice" })) }, "🌸 Level Up words"))));
     const list = h("div", { class: "card", style: "margin-top:14px" }, h("h3", { text: "5th-grade math skills" }));
     SK.list((s) => s.stretch).forEach((s) => list.append(h("div", { class: "skl" }, h("div", { class: "nm" }, h("b", { text: s.name }), h("div", { class: "small muted", text: s.std })), starsEl(E.stars(S, s.id)), h("button", { class: "btn small", onclick: () => openSkill(s.id) }, "Go"))));
     main.append(list);
@@ -295,8 +310,9 @@
       const st = S.skills[id];
       if (st && st.n) p.append(h("p", { class: "small", text: `You've tried ${st.n} · ${E.band(E.score(S, id)).label} · Level ${st.lv} of 3` }));
       p.append(h("div", { class: "row", style: "margin-top:12px" },
-        h("button", { class: "btn primary", onclick: () => { close(); startRun({ title: s.name, items: E.practice(S, id, 8, R()), kind: "practice" }); } }, "Practice 8"),
-        h("button", { class: "btn", onclick: () => { close(); startRun({ title: s.name, items: E.practice(S, id, 4, R()), kind: "practice" }); } }, "Quick 4"),
+        missionDone() ? null : h("p", { class: "small", style: "width:100%;margin:0", text: "🔒 Practice sets unlock after today's mission." }),
+        h("button", { class: "btn primary", onclick: () => { close(); gated(() => startRun({ title: s.name, items: E.practice(S, id, 8, R()), kind: "practice", skill: id }))(); } }, "Practice 8"),
+        h("button", { class: "btn", onclick: () => { close(); gated(() => startRun({ title: s.name, items: E.practice(S, id, 4, R()), kind: "practice", skill: id }))(); } }, "Quick 4"),
         h("button", { class: "btn ghost", onclick: close }, "Close")));
     });
   }
@@ -312,8 +328,9 @@
     g.append(tile("🎐", "Poems", `${read(isPoem)} of ${count(isPoem).length} poems read`, pick("poetry")));
     g.append(tile("🔬", "Articles", `${read(isInfo)} of ${count(isInfo).length} articles read`, pick("info")));
     g.append(tile("🔀", "Two texts", `Compare across genres · ${read(isPair)} of ${count(isPair).length}`, pick("paired")));
-    g.append(tile("🌸", "Word Power", "8 vocabulary questions — your weakest word skills first", () => startRun({ title: "Word Power", items: E.wordPower(S, 8, R()), kind: "practice" })));
-    g.append(tile("🚀", "Level Up reading", "A 5th-grade passage", () => { const ps = E.passageSet(S, null, R(), { lv: 5 }); if (ps) startRun({ title: ps.passage.title, items: ps.items, kind: "practice" }); }));
+    const locked = !missionDone();
+    g.append(tile("🌸", "Word Power", locked ? "🔒 Unlocks after your mission" : "8 vocabulary questions — your weakest word skills first", gated(() => startRun({ title: "Word Power", items: E.wordPower(S, 8, R()), kind: "practice" })), false, locked));
+    g.append(tile("🚀", "Level Up reading", locked ? "🔒 Unlocks after your mission" : "A 5th-grade passage", gated(() => { const ps = E.passageSet(S, null, R(), { lv: 5 }); if (ps) startRun({ title: ps.passage.title, items: ps.items, kind: "practice" }); }), false, locked));
     main.append(g);
     for (const cat of ["AGV", "PROSE", "INFO"]) {
       const c = h("div", { class: "card", style: "margin-top:14px" }, h("h3", { text: SK.CATS[cat].long }));
@@ -372,15 +389,19 @@
         h("div", { class: "row" }, h("button", { class: "btn", onclick: () => { st.step = 0; render(); } }, "← Sources"), h("button", { class: "btn primary", onclick: () => { st.step = 2; render(); window.scrollTo(0, 0); } }, "Start writing →")));
     } else if (st.step === 2) {
       const ta = h("textarea", { class: "essay", placeholder: "Write your essay here. Use your plan! Press Enter twice between paragraphs." }); ta.value = dr.text || "";
-      const wc = h("span", { class: "chip" }), upd = () => { const n = (ta.value.match(/[A-Za-z']+/g) || []).length; wc.textContent = n + " words"; };
+      const wc = h("span", { class: "chip" }), fx = h("span", { class: "chip" }), upd = () => { const n = (ta.value.match(/[A-Za-z']+/g) || []).length; wc.textContent = n + " words"; const c = E.conventions(ta.value).filter((x) => x.kind !== "end").length; fx.textContent = c ? `✏️ ${c} fix-it${c === 1 ? "" : "s"}` : "✏️ 0"; fx.title = "Spelling and word fix-its (details in step 4)"; };
       ta.addEventListener("input", () => { dr.text = ta.value; upd(); saveDraft(); }); upd();
       const planView = h("details", { class: "card flat" }, h("summary", { style: "font-weight:800;cursor:pointer", text: "📋 My plan" }), ...["hook", "claim", "r1", "r2", "end"].filter((k) => dr.plan[k]).map((k) => h("p", { class: "small", text: dr.plan[k] })));
       const srcView = h("details", { class: "card flat", style: "margin-top:8px" }, h("summary", { style: "font-weight:800;cursor:pointer", text: "📄 Sources" }), ...p.sources.map((s) => h("div", {}, h("h3", { text: s.title, style: "margin-top:10px" }), h("div", { class: "small", html: rich(s.text) }))));
-      main.append(promptBox, planView, srcView, h("div", { class: "row", style: "margin:12px 0 6px" }, h("b", { class: "grow", text: "Write" }), wc), ta,
+      main.append(promptBox, planView, srcView, h("div", { class: "row", style: "margin:12px 0 6px" }, h("b", { class: "grow", text: "Write" }), fx, wc), ta,
         h("div", { class: "row", style: "margin-top:12px" }, h("button", { class: "btn", onclick: () => { st.step = 1; render(); } }, "← Plan"), h("button", { class: "btn primary", onclick: () => { st.step = 3; render(); window.scrollTo(0, 0); } }, "Check my essay →")));
     } else {
       const ck = E.essayChecks(dr.text, p);
       main.append(h("div", { class: "card" }, h("h3", { text: "🤖 Quick checks" }), h("ul", { class: "checks" }, ck.list.map((c) => h("li", { class: c.ok ? "ok" : "", text: c.text })))));
+      if (ck.conv.length) main.append(h("div", { class: "card fixits", style: "margin-top:14px" }, h("h3", { text: "✏️ Fix-it hints" }),
+        h("p", { class: "small muted", text: "Good writers always fix these before turning in. Go back to step 3, fix each one, then come back here." }),
+        h("ul", {}, ck.conv.map((c) => h("li", { text: c.hint }))),
+        h("button", { class: "btn small", onclick: () => { st.step = 2; render(); window.scrollTo(0, 0); } }, "✏️ Fix them in step 3")));
       const self = (dr.self = dr.self || {});
       const rub = h("div", { class: "card selfcheck", style: "margin-top:14px" }, h("h3", { text: "✅ Check it like a FAST scorer" }), h("p", { class: "small muted", text: "Tick each one you really did. Fix anything you missed in step 3!" }));
       (B.rubric || []).forEach((r) => {
@@ -388,10 +409,11 @@
         r.checks.forEach((c, i) => { const key = r.domain + ":" + i, cb = h("input", { type: "checkbox", checked: self[key] ? true : null, onchange: () => { self[key] = cb.checked; saveDraft(); } }); rub.append(h("label", {}, cb, h("span", { text: c }))); });
       });
       main.append(rub, h("div", { class: "row", style: "margin-top:14px" }, h("button", { class: "btn", onclick: () => { st.step = 2; render(); } }, "← Fix my essay"),
-        h("button", { class: "btn primary", disabled: ck.words < 60 ? true : null, onclick: () => submitEssay(p, dr, ck) }, ck.words < 60 ? "Write at least 60 words first" : "Turn it in! (+100 🪙)")));
+        h("button", { class: "btn primary", disabled: ck.words < 60 || !ck.ready ? true : null, onclick: () => submitEssay(p, dr, ck) }, ck.words < 60 ? "Write at least 60 words first" : !ck.ready ? "Fix the ✏️ hints to turn it in" : "Turn it in! (+100 🪙)")));
     }
   }
   function submitEssay(p, dr, ck) {
+    if (!ck.ready || ck.words < 60) return;
     const selfScore = {}; for (const r of B.rubric || []) { const n = r.checks.filter((_, i) => dr.self && dr.self[r.domain + ":" + i]).length; selfScore[r.domain] = Math.round((n / r.checks.length) * r.max); }
     const essay = { id: p.id + "-" + Date.now().toString(36), pid: p.id, title: p.title, mode: p.mode, text: dr.text, words: ck.words, at: E.today(), self: selfScore, checks: ck.list.filter((c) => c.ok).length + "/" + ck.list.length };
     S.essays.push(essay); delete S.drafts[p.id];
@@ -631,7 +653,7 @@
       const secs = (Date.now() - state.t0 - state.away) / 1000;
       const res = E.record(S, it, ok ? true : half ? "half" : false, Math.min(secs, 300));
       if (it.pid) { const pp = (S.passages[it.pid] = S.passages[it.pid] || { at: E.today(), n: 0, c: 0 }); pp.n++; pp.c += ok ? 1 : 0; pp.at = E.today(); }
-      r.res.push(ok); r.coins += res.coins; if (res.leveled > 0) r.lvUps++;
+      r.res.push(ok); r.coins += res.coins; r.secs = (r.secs || 0) + Math.min(secs, 300); if (res.leveled > 0) r.lvUps++;
       if (r.cfg.kind === "mission" && S.run) { S.run.i = r.i + 1; S.run.res = r.res; }
       save(); ding(ok);
       coinPop(checkBtn, res.coins);
@@ -688,6 +710,9 @@
     E.checkForms(S).forEach((f) => notes.push(`🗡️ You unlocked ${f}! +200 🪙`));
     const rk1 = E.rank(S.xp); if (rk1.i > rk0.i) notes.push(`${rk1.icon} New rank: ${rk1.name}!`);
     if (r.lvUps) notes.push(`⬆️ ${r.lvUps} skill${r.lvUps > 1 ? "s" : ""} leveled up`);
+    // "Too easy?": a perfect 8-question math set, all at level 3, in under ~90 seconds → offer the grade-5 version of the topic.
+    const sk = r.cfg.skill && SK.SKILLS[r.cfg.skill], up = sk && SK.STRETCH_FOR[sk.id];
+    const tooEasy = !!(up && r.cfg.kind === "practice" && n >= 8 && right === n && r.items.every((it) => it.lv === 3) && (r.secs || 0) < 90);
     save(); push();
     const el = $("#runner"); el.textContent = "";
     const msg = right === n ? "PERFECT! Every single one! 🏆" : right / n >= 0.8 ? "Amazing work!" : right / n >= 0.6 ? "Nice job — you're getting stronger!" : "You kept going — that's what champions do!";
@@ -697,6 +722,9 @@
       h("div", { class: "big-num", text: `${right} / ${n}` }), h("p", { style: "font-weight:800", text: msg }),
       h("p", { class: "chip coin", style: "font-size:18px", text: `+${r.coins} 🪙 mochi coins` }),
       ...notes.map((t) => h("p", { style: "font-weight:700", text: t })),
+      tooEasy ? h("div", { class: "card hero stack", style: "text-align:left" }, h("h2", { text: "🚀 Too easy? Try Level Up!" }),
+        h("p", { text: `${n} out of ${n} in ${Math.max(1, Math.round(r.secs))} second${Math.max(1, Math.round(r.secs)) === 1 ? "" : "s"} — wow! Ready for the 5th-grade version: ${SK.SKILLS[up].name}?` }),
+        h("button", { class: "btn primary", onclick: () => startRun({ title: "Level Up: " + SK.SKILLS[up].name, items: E.practice(S, up, 8, R()), kind: "practice", skill: up }) }, "Try Level Up ▶")) : null,
       h("div", { class: "row", style: "justify-content:center;margin-top:10px" }, h("button", { class: "btn primary", onclick: () => exitRun() }, "Back home"),
         r.cfg.kind !== "mission" ? null : h("button", { class: "btn", onclick: () => { exitRun(); go("me", "squishies"); } }, "🧸 My squishies")))));
     confetti(); ding(true);

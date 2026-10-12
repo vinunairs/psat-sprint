@@ -75,6 +75,25 @@ for (const key of ["vocab", "wdrill"]) for (const q of B[key] || []) checkQ(q, k
 for (const p of B.prompts || []) if (!p.id || !p.sources || p.sources.length < 2 || !p.prompt || !p.plan || !p.keywords) fail("prompt shape " + p.id);
 if (B.rubric && B.rubric.reduce((a, r) => a + r.max, 0) !== 10) fail("rubric should total 10 points");
 
+// 5b) Essay conventions: catch common mistakes, never flag well-written text.
+{
+  const kinds = (t) => E.conventions(t).map((c) => c.kind);
+  const bad = "i think recess is to much fun becuase your going to love it. Their is a reason the the kids smile. Its a good idea and my dog wagged it's tail. Me to!\n\nIn conclusion recess rocks";
+  const got = E.conventions(bad), want = ["spelling", "mixup", "caps", "double", "end"];
+  for (const k of want) if (!got.some((c) => c.kind === k)) fail("conventions should catch " + k);
+  if (got.filter((c) => c.kind === "mixup").length < 6) fail("conventions should catch your/there/to/too/its/it's mix-ups, got " + got.filter((c) => c.kind === "mixup").length);
+  const fine = "I had had enough. I know that that is true. It's raining, so the turtle hid its head in its shell. They're going to their house over there. Manatees are sensitive to cold. It was one of the greatest bridges of its time. You're right that your idea is too good to skip. We went to school, too.";
+  if (kinds(fine).length) fail("conventions false positives: " + E.conventions(fine).map((c) => c.hint).join(" | "));
+  const texts = [...(B.lit || []), ...(B.info || [])].flatMap((p) => (p.texts ? p.texts.map((t) => t.text) : [p.text])).concat((B.prompts || []).flatMap((p) => p.sources.map((x) => x.text)));
+  const fp = texts.flatMap((t) => E.conventions(t).filter((c) => c.kind !== "end").map((c) => c.hint));
+  if (fp.length) fail(`conventions flagged ${fp.length} hints in well-written bank texts: ${fp.slice(0, 3).join(" | ")}`);
+  const ck = E.essayChecks(bad, (B.prompts || [])[0]); if (ck.ready || ck.conv.length < 8) fail("essay with mistakes must not be ready");
+  if (!E.essayChecks("I think so. We agree.", null).ready) fail("clean essay should be ready");
+  total += texts.length;
+}
+// 5c) Every grade-4 math skill has a grade-5 "Too easy? Try Level Up" skill.
+for (const s of SK.list((x) => x.subj === "math" && !x.stretch)) { const up = SK.STRETCH_FOR[s.id]; if (!up || !SK.SKILLS[up] || !SK.SKILLS[up].stretch) fail("no stretch skill for " + s.id); }
+
 // 6) Simulate 30 days of missions with a student who is right ~75% of the time.
 let S = E.blank(); const SR = FIG.rng(99);
 for (let d = 0; d < 30; d++) {

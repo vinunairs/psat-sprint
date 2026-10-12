@@ -264,6 +264,39 @@
 
   /* ---------- writing: quick automatic checks on an essay ---------- */
   const TRANS = ["first", "second", "third", "next", "then", "also", "another", "in addition", "for example", "for instance", "because", "however", "finally", "in conclusion", "as a result", "therefore", "on the other hand", "most importantly", "to sum up", "since"];
+  // Conventions "fix-it" hints: misspellings, mixed-up words, lowercase "i", doubled words, missing end mark.
+  // Patterns are deliberately narrow so a correct essay is never blocked.
+  const MISSPELL = { alot: "a lot", becuase: "because", becasue: "because", beacuse: "because", becase: "because", becuz: "because", cuz: "because", beleive: "believe", belive: "believe",
+    freind: "friend", freinds: "friends", thier: "their", recieve: "receive", untill: "until", wierd: "weird", definately: "definitely", finaly: "finally", realy: "really",
+    beutiful: "beautiful", beautyful: "beautiful", tommorow: "tomorrow", tomorow: "tomorrow", wich: "which", whith: "with", probaly: "probably", probly: "probably",
+    enviroment: "environment", goverment: "government", intresting: "interesting", diffrent: "different", favrite: "favorite", favorit: "favorite", libary: "library",
+    peple: "people", poeple: "people", becomeing: "becoming", writting: "writing", begining: "beginning", suprise: "surprise", surprize: "surprise", excercise: "exercise",
+    exersize: "exercise", importent: "important", importint: "important", alright: "all right", everytime: "every time", infront: "in front", aswell: "as well",
+    dont: "don't", cant: "can't", didnt: "didn't", doesnt: "doesn't", isnt: "isn't", wasnt: "wasn't", wouldnt: "wouldn't", shouldnt: "shouldn't", couldnt: "couldn't", im: "I'm", ive: "I've", thats: "that's" };
+  const MIXUPS = [
+    [/\byour (going|gonna|welcome|right|wrong|not|so|very|always|never|being|doing|getting|playing|making|trying)\b/gi, "you're", "means “you are” here — use “you're”."],
+    [/\byou're (own|class|teacher|family|friends?|school|house|home|lunch|dog|cat|pet|mom|dad|brother|sister|body|brain|backpack|book|turn|team)\b/gi, "your", "shows something belongs to you — use “your”."],
+    [/\btheir (is|are|was|were|will be)\b/gi, "there", "should be “there” (like “there is” or “there are”)."],
+    [/\bthere (own|house|houses|class|teacher|lunch|lunches|friends?|pets?|families|family|homes?|school|books?|parents|kids|eggs|nests?|bodies|food)\b/gi, "their", "shows something belongs to them — use “their”."],
+    [/\b(?:there|their) (going|not going|gonna|playing|trying)\b/gi, "they're", "means “they are” here — use “they're”."],
+    [/\bto (much|many|late|early|big|small|loud|tired|scared|busy)\b/gi, "too", "means “very” or “more than enough” — use “too”."],
+    [/\b(me|us|them|you) to[.!?]/gi, "too", "means “also” here — use “too”."],
+    [/\btoo (the|a|an|school|go|be|my|your|their|eat|play|get|make|have|see|help|learn|lunch|recess|class)\b/gi, "to", "should be “to” (like “go to school”)."],
+    [/\bit's (own|tail|fur|shell|body|eggs|nest|wings|food|home|shape|babies|flippers|teeth)\b/gi, "its", "shows something belongs to it — use “its” (no apostrophe)."],
+    [/\bits (a|an|the|not|very|so|really|important|good|bad|fun|hard|easy|going|been|raining|true|clear|better|best)\b/gi, "it's", "means “it is” here — use “it's”."]
+  ];
+  const OK_DOUBLES = new Set(["had", "that", "is", "do", "very", "so", "bye", "ha", "no"]);
+  function conventions(text) {
+    const t = String(text || "").replace(/[’‘]/g, "'"), out = [], seen = new Set();
+    const add = (key, hint, kind) => { if (seen.has(key)) return; seen.add(key); out.push({ kind, hint }); };
+    for (const m of t.matchAll(/[A-Za-z']+/g)) { const w = m[0], fix = MISSPELL[w.toLowerCase()]; if (fix) add("sp:" + w.toLowerCase(), `“${w}” → spell it “${fix}”.`, "spelling"); }
+    for (const [re, fix, why] of MIXUPS) for (const m of t.matchAll(re)) add("mx:" + m[0].toLowerCase(), `“${m[0].replace(/[.!?]$/, "")}” — this ${why}`, "mixup");
+    for (const m of t.matchAll(/(^|[^A-Za-z'])i(?=['\s,.!?;:]|$)/g)) { const at = m.index + m[1].length; add("i", `Always write “I” as a capital letter (you wrote “…${t.slice(Math.max(0, at - 12), at + 8).trim()}…”).`, "caps"); }
+    for (const sentence of t.split(/[.!?]+\s*/)) for (const m of sentence.matchAll(/\b([A-Za-z']+)\s+\1\b/gi)) if (!OK_DOUBLES.has(m[1].toLowerCase())) add("dbl:" + m[1].toLowerCase(), `You wrote “${m[0]}” — delete one “${m[1]}”.`, "double");
+    const paras = t.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean), last = paras[paras.length - 1] || "";
+    if (last && !/[.!?]["”')]*$/.test(last)) add("end", "Your last paragraph needs an ending mark (. ! or ?).", "end");
+    return out;
+  }
   function essayChecks(text, prompt) {
     const t = String(text || ""), lower = t.toLowerCase(), words = (t.match(/[A-Za-z']+/g) || []).length;
     const paras = t.split(/\n\s*\n|\n/).map((p) => p.trim()).filter((p) => p.split(/\s+/).length >= 8).length;
@@ -274,6 +307,7 @@
     const sentences = t.split(/[.!?]+/).filter((x) => x.trim().split(/\s+/).length >= 3);
     const capsOk = sentences.length ? sentences.filter((x) => /^\s*["“]?[A-Z]/.test(x)).length / sentences.length : 0;
     const quotes = (t.match(/["“][^"”]{6,}["”]/g) || []).length;
+    const conv = conventions(t);
     return {
       words, paras, trans, cites: Math.min(cites, 2), kw, quotes, capsOk,
       list: [
@@ -282,8 +316,10 @@
         { ok: trans.length >= 3, text: trans.length >= 3 ? `Transitions: ${trans.slice(0, 5).join(", ")}` : "Add transitions like First, Another reason, For example, In conclusion." },
         { ok: cites >= 1, text: cites >= 1 ? "You named a source. 👍" : "Name your sources: \"According to the article …\"" },
         { ok: kw.length >= 3, text: kw.length >= 3 ? `You used facts from the sources (${kw.slice(0, 4).join(", ")}…)` : "Use more facts and details from the sources." },
-        { ok: capsOk >= 0.9, text: capsOk >= 0.9 ? "Sentences start with capital letters." : "Check that every sentence starts with a capital letter." }
-      ]
+        { ok: capsOk >= 0.9, text: capsOk >= 0.9 ? "Sentences start with capital letters." : "Check that every sentence starts with a capital letter." },
+        { ok: !conv.length, text: conv.length ? `${conv.length} spelling or word fix-it${conv.length === 1 ? "" : "s"} to check (see ✏️ below).` : "No spelling or word mix-ups found." }
+      ],
+      conv, ready: !conv.length // the essay only counts as done when every fix-it is addressed
     };
   }
 
@@ -308,5 +344,5 @@
 
   root.FASTEngine = { blank, normalize, today, addDays, parseNum, parseRem, check, partial, fromGen, fromBank, record, day, earn, touchStreak, pruneDays,
     score, stars, band, catScore, irScore, groupScore, pathNext, pathSkills, weakList, mission, practice, stretchSet, passageSet, wordPower, writingDrill, bankItems, allPassages,
-    essayChecks, rank, RANKS, MOVES, unlockMoves, FORMS, checkForms, markSeen };
+    essayChecks, conventions, rank, RANKS, MOVES, unlockMoves, FORMS, checkForms, markSeen };
 })(typeof window !== "undefined" ? window : globalThis);

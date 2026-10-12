@@ -122,6 +122,17 @@
     return s.ir;
   }
 
+  // "Too easy?" → the grade-5 stretch skill on the same topic.
+  const STRETCH_FOR = {
+    "m.fr.equiv": "s.fr.unlike", "m.fr.compare": "s.fr.unlike", "m.fr.decomp": "s.fr.unlike", "m.fr.addsub": "s.fr.unlike", "m.fr.word": "s.fr.unlike",
+    "m.fr.times": "s.fr.mult", "m.fr.tenths": "s.dec.place", "m.dec.notation": "s.dec.place", "m.dec.ops": "s.dec.ops",
+    "m.gr.angles": "s.gr.coord", "m.gr.measure": "s.gr.coord", "m.gr.unknown": "s.gr.coord", "m.geo.shapes": "s.gr.coord", "m.gr.area": "s.gr.volume",
+    "m.m.convert": "s.dec.ops", "m.m.time": "s.ar.order", "m.m.money": "s.dec.ops", "m.dp.lineplot": "s.dp.mean",
+    "m.md.facts": "s.ar.order", "m.md.mult": "s.md.div2", "m.md.div": "s.md.div2", "m.md.estimate": "s.md.div2",
+    "m.ar.word": "s.fr.division", "m.ar.equation": "s.ar.order", "m.ar.factors": "s.ar.order", "m.ar.pattern": "s.ar.order",
+    "m.nso.place": "s.dec.place", "m.nso.compare": "s.dec.place", "m.nso.round": "s.dec.place"
+  };
+
   // Florida FAST achievement levels (scale score ranges, B.E.S.T. grades 3-5).
   const FAST_LEVELS = {
     math: { 3: [183, 198, 209, 225], 4: [200, 211, 221, 238], 5: [207, 222, 234, 246] },     // lower bounds of Levels 2,3,4,5
@@ -135,6 +146,6 @@
   // [start of grade-4 range, start of "above grade 4"].
   const IREADY_BANDS = { math: { 4: [465, 527] }, reading: { 4: [557, 630] } };
 
-  root.FASTSkills = { CATS, IREADY, UNITS, SKILLS, iReadyOf, FAST_LEVELS, fastLevel, IREADY_BANDS,
+  root.FASTSkills = { CATS, IREADY, UNITS, SKILLS, STRETCH_FOR, iReadyOf, FAST_LEVELS, fastLevel, IREADY_BANDS,
     list: (pred) => Object.values(SKILLS).filter(pred || (() => true)).sort((a, b) => a.order - b.order) };
 })(typeof window !== "undefined" ? window : globalThis);

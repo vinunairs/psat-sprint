@@ -67,6 +67,9 @@ button{font:inherit;color:inherit;cursor:pointer}
 .tile span{font-size:14px;color:var(--soft)}
 .tile:active{transform:scale(.98)}
 .tile.done{border-color:var(--mint)}
+.tile.locked{border-style:dashed;background:var(--sunk);box-shadow:none}
+.tile.locked span{color:var(--ink);font-weight:700}
+.lockcard{background:var(--lemon-soft);border-color:transparent;margin-bottom:12px}
 
 /* ---------- bottom nav ---------- */
 .nav{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--card);border-top:2px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom)}
@@ -283,3 +286,7 @@ textarea:focus,.field input:focus,.field select:focus{outline:none;border-color:
 .essay-view{white-space:pre-wrap;background:var(--sunk);border-radius:14px;padding:14px;font-family:Georgia,serif;line-height:1.6;max-height:360px;overflow:auto}
 
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}
+
+.fixits{border-color:var(--lemon);background:var(--lemon-soft)}
+.fixits ul{margin:8px 0 12px;padding-left:20px}
+.fixits li{margin:6px 0;font-weight:700}
