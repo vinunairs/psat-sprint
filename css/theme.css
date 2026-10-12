@@ -478,3 +478,6 @@ body:not(.guest) #footNote{display:none}
 .fb-steps li::before{content:counter(st);position:absolute;left:0;top:0;width:24px;height:24px;border-radius:50%;background:var(--pencil-soft,#EEF0FF);color:var(--pencil,#4F46E5);font-weight:800;font-size:12.5px;display:grid;place-items:center}
 .fb-steps li.fb-ans::before{content:"✓";background:var(--good);color:#fff}
 .fb-steps li.fb-ans{font-weight:600}
+
+.theme-box{display:grid;gap:2px;padding:10px 12px;border-radius:var(--r-sm);background:var(--pencil-soft);font-size:14px}
+.theme-box b{color:var(--pencil-strong)}

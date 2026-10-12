@@ -599,7 +599,7 @@
     for (let i = 0; i < 7; i++) {
       const a = S.activity[addDays(ws, i)]; if (!a) continue;
       if (a.q || a.mock) t.days++;
-      t.q += a.q || 0; t.c += a.c || 0; t.mock += a.mock || 0;
+      t.q += a.q || 0; t.c += a.c || 0; t.mock += a.mock || 0; t.timed = (t.timed || 0) + (a.timed || 0);
       for (const [d, [n, c]] of Object.entries(a.dom || {})) { const x = t.dom[d] || (t.dom[d] = [0, 0]); x[0] += n; x[1] += c; }
     }
     return t;
@@ -613,8 +613,28 @@
     if (since < 28 && left > 56) return "foundations";
     return "build";
   }
+  // The season plan (settings.track, set by the parent's review on the server): one skill theme per month,
+  // chosen from the student's official practice tests. Weekly goals follow the theme of the week.
+  function themeAt(ws) { return (S.settings.track || []).find((t) => t.from <= ws && ws < t.to) || null; }
+  function labDone(p) { return (S[p === "cx" ? "lab2" : "lab"] || {}).done || []; }
   function makeWeekGoals(ws) {
     const ph = phaseAt(weekStart(today()) === ws ? today() : ws);
+    const th = ph !== "ready" && ph !== "sprint" ? themeAt(ws) : null;
+    if (th && (S.tests.length > 0 || S.answered >= 20)) {
+      const goals = [], q = th.q || (ph === "foundations" ? 50 : 60);
+      goals.push({ id: "q", type: "q", target: q, label: "Answer " + q + " practice questions (about " + Math.max(3, Math.round(q / 15)) + " sessions of 30 minutes)" });
+      if (th.dom && DOM[th.dom]) {
+        goals.push({ id: "dom-" + th.dom, type: "dom", d: th.dom, target: th.n || 25, label: (th.n || 25) + " questions on " + DOM[th.dom].name + " (this month's skill)" });
+        goals.push({ id: "acc-" + th.dom, type: "acc", d: th.dom, target: th.acc || 75, label: (th.acc || 75) + "% accuracy on " + DOM[th.dom].name });
+      }
+      if (th.lab) { const left = th.lab.m.filter((m) => !labDone(th.lab.p).includes(m)).slice(0, 2); if (left.length) goals.push({ id: "lab", type: "lab", p: th.lab.p, m: left, label: (th.lab.p === "cx" ? "Concept Lab" : "Geometry Lab") + ": Mission" + (left.length > 1 ? "s " : " ") + left.join(" and ") }); }
+      if (th.cards) goals.push({ id: "cards", type: "dom", d: th.cards, target: 10, label: "10 more " + DOM[th.cards].name + " questions" });
+      goals.push({ id: "timed", type: "timed", target: 1, label: "One timed set (10+ questions at test pace). Before it: 3 slow breaths" });
+      const wkNo = Math.round((parseYmd(ws) - parseYmd(weekStart(S.planStart || today()))) / (7 * 864e5));
+      if (wkNo % 4 === 2) goals.push({ id: "official", type: "official", target: 1, label: "Take a Bluebook practice test (or one section) and log it" });
+      goals.push({ id: "nb", type: "notebook", target: 10, label: "Get the Mistake notebook down to 10 or fewer" });
+      return { phase: ph, goals, v: 3, theme: { title: th.title, why: th.why } };
+    }
     const hasData = S.tests.length > 0 || S.answered >= 20;
     const goals = [];
     if (!hasData) {
@@ -665,6 +685,8 @@
       return [n, g.target, n ? "logged" : "not yet"];
     }
     if (g.type === "notebook") { const n = S.mistakes.length; return [n <= g.target ? 1 : g.target / n, 1, n + " in the notebook"]; }
+    if (g.type === "timed") return [tot.timed || 0, g.target, (tot.timed || 0) + " of " + g.target];
+    if (g.type === "lab") { const d = g.m.filter((m) => labDone(g.p).includes(m)).length; return [d, g.m.length, d + " of " + g.m.length + " missions"]; }
     return [0, 1];
   }
   const goalDone = (g, tot) => { const [a, b] = goalProgress(g, tot); return a >= b; };
@@ -837,6 +859,7 @@
       el("div", { class: "row between" }, el("div", {}, el("div", { class: "eyebrow", text: possessive() + (who() ? "goals this week" : "This week's goals") }), el("h2", { text: w.diagnostic ? "Find your starting point" : PHASES[w.phase].name + " week" })),
         el("span", { class: "date", text: fmtDay(ws).md + " – " + fmtDay(addDays(ws, 6)).md + " · " + done + "/" + w.goals.length + " done" + (w.won ? " · won" : "") })),
       goalLine(),
+      w.theme ? el("div", { class: "theme-box" }, el("b", { text: "This month: " + w.theme.title }), el("span", { class: "muted", text: w.theme.why })) : null,
       list,
       w.goals.some((g) => g.type === "official") ? howBox("bluebook", "How to log a Bluebook or Khan Academy test") : null,
       el("div", { class: "row" },
@@ -855,9 +878,9 @@
     if (mode === "monthly") {
       const end = parseYmd(S.settings.date), cur = new Date(parseYmd(today()).getFullYear(), parseYmd(today()).getMonth(), 1);
       for (let m = new Date(cur); m <= end; m.setMonth(m.getMonth() + 1)) {
-        const first = ymd(m), probe = first < today() ? today() : first, ph = phaseAt(probe), isCur = m.getTime() === cur.getTime();
+        const first = ymd(m), mid = addDays(first, 14), probe = mid < today() ? today() : mid, ph = phaseAt(probe), isCur = m.getTime() === cur.getTime();
         rows.append(el("div", { class: "pday" + (isCur ? " today" : "") }, el("div", { class: "d" }, el("b", { text: m.toLocaleDateString("en-US", { month: "short" }) }), String(m.getFullYear()) + (isCur ? " · now" : "")),
-          el("div", {}, el("strong", { text: PHASES[ph].name }), el("div", { class: "muted", style: "font-size:13px", text: PHASES[ph].what })), el("span")));
+          el("div", {}, el("strong", { text: (themeAt(probe) && ph !== "ready" && ph !== "sprint" ? themeAt(probe).title : PHASES[ph].name) }), el("div", { class: "muted", style: "font-size:13px", text: (themeAt(probe) && ph !== "ready" && ph !== "sprint" ? themeAt(probe).why : PHASES[ph].what) })), el("span")));
       }
     } else {
       for (let k = weekStart(today()); k <= S.settings.date; k = addDays(k, 7)) {
@@ -1447,6 +1470,7 @@
       if (c === n && n >= 10) { award("clean"); const ds = [...new Set(P.results.map((r) => r.q.d))]; if (ds.every((x) => x === "sec")) award("comma"); if (ds.every((x) => DOM[x].sec === "math")) award("math"); }
       if (DOMAINS.every((d) => S.stats[d.id] && S.stats[d.id].att > 0)) award("cover");
     }
+    if (P.timed && n >= 10) dayOf().timed = (dayOf().timed || 0) + 1;
     planEvent({ k: "practice", res: P.results, notebook: P.notebook, focus: P.focus, timed: P.timed });
     save(); render();
   }
@@ -2747,7 +2771,17 @@
         if (rec.total) checkGoalScore(rec.total);
         planEvent({ k: "log", src: rec.source }); save(); toast(rec.name + " added to your tests", true);
       });
-      FOCUS = row && all.length ? { items: all.filter((x) => !(typeof x.type === "string" && (x.type.startsWith("review:") || x.type.startsWith("log:")))), source: row.source, updated: row.updated_at } : null;
+      // A season plan from the parent's review: upcoming test dates plus monthly skill themes.
+      const plan = !GUEST && all.find((x) => x && typeof x.type === "string" && x.type.startsWith("plan:") && x.plan);
+      if (plan && (S.settings.trackV || 0) < (plan.plan.v || 1)) {
+        const ex = S.settings.exams || (S.settings.exams = []);
+        for (const e of plan.plan.exams || []) if (e && e.id && !ex.some((x) => x.id === e.id || (x.kind === e.kind && x.date === e.date))) ex.push(Object.assign({}, e));
+        S.settings.track = plan.plan.track || []; S.settings.trackV = plan.plan.v || 1;
+        syncExams(S);
+        const ws0 = weekStart(today()); for (const k of Object.keys(S.weeks || {})) if (k >= ws0) delete S.weeks[k];
+        save(); toast("Your plan for next year is ready", true); if (TAB === "today") render();
+      }
+      FOCUS = row && all.length ? { items: all.filter((x) => !(typeof x.type === "string" && (x.type.startsWith("review:") || x.type.startsWith("log:") || x.type.startsWith("plan:")))), source: row.source, updated: row.updated_at } : null;
       if (TAB === "treview") render(); seedDeck(); if (!GUEST && (TAB === "today" || TAB === "practice")) render(); },
     setSocial(api) { SOC = api && !GUEST ? { api } : null; CH = null; socialBadge(); if (SOC) socialLoad(TAB === "friends"); },
     onSettings(fn) { settingsHooks.push(fn); },

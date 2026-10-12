@@ -177,3 +177,9 @@ node test/check-fast.js      # ~180,000 generated math questions + every bank it
 node test/check-lengths.js   # the right answer mustn't be the giveaway "longest choice"
 NODE_PATH=$(npm root -g) node test/e2e-fast.js   # browser test (phone + desktop) against a fake Supabase
 ```
+
+## Season plan (long-range, from official practice tests)
+
+A `focus_targets.items` entry `{ type: "plan:<name>", plan: { v, exams: [{id, kind, date, target}], track: [{from, to, title, why, dom?, n?, acc?, lab?: {p, m}, cards?, q?}] } }` sets upcoming test dates (added to My tests once, by id) and one skill theme per period. Applied when `plan.v` is newer than `settings.trackV`; this week's goals are rebuilt.
+
+While a theme is active (not in the test-ready or sprint weeks), weekly goals follow it: a question total (default 60, `q` overrides), 25 questions plus an accuracy goal on the theme's domain, the theme's next two Lab missions, extra questions on a second domain (`cards`), one timed set of 10+ (counted in `activity[day].timed`), a Bluebook test every fourth week, and the Mistake notebook. The monthly roadmap shows the theme titles.
