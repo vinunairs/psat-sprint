@@ -34,7 +34,7 @@ const esc = (s: string) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;"
 
 const DOMAINS: Record<string, string> = { ii: "Information and Ideas", cs: "Craft and Structure", eoi: "Expression of Ideas", sec: "Grammar", alg: "Algebra", adv: "Advanced Math", psda: "Data Analysis", geo: "Geometry and Trig" };
 const PACE: Record<string, number> = { ii: 71, cs: 71, eoi: 71, sec: 71, alg: 95, adv: 95, psda: 95, geo: 95 };
-const ACT: Record<string, string> = { practice: "practice", focus: "focus set", notebook: "mistake notebook", mock: "mock test", cards: "flashcards", challenge: "challenges" };
+const ACT: Record<string, string> = { practice: "practice", focus: "focus set", notebook: "mistake notebook", mock: "mock test", cards: "flashcards", words: "word deck", challenge: "challenges" };
 function localDate(d = new Date()) { return new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(d); }
 function localHour(d = new Date()) { return Number(new Intl.DateTimeFormat("en-US", { timeZone: TZ, hour: "numeric", hourCycle: "h23" }).format(d)) % 24; }
 const mins = (s: number) => (s < 60 ? (s > 0 ? "<1" : "0") : String(Math.round(s / 60)));
