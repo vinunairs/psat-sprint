@@ -173,7 +173,7 @@
   const $ = (s) => document.querySelector(s);
   function el(tag, attrs = {}, ...kids) {
     const e = document.createElement(tag);
-    for (const [k, v] of Object.entries(attrs)) {
+    for (const [k, v] of Object.entries(attrs || {})) {
       if (v === false || v == null) continue;
       if (k === "class") e.className = v;
       else if (k === "text") e.textContent = v;
@@ -629,11 +629,13 @@
       }
       if (th.lab) { const left = th.lab.m.filter((m) => !labDone(th.lab.p).includes(m)).slice(0, 2); if (left.length) goals.push({ id: "lab", type: "lab", p: th.lab.p, m: left, label: (th.lab.p === "cx" ? "Concept Lab" : "Geometry Lab") + ": Mission" + (left.length > 1 ? "s " : " ") + left.join(" and ") }); }
       if (th.cards) goals.push({ id: "cards", type: "dom", d: th.cards, target: 10, label: "10 more " + DOM[th.cards].name + " questions" });
+      const vn = th.vocab != null ? th.vocab : th.dom === "cs" ? 30 : 10;
+      if (vn && window.VOCAB) goals.push({ id: "words", type: "words", target: vn, label: "Word deck: learn " + vn + " new words and review the ones due" + (th.dom === "cs" ? " (about 5 minutes a day)" : "") });
       goals.push({ id: "timed", type: "timed", target: 1, label: "One timed set (10+ questions at test pace). Before it: 3 slow breaths" });
       const wkNo = Math.round((parseYmd(ws) - parseYmd(weekStart(S.planStart || today()))) / (7 * 864e5));
       if (wkNo % 4 === 2) goals.push({ id: "official", type: "official", target: 1, label: "Take a Bluebook practice test (or one section) and log it" });
       goals.push({ id: "nb", type: "notebook", target: 10, label: "Get the Mistake notebook down to 10 or fewer" });
-      return { phase: ph, goals, v: 3, theme: { title: th.title, why: th.why } };
+      return { phase: ph, goals, v: 4, theme: { title: th.title, why: th.why } };
     }
     const hasData = S.tests.length > 0 || S.answered >= 20;
     const goals = [];
@@ -664,7 +666,7 @@
   }
   function currentWeek() {
     const ws = weekStart(today());
-    if (!S.weeks[ws] || ((S.weeks[ws].v || 1) < 2 && !S.weeks[ws].won)) S.weeks[ws] = makeWeekGoals(ws); // v2 adds official-test goals
+    if (!S.weeks[ws] || (((S.weeks[ws].v || 1) < 2 || S.weeks[ws].v === 3) && !S.weeks[ws].won)) S.weeks[ws] = makeWeekGoals(ws); // v2 adds official-test goals
     return { ws, w: S.weeks[ws] };
   }
   // Returns [done, target, note]
@@ -686,6 +688,7 @@
     }
     if (g.type === "notebook") { const n = S.mistakes.length; return [n <= g.target ? 1 : g.target / n, 1, n + " in the notebook"]; }
     if (g.type === "timed") return [tot.timed || 0, g.target, (tot.timed || 0) + " of " + g.target];
+    if (g.type === "words") { const n = vWeekNew(tot.ws), due = vDue().length; return [n >= g.target && due === 0 ? 1 : Math.min(n, g.target) / g.target * (due ? 0.95 : 1), 1, n + " of " + g.target + " new" + (due ? " · " + due + " due" : "")]; }
     if (g.type === "lab") { const d = g.m.filter((m) => labDone(g.p).includes(m)).length; return [d, g.m.length, d + " of " + g.m.length + " missions"]; }
     return [0, 1];
   }
@@ -864,6 +867,7 @@
       w.goals.some((g) => g.type === "official") ? howBox("bluebook", "How to log a Bluebook or Khan Academy test") : null,
       el("div", { class: "row" },
         el("button", { class: "btn primary", onclick: () => { S.prefs.sel = [focusId]; save(); show("practice"); startPractice([focusId], 10, "auto"); } }, "15 minutes today: " + DOM[focusId].name),
+        w.goals.some((g) => g.type === "words") ? el("button", { class: "btn", onclick: () => { const d = vDue().length; vStart(d ? Math.min(5, vNewWaiting().length || 5) : 8); } }, "Word deck" + (vDue().length ? " (" + vDue().length + " due)" : "")) : null,
         el("button", { class: "btn", onclick: () => show("mock") }, "Take a mock test")),
       el("p", { class: "muted", style: "font-size:13px", text: "New goals every Monday, picked from your Progress page. Meet them all for +100 XP." })));
     // last week
@@ -1232,7 +1236,8 @@
     const p = $("#p-review"); p.textContent = "";
     const deckIds = Object.keys(S.deck), due = dueCards();
     p.append(el("div", {}, el("h2", { text: "Learn" }), el("p", { class: "muted lede", text: "Learn the rule first, then practice it." })));
-    if (!RV || RV.i >= RV.queue.length) p.append(labCard());
+    if (VS) { if (VS.i < VS.queue.length) renderVocab(p); else vocabDone(p); return; }
+    if (!RV || RV.i >= RV.queue.length) { const vc = vocabCard(); if (vc) p.append(vc); p.append(labCard()); }
     // Flashcards
     const fc = el("div", { class: "card", style: "display:grid;gap:14px" });
     if (RV && RV.i < RV.queue.length) {
@@ -1294,6 +1299,101 @@
       if (RV.i >= RV.queue.length && RV.back) { const back = RV.back; RV = null; save(); toast("Card added to your deck. Now try 5 like it."); show(back); return; }
       save(); renderReview();
     }
+  }
+
+  /* ================= Word deck: vocabulary for Words in Context =================
+     S.vocab[word] = { box, due, added, n (times answered), ok (times right), miss }. New words are met first
+     (meaning + example), then quizzed at the end of the same session. Early boxes ask "what does it mean here?";
+     from box 2 the card turns into a test-style blank. Words missed on official tests are added first. */
+  const VBOX = [1, 3, 7, 14, 30];
+  let VS = null; // { queue: [{w, mode}], i, picked, opts, right, wrong }
+  const VW = () => (window.VOCAB ? window.VOCAB.WORDS : []);
+  const vFind = (w) => VW().find((x) => x.w === w);
+  function vForm(x) { const st = x.w.replace(/(e|y)$/, ""); const m = x.s.match(new RegExp("\\b" + st + "[a-z]*", "i")); return m ? m[0] : x.w; }
+  function vSeed() {
+    if (GUEST || !window.VOCAB) return;
+    const V = S.vocab || (S.vocab = {});
+    if (S.vocabSeed) return;
+    for (const w of Object.keys(window.VOCAB.MISSED)) if (!V[w]) V[w] = { box: 0, due: today(), added: today(), n: 0, ok: 0 };
+    S.vocabSeed = today();
+  }
+  const vDue = () => { const t = today(), V = S.vocab || {}; return Object.keys(V).filter((w) => vFind(w) && V[w].n && V[w].due <= t).sort((a, b) => V[a].box - V[b].box); };
+  const vNewWaiting = () => Object.keys(S.vocab || {}).filter((w) => vFind(w) && !S.vocab[w].n);
+  const vKnown = () => Object.values(S.vocab || {}).filter((v) => v.box >= 2).length;
+  function vNext(k) { const V = S.vocab || {}; return VW().filter((x) => !V[x.w]).slice(0, k).map((x) => x.w); }
+  function vWeekNew(ws) { const end = addDays(ws, 7); return Object.values(S.vocab || {}).filter((v) => v.n && v.met && v.met >= ws && v.met < end).length; }
+  function vStart(newCount) {
+    vSeed();
+    const V = S.vocab, fresh = vNewWaiting();
+    for (const w of vNext(Math.max(0, newCount - fresh.length))) { V[w] = { box: 0, due: today(), added: today(), n: 0, ok: 0 }; fresh.push(w); }
+    const meet = fresh.slice(0, Math.max(newCount, 0)), due = vDue().slice(0, 25);
+    const queue = [...meet.map((w) => ({ w, mode: "meet" })), ...due.map((w) => ({ w, mode: vMode(w) })), ...meet.map((w) => ({ w, mode: "mean" }))];
+    if (!queue.length) { toast("No words due right now. Learn some new ones.", true); return; }
+    VS = { queue, i: 0, picked: null, right: 0, wrong: 0, met: meet.length }; save(); show("review");
+  }
+  function vMode(w) { const x = vFind(w), v = S.vocab[w]; return v.box >= 2 && vForm(x).toLowerCase() === x.w ? "blank" : "mean"; }
+  function vOpts(x, mode) {
+    const pool = VW().filter((y) => y.p === x.p && y.w !== x.w).sort(() => Math.random() - 0.5).slice(0, 3);
+    const all = [x, ...pool].sort(() => Math.random() - 0.5);
+    return { o: all.map((y) => (mode === "blank" ? y.w : y.d)), a: all.indexOf(x) };
+  }
+  function vocabCard() {
+    if (GUEST || !window.VOCAB) return null;
+    vSeed();
+    const due = vDue().length, waiting = vNewWaiting().length, known = vKnown(), total = VW().length, started = Object.values(S.vocab || {}).some((v) => v.n || v.met);
+    const missed = Object.keys(window.VOCAB.MISSED).filter((w) => S.vocab[w] && S.vocab[w].box < 2);
+    return el("div", { class: "card mission" },
+      el("div", { class: "eyebrow", text: "Vocabulary · Words in Context" }),
+      el("h2", { text: "Word deck" }),
+      el("p", { class: "muted", style: "margin-top:.3em", text: "Words that show up on the PSAT and SAT. Meet a few new ones each day, then the deck brings each word back right before you'd forget it." }),
+      missed.length ? el("p", { class: "vb-missed" }, el("b", { text: "From your practice tests: " }), missed.join(", ")) : null,
+      el("div", { class: "row", style: "margin-top:12px;align-items:center" },
+        el("button", { class: "btn primary", onclick: () => vStart(due ? Math.min(5, waiting || 5) : 8) }, due ? "Review " + due + " due word" + (due === 1 ? "" : "s") + (waiting ? " + meet new ones" : " + 5 new") : started ? "Learn 8 new words" : "Start the word deck"),
+        due ? el("button", { class: "btn", onclick: () => vStart(0) }, "Only review") : null,
+        el("span", { class: "muted", style: "font-size:13.5px", text: known + " of " + total + " words known" })));
+  }
+  function renderVocab(p) {
+    const it = VS.queue[VS.i], x = vFind(it.w), V = S.vocab, card = el("div", { class: "card vb", style: "display:grid;gap:14px" });
+    card.append(el("div", { class: "row between" }, el("span", { class: "eyebrow", text: "Word deck · " + (VS.i + 1) + " of " + VS.queue.length }), el("button", { class: "btn small ghost", onclick: () => { VS = null; save(); renderReview(); } }, "Stop")));
+    const sentence = (blank) => { const f = vForm(x), i = x.s.toLowerCase().indexOf(f.toLowerCase()); return el("p", { class: "vb-sent" }, x.s.slice(0, i), blank ? el("span", { class: "vb-blank", text: "______" }) : el("b", { text: x.s.slice(i, i + f.length) }), x.s.slice(i + f.length)); };
+    const back = () => el("div", { class: "vb-back" },
+      el("p", {}, el("b", { class: "vb-word-s", text: x.w }), el("i", { class: "muted", text: " (" + x.p + ") " }), x.d),
+      el("p", { class: "muted", style: "font-size:14px" }, el("b", { text: "Similar: " }), x.syn),
+      x.missed ? el("p", { class: "vb-missed", text: x.missed }) : null);
+    if (it.mode === "meet") {
+      card.append(el("div", { class: "eyebrow", text: "New word" + (x.missed ? " · from your practice tests" : "") }), el("h2", { class: "vb-word", text: x.w }), sentence(false), back(),
+        el("p", { class: "muted", style: "font-size:13.5px", text: "Find the clue in the sentence that shows the meaning. You'll be quizzed on this word at the end." }),
+        el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => { V[x.w].met = today(); VS.i++; save(); renderReview(); } }, "Got it")));
+    } else {
+      if (!VS.opts) VS.opts = vOpts(x, it.mode);
+      const q = VS.opts, rev = VS.picked != null;
+      if (it.mode === "blank") card.append(el("div", { class: "eyebrow", text: "Which word fits the blank?" }), sentence(true));
+      else card.append(el("h2", { class: "vb-word", text: x.w }), sentence(false), el("div", { class: "eyebrow", text: "What does it mean in this sentence?" }));
+      const wrap = el("div", { class: "opts" });
+      q.o.forEach((t, k) => { let cls = "opt"; if (rev) { if (k === q.a) cls += " right"; else if (k === VS.picked) cls += " wrong"; }
+        wrap.append(el("button", { class: cls, disabled: rev, onclick: () => vAnswer(x.w, k === q.a, k) }, el("span", { class: "l", text: LETTERS[k] }), el("span", { text: t }))); });
+      card.append(wrap);
+      if (rev) card.append(el("div", { class: "chip " + (VS.picked === q.a ? "good" : "bad"), text: VS.picked === q.a ? "Right" : "Not quite. It comes back tomorrow." }), back(),
+        el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => { VS.i++; VS.picked = null; VS.opts = null; save(); renderReview(); } }, VS.i + 1 < VS.queue.length ? "Next" : "Finish")));
+    }
+    p.append(card);
+  }
+  function vAnswer(w, ok, k) {
+    const v = S.vocab[w], it = VS.queue[VS.i];
+    VS.picked = k; v.n = (v.n || 0) + 1; if (ok) { v.ok = (v.ok || 0) + 1; VS.right++; } else { v.miss = (v.miss || 0) + 1; VS.wrong++; }
+    // A new word's first quiz only confirms it was learned; the box moves up on later days.
+    const first = it.mode === "mean" && v.met === today() && v.n === 1;
+    v.box = ok ? (first ? 0 : Math.min(VBOX.length - 1, (v.box || 0) + 1)) : 0;
+    v.due = addDays(today(), ok ? VBOX[v.box] : 1);
+    const a = dayOf(); a.words = (a.words || 0) + 1;
+    if (ok) addXP(1); bumpStreak(); save(); renderReview();
+  }
+  function vocabDone(p) {
+    const n = VS.right + VS.wrong;
+    p.append(el("div", { class: "card mission" }, el("div", { class: "eyebrow", text: "Word deck" }),
+      el("h2", { text: VS.met ? "Nice. " + VS.met + " new word" + (VS.met === 1 ? "" : "s") + " learned." : "Nice. Deck done for today." }),
+      el("p", { class: "muted", text: (n ? VS.right + " of " + n + " right. " : "") + vKnown() + " of " + VW().length + " words known. Missed words come back tomorrow." }),
+      el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => { VS = null; renderReview(); } }, "Done"))));
   }
 
   /* ================= Practice ================= */
@@ -2656,10 +2756,11 @@
     if (TAB === "practice" && P && !P.finished) return P.focus ? "focus" : P.notebook ? "notebook" : "practice";
     if (TAB === "mock" && S.mock && S.mock.phase !== "done") return "mock";
     if (TAB === "review" && RV && RV.i < RV.queue.length) return "cards";
+    if (TAB === "review" && VS && VS.i < VS.queue.length) return "words";
     if (TAB === "friends" && CH && !CH.done) return "challenge";
     return null;
   }
-  const ACT_NAMES = { practice: "Practice sets", focus: "Focus set", notebook: "Mistake notebook", mock: "Mock tests", cards: "Flashcards", challenge: "Friend challenges" };
+  const ACT_NAMES = { practice: "Practice sets", focus: "Focus set", notebook: "Mistake notebook", mock: "Mock tests", cards: "Flashcards", words: "Word deck", challenge: "Friend challenges" };
   function ttDay(d) {
     const T = S.time || (S.time = {}), k = d || today();
     if (!T[k]) { T[k] = { f: 0, i: 0, a: 0, n: 0, by: {} }; const ks = Object.keys(T).sort(); while (ks.length > 30) delete T[ks.shift()]; }

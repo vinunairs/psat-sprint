@@ -481,3 +481,11 @@ body:not(.guest) #footNote{display:none}
 
 .theme-box{display:grid;gap:2px;padding:10px 12px;border-radius:var(--r-sm);background:var(--pencil-soft);font-size:14px}
 .theme-box b{color:var(--pencil-strong)}
+/* Word deck */
+.vb-word{font-family:var(--display);font-size:30px;margin:0;letter-spacing:-.01em}
+.vb-sent{font-size:18px;line-height:1.55;margin:0;padding:12px 14px;background:var(--pencil-soft);border-radius:var(--r-sm)}
+.vb-sent b{color:var(--pencil-strong)}
+.vb-blank{display:inline-block;min-width:4.5em;border-bottom:2px solid var(--pencil-strong);color:transparent}
+.vb-back{display:grid;gap:6px}.vb-back p{margin:0}
+.vb-word-s{font-size:17px}
+.vb-missed{font-size:13.5px;color:var(--bad);margin:.4em 0 0}

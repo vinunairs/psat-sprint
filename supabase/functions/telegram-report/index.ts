@@ -61,7 +61,7 @@ function summary(s: any, date: string) {
   const tasks = Object.keys(D.tasks || {}).filter((k) => k.startsWith(date + "#")).length;
   const a = (D.activity || {})[date] || {}, t = (D.time || {})[date];
   const labToday = [D.lab, D.lab2].some((x) => x && Object.values(x.log || {}).includes(date));
-  if (!tasks && !a.q && !a.mock && !(t && t.f > 60) && !labToday) { L.push("⚠️ No study activity yet today."); return L.join("\n"); }
+  if (!tasks && !a.q && !a.mock && !a.words && !(t && t.f > 60) && !labToday) { L.push("⚠️ No study activity yet today."); return L.join("\n"); }
   L.push(`✅ Plan tasks done today: ${tasks}`);
   if (t) {
     const by = Object.entries(t.by || {}).sort((x, y) => (y[1] as number) - (x[1] as number)).map(([k, v]) => `${ACT[k] || k} ${mins(v as number)}`).join(", ");
@@ -87,6 +87,10 @@ function summary(s: any, date: string) {
     const todayM = Object.entries(D.lab2.log || {}).filter(([, d]) => d === date).map(([n]) => n);
     L.push(`💡 Concept Lab: ${D.lab2.done.length} of 7 missions done${todayM.length ? " (today: Mission " + todayM.join(", ") + ")" : ""}`);
   }
+  if (D.vocab && Object.keys(D.vocab).length) {
+    const V = Object.values(D.vocab) as { box?: number; met?: string }[], known = V.filter((v) => (v.box || 0) >= 2).length, met = V.filter((v) => v.met === date).length;
+    L.push(`🔤 Word deck: ${known} words known${a.words ? " · " + a.words + " cards today" : ""}${met ? " (" + met + " new)" : ""}`);
+  }
   return L.join("\n");
 }
 
@@ -100,10 +104,11 @@ function short(s: any, date: string, brief?: { done: boolean; opened: boolean; r
   const a = (D.activity || {})[date] || {}, t = (D.time || {})[date];
   const head = `<b>${esc(name)}</b>${left != null && left >= 0 ? " · " + (left === 0 ? kind + " today" : left + "d to " + kind) : ""}`;
   const labToday = Object.entries((D.lab && D.lab.log) || {}).filter(([, d]) => d === date).length + Object.entries((D.lab2 && D.lab2.log) || {}).filter(([, d]) => d === date).length;
-  if (!tasks && !a.q && !a.mock && !(t && t.f > 60) && !labToday) return `${head}\n⚠️ No study today${brief ? (brief.done ? " · 📰 Brief ✓" : brief.opened ? " · 📰 Brief " + brief.read + "/" + brief.total : " · 📰 Brief not opened") : ""}`;
+  if (!tasks && !a.q && !a.mock && !a.words && !(t && t.f > 60) && !labToday) return `${head}\n⚠️ No study today${brief ? (brief.done ? " · 📰 Brief ✓" : brief.opened ? " · 📰 Brief " + brief.read + "/" + brief.total : " · 📰 Brief not opened") : ""}`;
   const bits = [`✅ ${tasks} task${tasks === 1 ? "" : "s"}`];
   if (t && t.f >= 60) bits.push(`⏱ ${mins(t.f)} min`);
   if (a.q) bits.push(`📝 ${a.c}/${a.q} (${Math.round((a.c / a.q) * 100)}%)`);
+  if (a.words) bits.push(`🔤 ${a.words} words`);
   if (brief) bits.push(brief.done ? "📰 ✓" : brief.opened ? "📰 " + brief.read + "/" + brief.total : "📰 ✗");
   const flags: string[] = [];
   for (const [d, v] of Object.entries(a.dom || {})) { const [n, c] = v as number[]; if (n >= 3 && c / n < 0.6) flags.push(`${DOMAINS[d] || d} ${c}/${n}`); }

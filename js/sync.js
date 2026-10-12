@@ -53,6 +53,11 @@
         a.log = Object.assign({}, b.log || {}, a.log || {});
         a.starList = [...new Set([...(a.starList || []), ...(b.starList || [])])]; a.stars = a.starList.length;
       }
+      for (const [w, b] of Object.entries(L.vocab || {})) {
+        const V = R.vocab || (R.vocab = {}), a = V[w];
+        if (!a || (b.n || 0) > (a.n || 0) || (!a.met && b.met)) { V[w] = b; changed = true; }
+      }
+      if (L.vocabSeed && !R.vocabSeed) { R.vocabSeed = L.vocabSeed; changed = true; }
       for (const [id, b] of Object.entries(L.treview || {})) {
         const T = R.treview || (R.treview = {}), a = T[id];
         if (!a) { T[id] = b; changed = true; continue; }

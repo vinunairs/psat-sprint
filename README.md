@@ -183,3 +183,12 @@ NODE_PATH=$(npm root -g) node test/e2e-fast.js   # browser test (phone + desktop
 A `focus_targets.items` entry `{ type: "plan:<name>", plan: { v, exams: [{id, kind, date, target}], track: [{from, to, title, why, dom?, n?, acc?, lab?: {p, m}, cards?, q?}] } }` sets upcoming test dates (added to My tests once, by id) and one skill theme per period. Applied when `plan.v` is newer than `settings.trackV`; this week's goals are rebuilt.
 
 While a theme is active (not in the test-ready or sprint weeks), weekly goals follow it: a question total (default 60, `q` overrides), 25 questions plus an accuracy goal on the theme's domain, the theme's next two Lab missions, extra questions on a second domain (`cards`), one timed set of 10+ (counted in `activity[day].timed`), a Bluebook test every fourth week, and the Mistake notebook. The monthly roadmap shows the theme titles.
+
+## Word deck (Learn → Word deck)
+Vocabulary for Words in Context, in `js/vocab.js` (213 words: meaning, an original example sentence with a context
+clue, similar words). Words missed on official practice tests (`MISSED`) are added first. A session meets new words
+(meaning + sentence), reviews due words, then quizzes the new ones. Early boxes ask "what does it mean here?"; from
+box 2 the card becomes a test-style blank. Spacing: 1, 3, 7, 14, 30 days; a miss comes back tomorrow. Progress is
+`S.vocab[word] = { box, due, met, n, ok, miss }`, merged per word across devices; cards answered per day go in
+`activity[date].words`. Theme weeks get a "Word deck" goal (30 new words in Craft and Structure months, 10 otherwise,
+or `track[].vocab`). The Telegram report shows words known and cards done.
