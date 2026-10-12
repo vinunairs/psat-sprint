@@ -125,13 +125,64 @@ const ok = (cond, msg) => { console.log((cond ? "  ✓ " : "  ✗ ") + msg); if 
     ok(!(await page.$("#runner")), "math-path practice is blocked before the mission");
     await page.click("#sheet .btn:has-text('Later')"); await page.click(".nav button >> nth=0"); await page.waitForSelector(".mission");
 
-    // --- daily mission: answer everything (about 2/3 right), check feedback, finish
+    // --- daily mission: one button walks through every step — lesson cards, questions (about 2/3 right), and the essay step.
+    // Phone: a first-week learner gets an essay "read & plan" day. Desktop: a saved draft like Prayaga's resumes at "write".
+    const writeDay = !vp.touch;
+    if (writeDay) await page.evaluate(() => { const S = window.__fast.S; S.drafts.wp02 = { at: window.__fast.E.today(), plan: { claim: "I think kids should learn to dance in PE class because it is fun." }, text: "Five, six, seven, eight! Imagine your whole PE class moving to the beat. Dance helps everyone get active and stay healthy.\n\nI think kids should learn to dance in PE class because it is fun and very enjoyable. They can do easy moves that help flexibility and strength.\n\nFirst, dancing is for everyone. In the passage it says that dancing helps everyone get more active. This means that if you dance it will become a habit" }; window.__fast.render(); });
+    ok((await page.textContent(".mission")).includes("Essay"), "Home card lists today's steps, including the essay");
+    const plan0 = await page.evaluate(() => window.__fast.E.missionOutline(window.__fast.S).essay);
+    ok(plan0 && plan0.stage === (writeDay ? "write" : "plan") && (!writeDay || plan0.pid === "wp02"), `essay day planned: ${JSON.stringify(plan0)}`);
     await page.click(".mission .btn.primary");
-    await page.waitForSelector("#runner .qcard");
-    let n = 0, sawPassage = false, sawTyped = false, sawTwoPart = false, sawChoose2 = false, sawFig = false;
-    for (let guard = 0; guard < 30; guard++) {
-      const done = await page.$(".done-wrap"); if (done) break;
+    await page.waitForSelector("#runner .steps-strip");
+    const strip = await page.textContent("#runner .steps-strip");
+    ok(/Lesson/.test(strip) && /Math/.test(strip) && /Essay/.test(strip), `runner shows the day's steps: ${strip.replace(/\s+/g, " ").trim()}`);
+    let n = 0, lessons = 0, broke = false, sawPassage = false, sawTyped = false, sawTwoPart = false, sawChoose2 = false, sawFig = false;
+    for (let guard = 0; guard < 40; guard++) {
+      if (await page.$(".done-wrap")) break;
       const it = await page.evaluate(() => { const r = window.__fast.S.run; return r ? r.items[r.i] : null; });
+      if (it.kind === "lesson") {
+        await page.waitForSelector("#runner .lesson-card");
+        if (!lessons) { ok((await page.textContent("#runner .lesson-card")).includes((await page.evaluate((id) => window.FASTSkills.SKILLS[id].name, it.skill))), `lesson card for ${it.skill} before its first question`); await shot("04a-lesson"); }
+        const lessonText = await page.textContent("#runner .lesson-card");
+        if (/\b(null|undefined|NaN)\b/.test(lessonText)) ok(false, `lesson card shows stray text: ${lessonText.slice(0, 120)}`);
+        const nextQ = await page.evaluate(() => { const r = window.__fast.S.run; return r.items[r.i + 1]; });
+        if (!lessons) ok(nextQ && !nextQ.kind && nextQ.skill === it.skill, "the lesson's skill comes right after it");
+        await page.click("#runner .run-foot .btn:has-text('Got it')"); lessons++; continue;
+      }
+      if (it.kind === "essay") {
+        await page.waitForSelector("#runner .essay-step");
+        if (!writeDay) {
+          // day 1: read the sources, then plan; finishing needs the claim and both reasons
+          await shot("07a-essay-read");
+          await page.click("#runner .btn:has-text('I read both')"); await page.waitForSelector("#runner textarea[data-k=claim]");
+          ok(await page.isDisabled("#runner .btn:has-text('Save my plan')"), "essay plan can't be finished empty");
+          // pause mid-essay: the mission isn't done and the tiles stay locked
+          await page.click("#runner .run-foot .btn:has-text('Pause')"); await page.waitForSelector(".mission");
+          ok((await page.$$(".tile.locked")).length === 3, "mission isn't done while the essay step is unfinished (tiles still locked)");
+          await page.click(".mission .btn.primary"); await page.waitForSelector("#runner textarea[data-k=claim]");
+          ok(true, "resumes at the essay plan step");
+          await page.fill("#runner textarea[data-k=claim]", "I believe recess should come before lunch.");
+          await page.fill("#runner textarea[data-k=r1]", "Kids waste less food after they play first.");
+          await page.fill("#runner textarea[data-k=r2]", "Students are calmer and ready to learn.");
+          await shot("07b-essay-plan");
+          await page.click("#runner .btn:has-text('Save my plan')");
+        } else {
+          // write day: the saved draft is there; fix-its block turning in until fixed
+          ok((await page.inputValue("#runner textarea.essay")).startsWith("Five, six, seven, eight!"), "essay step resumes her saved draft");
+          await page.click("#runner .btn:has-text('Check my essay')"); await page.waitForSelector("#runner .fixits");
+          ok(await page.isDisabled("#runner .btn:has-text('to turn it in'), #runner .btn:has-text('60 words')"), "can't turn in the draft until it's finished and fixed");
+          await shot("07a-essay-fixits");
+          await page.click("#runner .run-foot .btn:has-text('Pause')"); await page.waitForSelector(".mission");
+          ok((await page.$$(".tile.locked")).length === 3, "mission isn't done while the essay step is unfinished (tiles still locked)");
+          await page.click(".mission .btn.primary"); await page.waitForSelector("#runner .essay-step");
+          ok(!!(await page.$("#runner .fixits")), "resumes the essay at the step she left (Check)");
+          await page.click("#runner .fixits .btn"); await page.waitForSelector("#runner textarea.essay");
+          await page.fill("#runner textarea.essay", (await page.inputValue("#runner textarea.essay")) + " for you to be moving around, which is better than sitting still.\n\nAlso, dancing burns calories. According to the article, kids who dance in PE move more and feel happier. This shows that dance is healthy.\n\nIn conclusion, dance should be part of PE because it is fun and healthy. Schools should add dancing to PE.");
+          await page.click("#runner .btn:has-text('Check my essay')"); await page.waitForSelector("#runner .btn:has-text('Turn it in')");
+          await page.click("#runner .btn:has-text('Turn it in')");
+        }
+        continue;
+      }
       const right = n % 3 !== 2;
       if (await page.$("#runner .passage")) sawPassage = true;
       if (await page.$("#runner .qcard svg.fig")) sawFig = true;
@@ -150,6 +201,7 @@ const ok = (cond, msg) => { console.log((cond ? "  ✓ " : "  ✗ ") + msg); if 
         for (const k of picks) await page.click(`#runner .opts .opt >> nth=${k}`);
       } else await page.click(`#runner .opts .opt >> nth=${right ? it.a : (it.a + 1) % it.o.length}`);
       if (n === 0) await shot("04-question");
+      { const qt = await page.textContent("#runner .qcard"); if (/\b(null|undefined|NaN)\b/.test(qt)) ok(false, `question shows stray text: ${qt.slice(0, 120)}`); }
       await page.click("#runner .run-foot .btn");
       await page.waitForSelector("#runner .feedback");
       const cls = await page.getAttribute("#runner .feedback", "class");
@@ -159,10 +211,11 @@ const ok = (cond, msg) => { console.log((cond ? "  ✓ " : "  ✗ ") + msg); if 
       if (sawPassage && n < 8) await shot("06-passage");
       if (n === 3) { await noHScroll("question screen"); }
       // take a break mid-way once, then resume from Home
-      if (n === 4) {
+      if (n === 3 && !broke) {
+        broke = true; const at = await page.evaluate(() => window.__fast.S.run.i);
         await page.click("#runner .run-top .btn"); await page.click("#sheet .btn:has-text('Take a break')");
-        await page.waitForSelector(".mission"); ok((await page.textContent(".mission")).includes("5 of"), "mission progress saved after a break");
-        await page.click(".mission .btn.primary"); await page.waitForSelector("#runner .qcard"); n++; continue;
+        await page.waitForSelector(".mission"); ok((await page.textContent(".mission")).includes(`${at} of`), "mission progress saved after a break");
+        await page.click(".mission .btn.primary"); await page.waitForSelector("#runner .run-body"); n++; continue;
       }
       await page.click("#runner .run-foot .btn");
       n++;
@@ -171,10 +224,15 @@ const ok = (cond, msg) => { console.log((cond ? "  ✓ " : "  ✗ ") + msg); if 
     await shot("07-mission-done");
     const S = await page.evaluate(() => window.__fast.S);
     const today = await page.evaluate(() => window.__fast.E.today());
-    ok(S.days[today] && S.days[today].set === 1, "mission marked complete for today");
+    ok(lessons >= 1, `mission included ${lessons} lesson card(s)`);
+    ok(S.days[today] && S.days[today].set === 1, "mission marked complete only after every step, including the essay");
     ok(S.days[today].q === n, `answered ${n} questions recorded (got ${S.days[today].q})`);
+    ok(Object.keys(S.lessons || {}).length === lessons, "lessons seen are remembered (so they don't repeat within 7 days)");
+    if (writeDay) ok(S.essays.length === 1 && S.essays[0].pid === "wp02" && !S.drafts.wp02, "write day: the wp02 essay was turned in from the mission");
+    else { const d = Object.values(S.drafts)[0]; ok(d && d.plan.claim && d.plan.r1 && d.plan.r2 && !S.essays.length, "plan day: the essay plan is saved for tomorrow"); }
+    ok(/essay/i.test(await page.textContent(".done-wrap")), "finish screen mentions the essay step");
     ok(S.coins > 0 && S.streak.cur === 1, `coins ${S.coins}, streak ${S.streak.cur}`);
-    ok(sawTyped && (sawPassage || sawFig), `saw typed answers${sawPassage ? ", a passage" : ""}${sawFig ? ", a figure" : ""}${sawTwoPart ? ", a two-part item" : ""}${sawChoose2 ? ", a choose-two item" : ""}`);
+    ok(sawTyped && (writeDay || sawPassage || sawFig), `saw typed answers${sawPassage ? ", a passage" : ""}${sawFig ? ", a figure" : ""}${sawTwoPart ? ", a two-part item" : ""}${sawChoose2 ? ", a choose-two item" : ""}`);
     await page.click(".done-wrap .btn.primary");
     await page.waitForTimeout(2000);
     ok((await page.$$(".tile.locked")).length === 0, "practice tiles unlock after the mission");
@@ -191,11 +249,11 @@ const ok = (cond, msg) => { console.log((cond ? "  ✓ " : "  ✗ ") + msg); if 
     await page.click("#sheet details summary"); await shot("09-skill-sheet");
     await page.click("#sheet .btn:has-text('Quick 4')"); await page.waitForSelector("#runner .qcard");
     for (let i = 0; i < 4; i++) {
-      const it = await page.evaluate(() => null);
-      void it;
-      const typed = await page.$("#runner .ans-in input");
-      if (typed) await page.fill("#runner .ans-in input", "1"); else await page.click("#runner .opts .opt >> nth=0");
-      if (await page.$("#runner .opts >> nth=1")) await page.click("#runner .opts >> nth=1 >> .opt >> nth=0");
+      // answer wrong-ish but complete (typed "1"; first option, or the first two for choose-two; Part B too)
+      const it = await page.evaluate((k) => window.__fast.runner.items[k], i);
+      if (it.t) await page.fill("#runner .ans-in input", "1");
+      else { await page.click("#runner .opts .opt >> nth=0"); if (Array.isArray(it.a)) await page.click("#runner .opts .opt >> nth=1"); }
+      if (it.b) await page.click("#runner .opts >> nth=1 >> .opt >> nth=0");
       await page.click("#runner .run-foot .btn"); await page.waitForSelector("#runner .feedback"); await page.click("#runner .run-foot .btn");
     }
     await page.waitForSelector(".done-wrap"); ok(true, "quick practice set finishes");
@@ -236,7 +294,7 @@ const ok = (cond, msg) => { console.log((cond ? "  ✓ " : "  ✗ ") + msg); if 
     // --- writing: plan, write, check, turn in
     await page.click(".nav button:has-text('Writing')"); await page.waitForSelector("#essays");
     await shot("13-writing");
-    await page.click("#essays .btn >> nth=0"); await page.waitForSelector(".passage .ptabs");
+    await page.click("#essays .btn:has-text('Start') >> nth=0"); await page.waitForSelector(".passage .ptabs");
     await page.click(".btn:has-text('I read both')"); await page.waitForSelector("textarea");
     await page.fill("textarea >> nth=1", "I believe recess should come before lunch.");
     await page.click(".btn:has-text('Start writing')"); await page.waitForSelector("textarea.essay");
@@ -256,7 +314,8 @@ const ok = (cond, msg) => { console.log((cond ? "  ✓ " : "  ✗ ") + msg); if 
     ok(!(await page.$(".fixits")), "fixed essay has no fix-it hints");
     await page.click(".btn:has-text('Turn it in')"); await page.waitForTimeout(400);
     const S2 = await page.evaluate(() => window.__fast.S);
-    ok(S2.essays.length === 1 && S2.essays[0].words > 90, `essay saved (${S2.essays[0] && S2.essays[0].words} words)`);
+    const lastEssay = S2.essays[S2.essays.length - 1];
+    ok(S2.essays.length === (writeDay ? 2 : 1) && lastEssay.words > 90, `essay saved from the Writing tab (${lastEssay && lastEssay.words} words)`);
 
     // --- Me: progress views, squishies, rewards
     await page.click(".nav button >> nth=4"); await page.waitForSelector(".catrow");

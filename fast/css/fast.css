@@ -290,3 +290,19 @@ textarea:focus,.field input:focus,.field select:focus{outline:none;border-color:
 .fixits{border-color:var(--lemon);background:var(--lemon-soft)}
 .fixits ul{margin:8px 0 12px;padding-left:20px}
 .fixits li{margin:6px 0;font-weight:700}
+
+/* mission step strip + lesson cards */
+.steps-strip{display:flex;flex-wrap:wrap;gap:6px;padding:8px 16px;border-bottom:2px solid var(--line);background:var(--bg)}
+.steps-strip .step{border-radius:999px;padding:4px 12px;font-weight:800;font-size:14px;background:var(--sunk);color:var(--soft)}
+.steps-strip .step.cur{background:var(--berry);color:var(--berry-ink)}
+.steps-strip .step.done{background:var(--mint-soft);color:var(--good)}
+.steps-strip.home{padding:0;border:0;background:none}
+.steps-strip.home .step{background:rgba(255,255,255,.65);color:var(--ink)}
+@media (prefers-color-scheme:dark){.steps-strip.home .step{background:rgba(0,0,0,.25)}}
+.run-top .prog i.step-done{background:var(--lemon)}
+.run-top .prog i.kind{flex:.6}
+.lesson-card{border-color:var(--lemon)}
+.essay-step .wtabs{margin-top:0}
+.run-top{flex-wrap:wrap}
+.run-top .steps-strip{flex-basis:100%;padding:2px 0 0;border:0;background:none}
+@media (max-width:420px){.steps-strip .step{font-size:13px;padding:3px 9px}.steps-strip{gap:4px}}

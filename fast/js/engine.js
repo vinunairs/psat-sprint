@@ -23,6 +23,7 @@
       fixit: [],       // skill ids missed recently, served first next time
       drafts: {},      // essay drafts by prompt id: { plan, text, at }
       run: null,       // unfinished daily mission (resumes where she left off)
+      lessons: {},     // skill id → date its quick-lesson card was last shown in a mission
       settings: { name: "", sound: true, bigText: false }
     };
   }
@@ -200,28 +201,98 @@
     return { passage: p, items: qs.map((q) => fromBank(q, R, { pid: p.id, genre: p.genre, bank: "passage", lv: p.lv || 4 })) };
   }
 
-  /* ---------- the daily mission (10-15 minutes, weak areas first) ---------- */
+  /* ---------- the daily mission: one button, every step in order ---------- */
+  // Steps are question items plus { kind: "lesson", skill } cards and an { kind: "essay", pid, stage } step.
+  const GROUPS = { lesson: ["💡", "Lesson"], math: ["🍡", "Math"], reading: ["📖", "Reading"], writing: ["✍️", "Writing"], essay: ["✏️", "Essay"] };
+  function stepGroup(it) {
+    if (it.kind === "lesson") return "lesson";
+    if (it.kind === "essay") return "essay";
+    if (it.tag === "Reading" || it.tag === "Word Power") return "reading";
+    if (it.tag === "Writing") return "writing";
+    return "math";
+  }
+  const stepGroups = (items) => [...new Set(items.map(stepGroup))];
+  const isQuestion = (it) => !it.kind;
+  // Rough minutes for a step list (used to keep a day ~15-20 minutes).
+  function estimateMin(items) {
+    let m = 0, lastPid = null;
+    for (const it of items) {
+      if (it.kind === "lesson") m += 0.5;
+      else if (it.kind === "essay") m += it.stage === "plan" ? 9 : 13;
+      else { m += it.pid ? 1 : 0.75; if (it.pid && it.pid !== lastPid) m += 3; lastPid = it.pid || null; }
+    }
+    return Math.round(m);
+  }
+
+  // Lesson card before a skill's first question when it's a math-path skill under 2 stars, or never tried.
+  // Not again within 7 days, unless she missed 2+ questions on that skill the last time she practiced it.
+  function needsLesson(S, id, date) {
+    const sk = SK.SKILLS[id]; if (!sk) return false;
+    const st = S.skills[id], never = !st || !st.n, pathWeak = sk.subj === "math" && !sk.stretch && stars(S, id) < 2;
+    if (!never && !pathWeak) return false;
+    const seen = (S.lessons || {})[id];
+    if (seen && seen >= addDays(date, -6)) {
+      const last = st && st.at && S.days[st.at] && S.days[st.at].sk && S.days[st.at].sk[id];
+      return !!(last && last[0] - last[1] >= 2);
+    }
+    return true;
+  }
+  function lessonItem(id, R) {
+    const it = { kind: "lesson", uid: "L" + id + "-" + (uidSeq++), skill: id, tag: "Lesson" };
+    if (SK.SKILLS[id].subj === "math") { const ex = fromGen(id, 1, R); it.ex = { q: ex.q, fig: ex.fig || null, o: ex.o || null, a: ex.a, t: ex.t || null, ans: ex.ans || null, unit: ex.unit || null, e: ex.e }; }
+    return it;
+  }
+  function withLessons(S, items, date, R, cap = 3) {
+    const out = [], done = new Set();
+    for (const it of items) {
+      if (isQuestion(it) && !it.bonus && !done.has(it.skill)) {
+        done.add(it.skill);
+        if (out.filter((x) => x.kind === "lesson").length < cap && needsLesson(S, it.skill, date)) out.push(lessonItem(it.skill, R));
+      }
+      out.push(it);
+    }
+    return out;
+  }
+
+  // Weekly essay: due when nothing was turned in during the last 7 days. Resume a saved draft first.
+  const wordsIn = (t) => (String(t || "").match(/[A-Za-z']+/g) || []).length;
+  function essayDue(S, date) { return !!(BANK().prompts || []).length && !(S.essays || []).some((e) => e.at >= addDays(date, -6)); }
+  function essayPlan(S) {
+    const prompts = BANK().prompts || [];
+    const drafts = Object.entries(S.drafts || {}).filter(([id]) => prompts.some((p) => p.id === id)).sort((a, b) => ((a[1].at || "") < (b[1].at || "") ? 1 : -1));
+    let pid = drafts.length ? drafts[0][0] : null;
+    if (!pid) { const written = new Set((S.essays || []).map((e) => e.pid)); pid = (prompts.find((p) => (p.lv || 4) < 5 && !written.has(p.id)) || prompts.find((p) => !written.has(p.id)) || prompts[0]).id; }
+    const dr = (S.drafts || {})[pid], plan = (dr && dr.plan) || {};
+    const planned = ["claim", "r1", "r2"].filter((k) => String(plan[k] || "").trim().length >= 10).length;
+    // Day 1: read the sources and plan. Day 2 (or a draft already underway): write, fix, turn in.
+    return { pid, stage: dr && (wordsIn(dr.text) >= 40 || planned >= 2) ? "write" : "plan" };
+  }
+
   function mission(S, date, R) {
     R = R || FIG.rng();
     date = date || today();
     const dayNum = Math.round(Date.parse(date + "T12:00:00Z") / 864e5), passageDay = dayNum % 2 === 0;
+    const essay = essayDue(S, date) ? essayPlan(S) : null, writeDay = essay && essay.stage === "write";
     const items = [], plan = [];
-    // 1) Warm-up: 2 quick wins (times facts or a fix-it skill at an easy level)
+    // 1) Warm-up: quick wins (times facts or a fix-it skill at an easy level)
     const fixMath = weakList(S, "math");
     items.push(fromGen("m.md.facts", lvFor(S, "m.md.facts"), R));
-    items.push(fixMath[0] && fixMath[0] !== "m.md.facts" ? fromGen(fixMath[0], Math.max(1, lvFor(S, fixMath[0]) - 1), R) : fromGen("m.fr.equiv", 1, R));
+    if (!writeDay) items.push(fixMath[0] && fixMath[0] !== "m.md.facts" ? fromGen(fixMath[0], Math.max(1, lvFor(S, fixMath[0]) - 1), R) : fromGen("m.fr.equiv", 1, R));
     items.forEach((it) => (it.tag = "Warm-up"));
     plan.push("Warm-up");
-    // 2) Math: weak skills first, then the path skill, then a spaced review
+    // 2) Math: weak skills first, then the path skill, then a spaced review (shorter on essay days)
     const next = pathNext(S).id, mastered = pathSkills().filter((s) => stars(S, s.id) >= 2 && s.id !== next).map((s) => s.id);
-    const weak = fixMath.filter((id) => id !== next).slice(0, 2);
-    const mathIds = [...weak.flatMap((id) => [id, id]).slice(0, 3)];
-    while (mathIds.length < 5) mathIds.push(next);
-    mathIds.push(mastered.length ? R.pick(mastered) : next);
+    const weak = fixMath.filter((id) => id !== next).slice(0, 2), nMath = essay ? 4 : 6;
+    const mathIds = [...weak.flatMap((id) => [id, id]).slice(0, essay ? 1 : 3)];
+    while (mathIds.length < nMath - 1) mathIds.push(next);
+    mathIds.push(mastered.length && !essay ? R.pick(mastered) : next);
     mathItems(S, mathIds, R).forEach((it, i) => { it.tag = i < weak.length * 2 && mathIds[i] !== next ? "Power-up" : mathIds[i] === next ? "Math path" : "Review"; items.push(it); });
     plan.push("Math");
-    // 3) Reading: a passage on even days, Word Power + writing drills on odd days
-    if (passageDay) {
+    // 3) Reading: a passage on even days, Word Power + writing drills on odd days; essay days get a little Word Power
+    if (essay) {
+      items.push(...wordPower(S, writeDay ? 1 : 2, R).map((it) => Object.assign(it, { tag: "Word Power" })));
+      plan.push("Word Power");
+    } else if (passageDay) {
       const r = weakList(S, "reading"), wantInfo = r.slice(0, 3).some((id) => ["r.textfeat", "r.central", "r.perspective", "r.claim"].includes(id));
       const genre = dayNum % 6 === 0 ? "paired" : wantInfo ? "info" : (dayNum % 4 === 0 ? "info" : "lit");
       const ps = passageSet(S, genre, R, { max: 4 }) || passageSet(S, null, R, { max: 4 });
@@ -232,13 +303,26 @@
       items.push(...writingDrill(S, 2, R).map((it) => Object.assign(it, { tag: "Writing" })));
       plan.push("Word Power", "Writing");
     }
-    // 4) Bonus Level Up question when she's on a roll (last 7 days ≥ 85%)
+    // 4) Bonus Level Up question when she's on a roll (last 7 days ≥ 85%), not on essay days
     const recent = Object.entries(S.days).filter(([d]) => d >= addDays(date, -7)).reduce((a, [, v]) => [a[0] + v.q, a[1] + v.c], [0, 0]);
-    if (recent[0] >= 20 && recent[1] / recent[0] >= 0.85) {
+    if (!essay && recent[0] >= 20 && recent[1] / recent[0] >= 0.85) {
       const st = SK.list((s) => s.stretch), pick = st.find((s) => stars(S, s.id) < 2) || R.pick(st);
       items.push(Object.assign(fromGen(pick.id, lvFor(S, pick.id), R), { tag: "Level Up bonus", bonus: true }));
     }
-    return { date, kind: passageDay ? "passage" : "words", items, plan };
+    const steps = withLessons(S, items, date, R);
+    // 5) Essay day: the weekly essay is the last step
+    if (essay) { steps.push({ kind: "essay", uid: "E" + essay.pid + "-" + (uidSeq++), pid: essay.pid, stage: essay.stage, tag: "Essay" }); plan.push("Essay"); }
+    return { date, kind: essay ? "essay-" + essay.stage : passageDay ? "passage" : "words", items: steps, plan, groups: stepGroups(steps), minutes: estimateMin(steps) };
+  }
+  // What today's mission will contain (for the Home card), without building or saving it.
+  function missionOutline(S, date) {
+    date = date || today();
+    const essay = essayDue(S, date) ? essayPlan(S) : null, groups = [];
+    const firstSkills = ["m.md.facts", pathNext(S).id];
+    if (firstSkills.some((id) => needsLesson(S, id, date))) groups.push("lesson");
+    groups.push("math", "reading");
+    if (essay) groups.push("essay");
+    return { groups, essay, minutes: essay ? "15–20" : "10–15" };
   }
 
   // Skill practice set (math path stop, a reading skill, a stretch skill)
@@ -343,6 +427,6 @@
   }
 
   root.FASTEngine = { blank, normalize, today, addDays, parseNum, parseRem, check, partial, fromGen, fromBank, record, day, earn, touchStreak, pruneDays,
-    score, stars, band, catScore, irScore, groupScore, pathNext, pathSkills, weakList, mission, practice, stretchSet, passageSet, wordPower, writingDrill, bankItems, allPassages,
+    score, stars, band, catScore, irScore, groupScore, pathNext, pathSkills, weakList, mission, missionOutline, needsLesson, essayDue, essayPlan, stepGroup, stepGroups, GROUPS, isQuestion, estimateMin, wordsIn, practice, stretchSet, passageSet, wordPower, writingDrill, bankItems, allPassages,
     essayChecks, conventions, rank, RANKS, MOVES, unlockMoves, FORMS, checkForms, markSeen };
 })(typeof window !== "undefined" ? window : globalThis);

@@ -94,12 +94,52 @@ if (B.rubric && B.rubric.reduce((a, r) => a + r.max, 0) !== 10) fail("rubric sho
 // 5c) Every grade-4 math skill has a grade-5 "Too easy? Try Level Up" skill.
 for (const s of SK.list((x) => x.subj === "math" && !x.stretch)) { const up = SK.STRETCH_FOR[s.id]; if (!up || !SK.SKILLS[up] || !SK.SKILLS[up].stretch) fail("no stretch skill for " + s.id); }
 
+// 5d) Mission lessons: before a math-path skill under 2 stars or a never-tried skill; not again within 7 days unless 2+ misses last time.
+{
+  const D = "2026-10-12", T = E.blank();
+  if (!E.needsLesson(T, "m.fr.addsub", D)) fail("never-tried skill needs a lesson");
+  T.lessons = { "m.fr.addsub": E.addDays(D, -3) }; T.skills["m.fr.addsub"] = { n: 4, c: 3, h: [1, 1, 0, 1], lv: 2, at: "2026-10-10" }; T.days["2026-10-10"] = { q: 4, c: 3, sk: { "m.fr.addsub": [4, 3] }, sub: {} };
+  if (E.needsLesson(T, "m.fr.addsub", D)) fail("lesson seen 3 days ago (1 miss last time) should not repeat");
+  T.days["2026-10-10"].sk["m.fr.addsub"] = [4, 2];
+  if (!E.needsLesson(T, "m.fr.addsub", D)) fail("lesson should repeat after 2+ misses last time");
+  T.days["2026-10-10"].sk["m.fr.addsub"] = [4, 3]; T.lessons["m.fr.addsub"] = E.addDays(D, -8);
+  if (!E.needsLesson(T, "m.fr.addsub", D)) fail("lesson older than 7 days repeats while under 2 stars");
+  T.skills["m.fr.equiv"] = { n: 12, c: 12, h: Array(10).fill(1), lv: 3, at: "2026-10-10" };
+  if (E.needsLesson(T, "m.fr.equiv", D)) fail("no lesson for a 2+ star skill already tried");
+  const m = E.mission(E.blank(), D, FIG.rng(5)), first = m.items.findIndex((x) => x.skill === "m.md.facts" && !x.kind);
+  if (!(first > 0 && m.items[first - 1].kind === "lesson" && m.items[first - 1].skill === "m.md.facts")) fail("lesson card should come right before a new skill's first question");
+  if (m.items.filter((x) => x.kind === "lesson").length > 3) fail("at most 3 lessons per mission");
+}
+// 5e) Essay day: due after 7 days without an essay; resume a draft; day 1 plan, day 2 write.
+{
+  const D = "2026-10-12", T = E.blank();
+  T.essays = [{ pid: "wp03", at: "2026-10-04" }];
+  T.drafts = { wp02: { at: "2026-10-12", plan: {}, text: "Five six seven eight! ".repeat(25) } };
+  const ep = E.essayPlan(T); if (ep.pid !== "wp02" || ep.stage !== "write") fail("should resume the wp02 draft at the write step, got " + JSON.stringify(ep));
+  const m = E.mission(T, D, FIG.rng(6)), last = m.items[m.items.length - 1];
+  if (!(last.kind === "essay" && last.pid === "wp02" && last.stage === "write")) fail("essay step should be last on an essay day");
+  if (m.minutes > 21) fail(`essay day too long: ~${m.minutes} min`);
+  T.essays.push({ pid: "wp02", at: "2026-10-11" }); T.drafts = {};
+  if (E.mission(T, D, FIG.rng(6)).items.some((x) => x.kind === "essay")) fail("no essay step within 7 days of the last essay");
+  const F = E.blank(), p1 = E.essayPlan(F);
+  if (p1.stage !== "plan") fail("first essay starts with read & plan");
+  F.drafts[p1.pid] = { plan: { claim: "I think this is a good idea", r1: "First, it helps kids learn", r2: "Also, it is fun for everyone" }, text: "", at: D };
+  if (E.essayPlan(F).stage !== "write") fail("after planning, the next day is write");
+}
+
 // 6) Simulate 30 days of missions with a student who is right ~75% of the time.
-let S = E.blank(); const SR = FIG.rng(99);
+let S = E.blank(); const SR = FIG.rng(99); let essays = 0, lessons = 0;
 for (let d = 0; d < 30; d++) {
-  const date = E.addDays("2026-10-05", d), m = E.mission(S, date, SR);
-  if (m.items.length < 10 || m.items.length > 16) fail(`mission size ${m.items.length} on ${date}`);
+  const date = E.addDays("2026-10-05", d), m = E.mission(S, date, SR), qs = m.items.filter((x) => !x.kind);
+  if (qs.length < 5 || qs.length > 16) fail(`mission has ${qs.length} questions on ${date}`);
+  if (m.minutes > 21) fail(`mission ~${m.minutes} min on ${date}`);
   for (const it of m.items) {
+    if (it.kind === "lesson") { if (!SK.SKILLS[it.skill]) fail("lesson skill " + it.skill); S.lessons[it.skill] = date; lessons++; continue; }
+    if (it.kind === "essay") {
+      if (it.stage === "plan") S.drafts[it.pid] = { plan: { claim: "My claim is clear here", r1: "Reason one with evidence", r2: "Reason two with evidence" }, text: "", at: date };
+      else { S.essays.push({ pid: it.pid, at: date }); delete S.drafts[it.pid]; essays++; }
+      continue;
+    }
     if (!SK.SKILLS[it.skill]) fail("mission item skill " + it.skill);
     const right = SR.f() < 0.75;
     const resp = right ? (it.t ? it.ans : it.b ? { a: it.a, b: it.b.a } : it.a) : (it.t ? "-999" : it.b ? { a: (it.a + 1) % it.o.length, b: 0 } : Array.isArray(it.a) ? [9, 9] : (it.a + 1) % it.o.length);
@@ -108,6 +148,8 @@ for (let d = 0; d < 30; d++) {
   }
   E.day(S, date).set = 1;
 }
+if (essays < 3) fail(`expected a weekly essay over 30 days, got ${essays}`);
+console.log(`30-day simulation: ${essays} essays written, ${lessons} lesson cards`);
 if (S.streak.cur !== 30) fail("streak should be 30, got " + S.streak.cur);
 const cats = Object.keys(SK.CATS).map((c) => [c, E.catScore(S, c).score]);
 console.log("After 30 simulated days:", cats.map(([c, s]) => c + "=" + s).join(" "), "| coins", S.coins, "| path at", E.pathNext(S).id);

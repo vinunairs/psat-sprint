@@ -219,12 +219,14 @@
     const msg = done ? "Mission complete! Want a bonus round?" : run ? "Let's finish today's mission!" : CHEERS[new Date().getDate() % CHEERS.length];
     main.append(h("div", { class: "buddy-zone", style: "margin:4px 0 14px" }, buddyEl(done ? "dance-" + S.move : ""), h("div", { class: "bubble grow", text: `Hi ${S.settings.name || "friend"}! ${msg}` })));
 
-    // Today's mission
+    // Today's mission: one button that walks her through every step in order.
     const total = run ? run.items.length : 0, at = run ? run.i : 0;
+    const outline = run ? { groups: E.stepGroups(run.items), minutes: E.estimateMin(run.items) + " min" } : (() => { const o = E.missionOutline(S, date); return { groups: o.groups, minutes: o.minutes + " min" }; })();
     const card = h("div", { class: "card hero mission stack" },
-      h("div", { class: "row" }, h("h2", { class: "grow", text: done ? "✅ Today's mission: done!" : "🎯 Today's mission" }), h("span", { class: "chip tag", text: "10–15 min" })),
-      h("p", { text: done ? `You answered ${d.c} of ${d.q} right today. ${S.streak.cur > 1 ? "🔥 " + S.streak.cur + "-day streak!" : ""}` : "Warm-up, math, then reading or word power. Weak spots come first so they get stronger!" }));
-    if (run && !done) card.append(h("div", { class: "bar", "aria-label": `${at} of ${total} done` }, h("i", { style: `width:${pct(at, total)}%` })), h("p", { class: "small", text: `${at} of ${total} questions done` }));
+      h("div", { class: "row" }, h("h2", { class: "grow", text: done ? "✅ Today's mission: done!" : "🎯 Today's mission" }), done ? null : h("span", { class: "chip tag", text: "~" + outline.minutes })),
+      done ? h("p", { text: `You answered ${d.c} of ${d.q} right today. ${S.streak.cur > 1 ? "🔥 " + S.streak.cur + "-day streak!" : ""}` }) : h("p", { text: "Tap one button — I'll walk you through everything, one step at a time." }),
+      done ? null : h("div", { class: "steps-strip home" }, outline.groups.map((g) => h("span", { class: "step" }, E.GROUPS[g].join(" ")))));
+    if (run && !done) card.append(h("div", { class: "bar", "aria-label": `${at} of ${total} steps done` }, h("i", { style: `width:${pct(at, total)}%` })), h("p", { class: "small", text: `${at} of ${total} steps done` }));
     card.append(h("div", { class: "row" },
       done ? h("button", { class: "btn primary", onclick: () => startBonus() }, "⚡ Bonus round") : h("button", { class: "btn primary", onclick: () => startMission() }, run && at > 0 ? "Keep going ▶" : "Start mission ▶")));
     main.append(card);
@@ -234,7 +236,7 @@
     const locked = !missionDone();
     grid.append(tile("🍡", "Math path", locked ? "🔒 Do your mission first — it has your next path stop in it!" : `Next stop: ${next.name}`, () => (locked ? missionFirst() : openSkill(next.id)), false, locked));
     const wk = S.essays.filter((e) => e.at >= E.addDays(date, -6)).length;
-    grid.append(tile("✏️", wk ? "Writing ✓ this week" : "Weekly essay", wk ? "Nice work! Try a writing workout." : "Write one FAST-style essay this week (+100 🪙)", () => go("writing"), wk > 0));
+    grid.append(tile("✏️", wk ? "Writing ✓ this week" : "Weekly essay", wk ? "Nice work! Try a writing workout." : "It's part of your mission this week (+100 🪙)", () => go("writing"), wk > 0));
     grid.append(tile("🌸", "Word Power", locked ? "🔒 Unlocks after your mission" : "8 quick vocabulary questions", gated(() => startRun({ title: "Word Power", items: E.wordPower(S, 8, R()), kind: "practice" })), false, locked));
     grid.append(tile("🚀", "Level Up zone", locked ? "🔒 Unlocks after your mission" : "Try 5th-grade questions!", gated(() => go("math", "stretch")), false, locked));
     main.append(grid);
@@ -351,7 +353,7 @@
     for (const p of B.prompts || []) {
       const did = S.essays.filter((e) => e.pid === p.id), draft = S.drafts[p.id];
       list.append(h("div", { class: "skl" }, h("div", { class: "nm" }, h("b", { text: p.title }), h("div", { class: "small muted", text: `${p.mode === "opinion" ? "Opinion" : "Informative"}${p.lv >= 5 ? " · 🚀 Level Up" : ""}${did.length ? " · ✓ written" : draft ? " · draft saved" : ""}` })),
-        h("button", { class: "btn small" + (did.length ? "" : " primary"), onclick: () => { essayOpen = { id: p.id, step: draft ? (draft.text ? 2 : 1) : 0 }; render(); window.scrollTo(0, 0); } }, did.length ? "Again" : draft ? "Continue" : "Start")));
+        h("button", { class: "btn small" + (did.length ? "" : " primary"), onclick: () => { essayOpen = { id: p.id, step: draft ? (draft.text ? "write" : "plan") : "read" }; render(); window.scrollTo(0, 0); } }, did.length ? "Again" : draft ? "Continue" : "Start")));
     }
     main.append(list);
     if (S.essays.length) {
@@ -369,57 +371,77 @@
   const rubricLine = (s) => `Purpose & Organization ${s["w.org"] ?? "–"}/4 · Evidence & Elaboration ${s["w.evid"] ?? "–"}/4 · Conventions ${s["w.conv"] ?? "–"}/2`;
   function pageEssay(main, st) {
     const p = (B.prompts || []).find((x) => x.id === st.id); if (!p) { essayOpen = null; return pageWriting(main); }
-    const dr = (S.drafts[p.id] = S.drafts[p.id] || { plan: {}, text: "", at: E.today() });
-    const steps = ["1 Read", "2 Plan", "3 Write", "4 Check"];
     main.append(h("div", { class: "row" }, h("button", { class: "btn small ghost", onclick: () => { essayOpen = null; render(); } }, "← Writing"), h("span", { class: "chip tag", text: p.mode === "opinion" ? "Opinion essay" : "Informative essay" })));
     main.append(h("h1", { text: p.title, style: "margin:6px 0" }));
-    main.append(h("div", { class: "wtabs" }, steps.map((t, i) => h("button", { "aria-pressed": String(st.step === i), onclick: () => { st.step = i; render(); } }, t))));
-    const promptBox = h("div", { class: "card flat", style: "background:var(--grape-soft);border-color:transparent" }, h("b", { text: "Your task: " }), h("span", { html: inline(p.prompt) }));
+    const host = h("div", {}); main.append(host);
+    essayEditor(host, p, st, { mode: "full", onDone: () => { essayOpen = null; tab = "writing"; render(); } });
+  }
+  // The essay editor, used by the Writing tab ("full": read → plan → write → check) and by the daily mission
+  // ("plan": read → plan, day 1; "write": write → check → turn in, day 2). The draft saves on every keystroke.
+  const ESSAY_STEPS = { full: ["read", "plan", "write", "check"], plan: ["read", "plan"], write: ["write", "check"] };
+  const STEP_LABEL = { read: "Read", plan: "Plan", write: "Write", check: "Check" };
+  function essayEditor(host, p, st, opts) {
+    const steps = ESSAY_STEPS[opts.mode];
+    const dr = (S.drafts[p.id] = S.drafts[p.id] || { plan: {}, text: "", at: E.today() });
+    if (!steps.includes(st.step)) st.step = steps.includes(dr.step) ? dr.step : steps[0];
     const saveDraft = () => { dr.at = E.today(); save(); };
-    if (st.step === 0) {
-      main.append(promptBox);
-      let which = 0; const box = h("div", { class: "passage", style: "margin-top:12px" });
-      const draw = () => { box.textContent = ""; box.append(h("div", { class: "ptabs" }, p.sources.map((s, i) => h("button", { "aria-pressed": String(i === which), onclick: () => { which = i; draw(); } }, "Source " + (i + 1)))), passageBody({ title: p.sources[which].title, text: p.sources[which].text, genre: "info" })); };
-      draw(); main.append(box, h("div", { class: "row", style: "margin-top:14px" }, h("button", { class: "btn primary", onclick: () => { st.step = 1; render(); window.scrollTo(0, 0); } }, "I read both → Plan")));
-    } else if (st.step === 1) {
-      main.append(promptBox, h("p", { class: "muted", text: "Plan first — great writers do! Fill in the boxes using your own words and facts from the sources." }));
-      const fld = (k, label, hint) => { const t = h("textarea", { rows: "3", placeholder: hint }); t.value = dr.plan[k] || ""; t.addEventListener("input", () => { dr.plan[k] = t.value; saveDraft(); }); return h("label", { class: "field" }, h("span", {}, label, h("div", { class: "hint", html: inline(hint) })), t); };
-      main.append(fld("hook", "🪝 Hook", p.plan.hook), fld("claim", p.mode === "opinion" ? "📣 My opinion (claim)" : "🎯 My main idea", p.plan.claim),
-        fld("r1", "1️⃣ Reason / point 1 + evidence", p.plan.reasons[0]), fld("r2", "2️⃣ Reason / point 2 + evidence", p.plan.reasons[1] || ""), fld("end", "🏁 Conclusion", p.plan.conclusion),
-        h("div", { class: "row" }, h("button", { class: "btn", onclick: () => { st.step = 0; render(); } }, "← Sources"), h("button", { class: "btn primary", onclick: () => { st.step = 2; render(); window.scrollTo(0, 0); } }, "Start writing →")));
-    } else if (st.step === 2) {
-      const ta = h("textarea", { class: "essay", placeholder: "Write your essay here. Use your plan! Press Enter twice between paragraphs." }); ta.value = dr.text || "";
-      const wc = h("span", { class: "chip" }), fx = h("span", { class: "chip" }), upd = () => { const n = (ta.value.match(/[A-Za-z']+/g) || []).length; wc.textContent = n + " words"; const c = E.conventions(ta.value).filter((x) => x.kind !== "end").length; fx.textContent = c ? `✏️ ${c} fix-it${c === 1 ? "" : "s"}` : "✏️ 0"; fx.title = "Spelling and word fix-its (details in step 4)"; };
-      ta.addEventListener("input", () => { dr.text = ta.value; upd(); saveDraft(); }); upd();
-      const planView = h("details", { class: "card flat" }, h("summary", { style: "font-weight:800;cursor:pointer", text: "📋 My plan" }), ...["hook", "claim", "r1", "r2", "end"].filter((k) => dr.plan[k]).map((k) => h("p", { class: "small", text: dr.plan[k] })));
-      const srcView = h("details", { class: "card flat", style: "margin-top:8px" }, h("summary", { style: "font-weight:800;cursor:pointer", text: "📄 Sources" }), ...p.sources.map((s) => h("div", {}, h("h3", { text: s.title, style: "margin-top:10px" }), h("div", { class: "small", html: rich(s.text) }))));
-      main.append(promptBox, planView, srcView, h("div", { class: "row", style: "margin:12px 0 6px" }, h("b", { class: "grow", text: "Write" }), fx, wc), ta,
-        h("div", { class: "row", style: "margin-top:12px" }, h("button", { class: "btn", onclick: () => { st.step = 1; render(); } }, "← Plan"), h("button", { class: "btn primary", onclick: () => { st.step = 3; render(); window.scrollTo(0, 0); } }, "Check my essay →")));
-    } else {
-      const ck = E.essayChecks(dr.text, p);
-      main.append(h("div", { class: "card" }, h("h3", { text: "🤖 Quick checks" }), h("ul", { class: "checks" }, ck.list.map((c) => h("li", { class: c.ok ? "ok" : "", text: c.text })))));
-      if (ck.conv.length) main.append(h("div", { class: "card fixits", style: "margin-top:14px" }, h("h3", { text: "✏️ Fix-it hints" }),
-        h("p", { class: "small muted", text: "Good writers always fix these before turning in. Go back to step 3, fix each one, then come back here." }),
-        h("ul", {}, ck.conv.map((c) => h("li", { text: c.hint }))),
-        h("button", { class: "btn small", onclick: () => { st.step = 2; render(); window.scrollTo(0, 0); } }, "✏️ Fix them in step 3")));
-      const self = (dr.self = dr.self || {});
-      const rub = h("div", { class: "card selfcheck", style: "margin-top:14px" }, h("h3", { text: "✅ Check it like a FAST scorer" }), h("p", { class: "small muted", text: "Tick each one you really did. Fix anything you missed in step 3!" }));
-      (B.rubric || []).forEach((r) => {
-        rub.append(h("h3", { text: `${r.name} (${r.max} pts)`, style: "margin-top:12px;font-size:16px" }));
-        r.checks.forEach((c, i) => { const key = r.domain + ":" + i, cb = h("input", { type: "checkbox", checked: self[key] ? true : null, onchange: () => { self[key] = cb.checked; saveDraft(); } }); rub.append(h("label", {}, cb, h("span", { text: c }))); });
-      });
-      main.append(rub, h("div", { class: "row", style: "margin-top:14px" }, h("button", { class: "btn", onclick: () => { st.step = 2; render(); } }, "← Fix my essay"),
-        h("button", { class: "btn primary", disabled: ck.words < 60 || !ck.ready ? true : null, onclick: () => submitEssay(p, dr, ck) }, ck.words < 60 ? "Write at least 60 words first" : !ck.ready ? "Fix the ✏️ hints to turn it in" : "Turn it in! (+100 🪙)")));
-    }
+    const go = (step) => { st.step = dr.step = step; saveDraft(); draw(); (host.closest(".runner") || window).scrollTo(0, 0); };
+    const draw = () => {
+      host.textContent = "";
+      host.append(h("div", { class: "wtabs" }, steps.map((k, i) => h("button", { "aria-pressed": String(st.step === k), onclick: () => go(k) }, `${i + 1} ${STEP_LABEL[k]}`))));
+      const promptBox = h("div", { class: "card flat", style: "background:var(--grape-soft);border-color:transparent" }, h("b", { text: "Your task: " }), h("span", { html: inline(p.prompt) }));
+      if (st.step === "read") {
+        host.append(promptBox);
+        let which = 0; const box = h("div", { class: "passage", style: "margin-top:12px" });
+        const drawSrc = () => { box.textContent = ""; box.append(h("div", { class: "ptabs" }, p.sources.map((s, i) => h("button", { "aria-pressed": String(i === which), onclick: () => { which = i; drawSrc(); } }, "Source " + (i + 1)))), passageBody({ title: p.sources[which].title, text: p.sources[which].text, genre: "info" })); };
+        drawSrc(); host.append(box, h("div", { class: "row", style: "margin-top:14px" }, h("button", { class: "btn primary", onclick: () => go("plan") }, "I read both → Plan")));
+      } else if (st.step === "plan") {
+        host.append(promptBox, h("p", { class: "muted", text: "Plan first — great writers do! Fill in the boxes using your own words and facts from the sources." }));
+        const need = h("p", { class: "small", style: "font-weight:700" });
+        const planned = () => ["claim", "r1", "r2"].filter((k) => String(dr.plan[k] || "").trim().length >= 10).length;
+        const finish = opts.mode === "plan" ? h("button", { class: "btn primary", onclick: () => { if (planned() < 3) return; saveDraft(); opts.onDone("plan"); } }, "Save my plan ✓") : null;
+        const upd = () => { const n = planned(); if (finish) finish.disabled = n < 3 ? true : null; need.textContent = opts.mode === "plan" ? (n < 3 ? `Fill in your ${p.mode === "opinion" ? "opinion" : "main idea"} and both reasons to finish (${n} of 3).` : "Great plan! Tomorrow's mission: write it. ✏️") : ""; };
+        const fld = (k, label, hint) => { const t = h("textarea", { rows: "3", placeholder: hint, "data-k": k }); t.value = dr.plan[k] || ""; t.addEventListener("input", () => { dr.plan[k] = t.value; saveDraft(); upd(); }); return h("label", { class: "field" }, h("span", {}, label, h("div", { class: "hint", html: inline(hint) })), t); };
+        host.append(fld("hook", "🪝 Hook", p.plan.hook), fld("claim", p.mode === "opinion" ? "📣 My opinion (claim)" : "🎯 My main idea", p.plan.claim),
+          fld("r1", "1️⃣ Reason / point 1 + evidence", p.plan.reasons[0]), fld("r2", "2️⃣ Reason / point 2 + evidence", p.plan.reasons[1] || ""), fld("end", "🏁 Conclusion", p.plan.conclusion), need,
+          h("div", { class: "row" }, h("button", { class: "btn", onclick: () => go("read") }, "← Sources"), finish || h("button", { class: "btn primary", onclick: () => go("write") }, "Start writing →")));
+        upd();
+      } else if (st.step === "write") {
+        const ta = h("textarea", { class: "essay", placeholder: "Write your essay here. Use your plan! Press Enter twice between paragraphs." }); ta.value = dr.text || "";
+        const wc = h("span", { class: "chip" }), fx = h("span", { class: "chip" }), upd = () => { const n = E.wordsIn(ta.value); wc.textContent = n + " words"; const c = E.conventions(ta.value).filter((x) => x.kind !== "end").length; fx.textContent = c ? `✏️ ${c} fix-it${c === 1 ? "" : "s"}` : "✏️ 0"; fx.title = "Spelling and word fix-its (details in the Check step)"; };
+        ta.addEventListener("input", () => { dr.text = ta.value; upd(); saveDraft(); }); upd();
+        const planView = h("details", { class: "card flat", open: opts.mode === "write" && !dr.text ? true : null }, h("summary", { style: "font-weight:800;cursor:pointer", text: "📋 My plan" }), ...["hook", "claim", "r1", "r2", "end"].filter((k) => dr.plan[k]).map((k) => h("p", { class: "small", text: dr.plan[k] })));
+        const srcView = h("details", { class: "card flat", style: "margin-top:8px" }, h("summary", { style: "font-weight:800;cursor:pointer", text: "📄 Sources" }), ...p.sources.map((s) => h("div", {}, h("h3", { text: s.title, style: "margin-top:10px" }), h("div", { class: "small", html: rich(s.text) }))));
+        host.append(promptBox, planView, srcView, h("div", { class: "row", style: "margin:12px 0 6px" }, h("b", { class: "grow", text: "Write" }), fx, wc), ta,
+          h("div", { class: "row", style: "margin-top:12px" }, steps.includes("plan") ? h("button", { class: "btn", onclick: () => go("plan") }, "← Plan") : null, h("button", { class: "btn primary", onclick: () => go("check") }, "Check my essay →")));
+      } else {
+        const ck = E.essayChecks(dr.text, p);
+        host.append(h("div", { class: "card" }, h("h3", { text: "🤖 Quick checks" }), h("ul", { class: "checks" }, ck.list.map((c) => h("li", { class: c.ok ? "ok" : "", text: c.text })))));
+        if (ck.conv.length) host.append(h("div", { class: "card fixits", style: "margin-top:14px" }, h("h3", { text: "✏️ Fix-it hints" }),
+          h("p", { class: "small muted", text: "Good writers always fix these before turning in. Go back to Write, fix each one, then come back here." }),
+          h("ul", {}, ck.conv.map((c) => h("li", { text: c.hint }))),
+          h("button", { class: "btn small", onclick: () => go("write") }, "✏️ Fix them now")));
+        const self = (dr.self = dr.self || {});
+        const rub = h("div", { class: "card selfcheck", style: "margin-top:14px" }, h("h3", { text: "✅ Check it like a FAST scorer" }), h("p", { class: "small muted", text: "Tick each one you really did. Fix anything you missed!" }));
+        (B.rubric || []).forEach((r) => {
+          rub.append(h("h3", { text: `${r.name} (${r.max} pts)`, style: "margin-top:12px;font-size:16px" }));
+          r.checks.forEach((c, i) => { const key = r.domain + ":" + i, cb = h("input", { type: "checkbox", checked: self[key] ? true : null, onchange: () => { self[key] = cb.checked; saveDraft(); } }); rub.append(h("label", {}, cb, h("span", { text: c }))); });
+        });
+        host.append(rub, h("div", { class: "row", style: "margin-top:14px" }, h("button", { class: "btn", onclick: () => go("write") }, "← Fix my essay"),
+          h("button", { class: "btn primary", disabled: ck.words < 60 || !ck.ready ? true : null, onclick: () => { if (submitEssay(p, dr, ck)) opts.onDone("write"); } }, ck.words < 60 ? "Write at least 60 words first" : !ck.ready ? "Fix the ✏️ hints to turn it in" : "Turn it in! (+100 🪙)")));
+      }
+    };
+    draw();
   }
   function submitEssay(p, dr, ck) {
-    if (!ck.ready || ck.words < 60) return;
+    if (!ck.ready || ck.words < 60) return false;
     const selfScore = {}; for (const r of B.rubric || []) { const n = r.checks.filter((_, i) => dr.self && dr.self[r.domain + ":" + i]).length; selfScore[r.domain] = Math.round((n / r.checks.length) * r.max); }
     const essay = { id: p.id + "-" + Date.now().toString(36), pid: p.id, title: p.title, mode: p.mode, text: dr.text, words: ck.words, at: E.today(), self: selfScore, checks: ck.list.filter((c) => c.ok).length + "/" + ck.list.length };
     S.essays.push(essay); delete S.drafts[p.id];
     E.earn(S, 100); const d = E.day(S, E.today()); d.essays = (d.essays || 0) + 1; E.touchStreak(S, E.today()); E.unlockMoves(S);
-    save(); essayOpen = null; tab = "writing"; render(); confetti();
+    save(); confetti();
     toast("Essay turned in! +100 🪙 Your grown-up can score it.");
+    return true;
   }
 
   /* ---------- Me: progress, squishies, rewards, settings ---------- */
@@ -585,12 +607,32 @@
     if (runner && runner.cfg.kind === "mission" && S.run) { S.run.i = runner.res.length; S.run.res = runner.res; save(); }
     runner = null; $("#runner") && $("#runner").remove(); render();
   }
+  // Mission step strip: 💡 Lesson · 🍡 Math · 📖 Reading · ✏️ Essay, with ✓ for finished groups.
+  function stepStrip(r) {
+    const groups = E.stepGroups(r.items), cur = E.stepGroup(r.items[r.i]);
+    return h("div", { class: "steps-strip", "aria-label": "Today's steps" }, groups.map((g) => {
+      const idx = r.items.map((it, k) => (E.stepGroup(it) === g ? k : -1)).filter((k) => k >= 0), done = idx.every((k) => k < r.res.length);
+      const [ic, name] = E.GROUPS[g];
+      return h("span", { class: "step" + (done ? " done" : g === cur ? " cur" : "") }, `${ic} ${name}${done ? " ✓" : ""}`);
+    }));
+  }
+  const resClass = (v) => (v === true ? "ok" : v === false ? "no" : "step-done");
+  // Mark a lesson card or essay step finished and move on (keeps res[] aligned with items[]).
+  function stepDone(mark) {
+    const r = runner; r.res.push(mark);
+    if (r.cfg.kind === "mission" && S.run) { S.run.i = r.i + 1; S.run.res = r.res; }
+    save(); next();
+  }
   function drawRun() {
     const old = $("#runner"); if (old) old.remove();
     const r = runner, it = r.items[r.i];
     const el = h("div", { class: "runner", id: "runner", role: "dialog", "aria-label": r.cfg.title });
-    const prog = h("div", { class: "prog", "aria-label": `Question ${r.i + 1} of ${r.items.length}` }, r.items.map((_, k) => h("i", { class: k < r.res.length ? (r.res[k] ? "ok" : "no") : k === r.i ? "cur" : "" })));
-    el.append(h("div", { class: "run-top" }, h("button", { class: "btn small ghost", "aria-label": "Take a break", onclick: () => confirmExit() }, "✕"), prog, h("span", { class: "chip coin", text: "🪙 " + S.coins.toLocaleString() })));
+    const prog = h("div", { class: "prog", "aria-label": `Step ${r.i + 1} of ${r.items.length}` }, r.items.map((x, k) => h("i", { class: (k < r.res.length ? resClass(r.res[k]) : k === r.i ? "cur" : "") + (x.kind ? " kind" : "") })));
+    const top = h("div", { class: "run-top" }, h("button", { class: "btn small ghost", "aria-label": "Take a break", onclick: () => confirmExit() }, "✕"), prog, h("span", { class: "chip coin", text: "🪙 " + S.coins.toLocaleString() }));
+    if (r.cfg.kind === "mission") top.append(stepStrip(r));
+    el.append(top);
+    if (it.kind === "lesson") return drawLesson(el, it);
+    if (it.kind === "essay") return drawEssayStep(el, it);
     const body = h("div", { class: "run-body" });
     const p = it.pid ? passageOf(it.pid) : null;
     const cols = h("div", { class: "run-cols" + (p ? " has-p" : "") });
@@ -666,6 +708,39 @@
     $("#app").after(el);
     el.scrollTop = 0;
   }
+  // 💡 Quick lesson card: the skill's tip plus a worked example (math), then "Got it ▶".
+  function drawLesson(el, it) {
+    const s = SK.SKILLS[it.skill], ex = it.ex;
+    const card = h("div", { class: "qcard lesson-card" },
+      h("div", { class: "qtag" }, h("span", { class: "chip tag", text: "💡 Quick lesson" }), h("span", { class: "chip tag", style: "background:var(--sunk)", text: s.name })),
+      h("h2", { text: s.name, style: "margin:4px 0 10px" }),
+      h("div", { class: "card flat", style: "background:var(--lemon-soft);border-color:transparent" }, h("b", { text: "The trick: " }), h("span", { html: inline(s.tip) })));
+    if (ex) {
+      const answer = ex.t ? ex.ans + (ex.unit ? " " + ex.unit : "") : Array.isArray(ex.a) ? ex.a.map((i) => ex.o[i]).join(" and ") : ex.o[ex.a];
+      card.append(h("h3", { text: "👀 Watch one", style: "margin:16px 0 6px" }), h("div", { class: "qtext", html: rich(ex.q) }), h("div", { html: ex.fig || "" }),
+        h("div", { class: "feedback ok", style: "margin-top:10px" }, h("p", { html: "<b>Answer:</b> " + inline(ex.t && String(ex.ans).includes("/") ? "[[" + ex.ans + "]]" : answer) }), h("div", { html: rich(ex.e) })));
+    } else card.append(h("p", { class: "muted", style: "margin-top:12px", text: "Look for this in the next questions!" }));
+    el.append(h("div", { class: "run-body" }, card));
+    el.append(h("div", { class: "run-foot" }, h("div", { class: "in" }, h("button", { class: "btn primary grow", onclick: () => { S.lessons = S.lessons || {}; S.lessons[it.skill] = E.today(); stepDone("L"); } }, "Got it ▶"))));
+    $("#app").after(el); el.scrollTop = 0;
+  }
+  // ✏️ Essay step inside the mission: day 1 read + plan, day 2 write + fix-its + turn in. Pausing keeps the draft.
+  function drawEssayStep(el, it) {
+    const p = (B.prompts || []).find((x) => x.id === it.pid), body = h("div", { class: "run-body" });
+    el.append(body);
+    const already = S.essays.some((e) => e.pid === it.pid && S.run && e.at >= S.run.date);
+    if (!p || (it.stage === "write" && already)) {
+      body.append(h("div", { class: "qcard" }, h("h2", { text: "✏️ Essay done!" }), h("p", { text: "You already turned in this essay. Great writing!" })));
+      el.append(h("div", { class: "run-foot" }, h("div", { class: "in" }, h("button", { class: "btn primary grow", onclick: () => stepDone("E") }, "Continue ▶"))));
+    } else {
+      body.append(h("div", { class: "qtag" }, h("span", { class: "chip tag", text: it.stage === "plan" ? "✏️ Essay · day 1: read & plan" : "✏️ Essay · write & check" }), h("span", { class: "chip tag", style: "background:var(--sunk)", text: p.mode === "opinion" ? "Opinion essay" : "Informative essay" })),
+        h("h2", { text: p.title, style: "margin:6px 0 10px" }));
+      const host = h("div", { class: "essay-step" }); body.append(host);
+      essayEditor(host, p, { step: null }, { mode: it.stage, onDone: () => stepDone("E") });
+      el.append(h("div", { class: "run-foot" }, h("div", { class: "in" }, h("button", { class: "btn ghost grow", onclick: () => exitRun() }, "⏸ Pause — I'll finish later"))));
+    }
+    $("#app").after(el); el.scrollTop = 0;
+  }
   function next() { runner.i++; if (runner.i >= runner.items.length) return finishRun(); drawRun(); }
   document.addEventListener("visibilitychange", () => { const st = runner && runner.state; if (!st) return; if (document.hidden) st.hid = Date.now(); else if (st.hid) { st.away += Date.now() - st.hid; st.hid = null; } });
   function confirmExit() {
@@ -700,7 +775,7 @@
     document.body.append(c); setTimeout(() => c.remove(), 3800);
   }
   function finishRun() {
-    const r = runner, right = r.res.filter(Boolean).length, n = r.res.length, date = E.today(), notes = [];
+    const r = runner, qs = r.res.filter((v) => v === true || v === false), right = qs.filter(Boolean).length, n = qs.length, date = E.today(), notes = [];
     const rk0 = E.rank(r.xp0);
     if (r.cfg.kind === "mission") {
       const d = E.day(S, date), first = !d.set; d.set = 1; d.sets = (d.sets || 0) + 1; S.run = null;
@@ -715,11 +790,12 @@
     const tooEasy = !!(up && r.cfg.kind === "practice" && n >= 8 && right === n && r.items.every((it) => it.lv === 3) && (r.secs || 0) < 90);
     save(); push();
     const el = $("#runner"); el.textContent = "";
-    const msg = right === n ? "PERFECT! Every single one! 🏆" : right / n >= 0.8 ? "Amazing work!" : right / n >= 0.6 ? "Nice job — you're getting stronger!" : "You kept going — that's what champions do!";
+    if (r.res.includes("E")) notes.unshift(r.items.some((x) => x.kind === "essay" && x.stage === "plan") ? "✏️ Essay plan saved — tomorrow you'll write it!" : "✏️ Weekly essay turned in!");
+    const msg = !n ? "All steps done!" : right === n ? "PERFECT! Every single one! 🏆" : right / n >= 0.8 ? "Amazing work!" : right / n >= 0.6 ? "Nice job — you're getting stronger!" : "You kept going — that's what champions do!";
     el.append(h("div", { class: "run-body" }, h("div", { class: "done-wrap stack" },
       h("div", { class: "buddy", html: SQ.svg(S.buddy || "mochi", { cls: "dance-" + S.move }) }),
       h("h1", { text: r.cfg.kind === "mission" ? "Mission complete!" : "Set complete!" }),
-      h("div", { class: "big-num", text: `${right} / ${n}` }), h("p", { style: "font-weight:800", text: msg }),
+      n ? h("div", { class: "big-num", text: `${right} / ${n}` }) : null, h("p", { style: "font-weight:800", text: msg }),
       h("p", { class: "chip coin", style: "font-size:18px", text: `+${r.coins} 🪙 mochi coins` }),
       ...notes.map((t) => h("p", { style: "font-weight:700", text: t })),
       tooEasy ? h("div", { class: "card hero stack", style: "text-align:left" }, h("h2", { text: "🚀 Too easy? Try Level Up!" }),
