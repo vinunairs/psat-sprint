@@ -1344,6 +1344,13 @@
      evening habits (home, dinner, shower). Ticks live in S.hw[id] = {done, est}; extras the student adds in S.hwx;
      the day's habit times in S.eve[date]. The Daily 20 is three parts read from today's activity: 5 cards,
      10 questions, 1 notebook question. All of it is in one card at the top of Today. */
+  // Hillsborough County Public Schools 2026–27: student holidays and breaks (no school). Treated like weekends:
+  // no school-hours rule, home all day, weekend-style evening plan. Source: the district calendar (floridaschoolcalendar.com copy).
+  const NO_SCHOOL = new Set(["2026-09-07", "2026-10-12", "2026-11-11", "2026-11-23", "2026-11-24", "2026-11-25", "2026-11-26", "2026-11-27",
+    "2026-12-21", "2026-12-22", "2026-12-23", "2026-12-24", "2026-12-25", "2026-12-28", "2026-12-29", "2026-12-30", "2026-12-31", "2027-01-01",
+    "2027-01-04", "2027-01-18", "2027-02-12", "2027-02-15", "2027-03-08", "2027-03-22", "2027-03-23", "2027-03-24", "2027-03-25", "2027-03-26",
+    "2027-03-29", "2027-04-16"]);
+  const isSchoolDay = (d) => { const w = parseYmd(d).getDay(); return w >= 1 && w <= 5 && !NO_SCHOOL.has(d) && d >= "2026-08-10" && d <= "2027-05-28"; };
   const EVE_DEF = { home: { 1: "16:30", 2: "17:30", 3: "17:30", 4: "17:30", 5: "17:30", 0: "10:00", 6: "10:00" }, fixed: {} };
   const eveCfg = () => { const c = S.settings.evening || {}; return { home: Object.assign({}, EVE_DEF.home, c.home || {}), fixed: Object.assign({}, EVE_DEF.fixed, c.fixed || {}) }; };
   let HW = null; // {at, items} from the inbox
@@ -1400,10 +1407,10 @@
   function skipEventToday(id) { const ev = eveDay(); (ev.skip || (ev.skip = [])).push(id); save(); render(); }
   // The evening in order. Dinner and shower float, so they are habits with a time, not blocks.
   function evePlan() {
-    const d = new Date(), dow = d.getDay(), cfg = eveCfg(), ev = eveDay(), t = today(), school = dow >= 1 && dow <= 5;
+    const d = new Date(), dow = d.getDay(), cfg = eveCfg(), ev = eveDay(), t = today(), school = isSchoolDay(t);
     const hw = hwTonight(), left = hw.filter((x) => !x.done), hwMin = left.reduce((s, x) => s + x.est, 0);
     const a = S.activity[t] || {};
-    const start = ev.home || cfg.home[dow], events = eventsOn(t), bedBy = "21:45";
+    const start = ev.home || cfg.home[school ? dow : 0], events = eventsOn(t), bedBy = "21:45";
     // Minutes the evening really has: from settling in to lights-out, minus event windows (a Canvas event with no time takes the whole evening).
     const windows = events.map((e) => [hmMin(e.at || hmAdd(start, 20)) - (e.src === "canvas" ? 0 : 15), hmMin(e.end || bedBy) + (e.src === "canvas" ? 0 : 10)]);
     let free = 0; for (let m = hmMin(hmAdd(start, 20)); m < hmMin(bedBy); m += 5) if (!windows.some(([x, y]) => m >= x && m < y)) free += 5;
@@ -1499,7 +1506,7 @@
   // Screen time (Plan page): the last 7 days from Qustodio's daily summary, sorted into kinds, with blocked tries
   // during the homework window counted as the distraction signal.
   const SCREEN_KIND = (name, cat) => { const n = (name || "").toLowerCase(), c = (cat || "").toLowerCase();
-    if (/educational|search portal|canvas|classlink|instructure|github\.io|docs\.google|classroom|khan|collegeboard|bluebook|school|reference/.test(n + " " + c)) return "study";
+    if (/educational|search portal|search engines|canvas|classlink|instructure|github\.io|docs\.google|classroom|khan|collegeboard|bluebook|school|reference/.test(n + " " + c)) return "study";
     if (/fl studio|garageband|logic|ableton|audacity|music creation|finale|musescore/.test(n)) return "creative";
     if (/whatsapp|messages|imessage|discord|snapchat|instagram|facetime|social/.test(n + " " + c)) return "social";
     if (/youtube|entertainment|games?|netflix|twitch|reddit|tiktok|itch\.io|roblox|steam|spotify|music/.test(n + " " + c)) return "fun";
@@ -1514,8 +1521,19 @@
     const src = (x.cats && x.cats.length ? x.cats.map((c) => ({ n: c.n, min: c.min, cat: c.n })) : sites), smin = src.reduce((s, w) => s + w.min, 0);
     for (const w of src) by[SCREEN_KIND(w.n, w.cat)] += smin ? Math.round((w.min / smin) * Math.min(bmin, smin)) : 0;
     const known = Object.values(by).reduce((s, v) => s + v, 0); by.other += Math.max(0, (x.total || 0) - known);
-    const hwWin = (x.blocked || []).filter((b) => { const m = hmMin(b.at); return m >= hmMin("16:30") && m <= hmMin("19:45"); });
-    return { total: x.total || 0, by, blocked: x.blocked || [], hwBlocked: hwWin, searches: x.searches || [] }; }
+    // Dashboard reads net out the laptop's school-hours activity (it stays home), so the per-site minutes can add up to
+    // more than the day's total: scale them down to it.
+    if (known > (x.total || 0) && x.total) for (const k of Object.keys(by)) by[k] = Math.round((by[k] * x.total) / known);
+    // From the dashboard read: YouTube videos sorted by title into school / music / fun. Move that share of
+    // YouTube's minutes out of "fun" so a tutorial or a lesson isn't counted as entertainment.
+    const yt = x.yt && x.yt.n ? x.yt : null;
+    if (yt) {
+      const ytMin = [...sites, ...apps].filter((w) => /youtube(?!\s*music)/i.test(w.n)).reduce((s, w) => s + (w.min || 0), 0);
+      const toStudy = Math.round(ytMin * (yt.school || 0) / yt.n), toMusic = Math.round(ytMin * (yt.music || 0) / yt.n), moved = Math.min(by.fun, toStudy + toMusic);
+      if (moved) { by.fun -= moved; by.study += Math.round(moved * toStudy / (toStudy + toMusic)); by.creative += moved - Math.round(moved * toStudy / (toStudy + toMusic)); }
+    }
+    const hwWin = isSchoolDay(d) ? (x.blocked || []).filter((b) => { const m = hmMin(b.at); return m >= hmMin("16:30") && m <= hmMin("19:45"); }) : [];
+    return { total: x.total || 0, by, blocked: x.blocked || [], hwBlocked: hwWin, searches: x.searches || [], yt, blockedN: x.blockedN || [] }; }
   function screenCard() {
     if (!SCREEN || !SCREEN.days) return null;
     const t = today(), days = Array.from({ length: 7 }, (_, i) => addDays(t, i - 7)), rows = days.map((d) => [d, screenDay(d)]);
@@ -1560,11 +1578,11 @@
     const dur = (e) => (e.at && e.end ? Math.max(0, hmMin(e.end) - hmMin(e.at)) : 60);
     const evMin = evs.reduce((n, e) => n + dur(e), 0), musicEv = evs.filter((e) => MUSIC_RE.test(e.name)).reduce((n, e) => n + dur(e), 0);
     // Evening window: home (logged, else the usual time) to lights out (logged, else 10 pm; 11 pm Fri/Sat), less ~45 min for dinner and shower.
-    const home = ev.home || EVE_DEF.home[dow], bed = ev.bed || (late ? "23:00" : "22:00");
+    const sch = isSchoolDay(d), home = ev.home || EVE_DEF.home[sch ? dow : 0], bed = ev.bed || (late || !isSchoolDay(addDays(d, 1)) ? "23:00" : "22:00");
     const span = Math.max(0, hmMin(bed) + (hmMin(bed) < 300 ? 1440 : 0) - hmMin(home));
     const free = Math.max(0, span - 45 - hw - prep - brief - evMin);
     const active = !!((st.activity || {})[d] && ((st.activity[d].q || 0) > 0 || st.activity[d].mock || st.activity[d].cards || st.activity[d].words)) || prep >= 5 || (st.tests || []).some((x) => x.date === d);
-    return { d, sc, hw, hwN, prep, brief, music: (sc ? sc.by.creative : 0) + musicEv, evMin, free, prepped: active, weekend: dow === 0 || dow === 6 };
+    return { d, sc, hw, hwN, prep, brief, music: (sc ? sc.by.creative : 0) + musicEv, evMin, free, prepped: active, weekend: !sch };
   }
   function tbRows(src, n) { const t = today(); return Array.from({ length: n || 7 }, (_, i) => tbDay(src, addDays(t, i - (n || 7)))); }
   function tbInsights(src, rows, who) {
@@ -1589,13 +1607,21 @@
       const lateN = sd.filter((r) => r.sc.blocked.some((b) => hmMin(b.at) >= 22 * 60 || hmMin(b.at) < 5 * 60)).length;
       if (lateN) out.push({ k: lateN >= 3 ? "bad" : "warn", t: Nm + (you ? " tried" : " tried") + " a blocked site after 10 pm on " + lateN + " night" + (lateN === 1 ? "" : "s") + "." });
     }
+    // 4b. YouTube from the dashboard read: how many videos, how much was fun, and when.
+    const yd = sd.filter((r) => r.sc.yt);
+    if (yd.length) {
+      const n = yd.reduce((a, r) => a + r.sc.yt.n, 0), fun = yd.reduce((a, r) => a + (r.sc.yt.fun || 0), 0), late = yd.reduce((a, r) => a + (r.sc.yt.late || 0), 0), hwv = yd.reduce((a, r) => a + (r.sc.yt.hw || 0), 0);
+      if (n >= 20) out.push({ k: fun / n > 0.8 && n / yd.length > 60 ? "bad" : "warn", t: "YouTube: " + n + " videos in " + yd.length + " day" + (yd.length === 1 ? "" : "s") + " (about " + Math.round(n / yd.length) + " a day), " + Math.round((fun / n) * 100) + "% just for fun, mostly short clips." });
+      if (late >= 5) out.push({ k: "bad", t: late + " videos watched between 10 pm and 6:30 am." + (you ? " Late nights make the next day harder." : "") });
+      if (hwv >= 5) out.push({ k: "warn", t: hwv + " videos during homework time." });
+    }
     // 5. Music is a hobby, counted on its own rather than as entertainment.
     const mus = avg(sd.length ? sd : rows, (r) => r.music);
     if (mus >= 20) out.push({ k: "good", t: "Music averaged " + hmL(mus) + " a day (music apps and lessons), counted as a hobby, not entertainment." });
     // 6. Free evening time on school nights, once homework is being tracked.
     const school = rows.filter((r) => !r.weekend);
     if (rows.some((r) => r.hwN) && school.length) { const fr = avg(school, (r) => r.free); out.push({ k: fr < 30 ? "warn" : "good", t: "About " + hmL(fr) + " free on school evenings after homework, prep and activities." + (fr < 30 ? " That's tight." : "") }); }
-    return out.slice(0, 5);
+    return out.slice(0, 6);
   }
   function timeCard(src, opts) {
     const o = opts || {}, who = o.who || "you", rows = tbRows(src, 7);

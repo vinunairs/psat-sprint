@@ -123,12 +123,15 @@ const hmMin = (hm: string) => { const [h, m] = (hm || "0:0").split(":").map(Numb
 const addDay = (date: string, n: number) => { const d = new Date(date + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 function skind(name: string, cat = "") {
   const n = (name || "").toLowerCase(), c = (cat || "").toLowerCase();
-  if (/educational|search portal|canvas|classlink|instructure|github\.io|docs\.google|classroom|khan|collegeboard|bluebook|school|reference/.test(n + " " + c)) return "study";
+  if (/educational|search portal|search engines|canvas|classlink|instructure|github\.io|docs\.google|classroom|khan|collegeboard|bluebook|school|reference/.test(n + " " + c)) return "study";
   if (/fl studio|garageband|logic|ableton|audacity|music creation|finale|musescore/.test(n)) return "creative";
   if (/whatsapp|messages|imessage|discord|snapchat|instagram|facetime|social/.test(n + " " + c)) return "social";
   if (/youtube|entertainment|games?|netflix|twitch|reddit|tiktok|itch\.io|roblox|steam|spotify|music/.test(n + " " + c)) return "fun";
   return "other";
 }
+// Hillsborough County Public Schools 2026–27 student holidays and breaks (no school).
+const NO_SCHOOL = new Set(["2026-09-07", "2026-10-12", "2026-11-11", "2026-11-23", "2026-11-24", "2026-11-25", "2026-11-26", "2026-11-27", "2026-12-21", "2026-12-22", "2026-12-23", "2026-12-24", "2026-12-25", "2026-12-28", "2026-12-29", "2026-12-30", "2026-12-31", "2027-01-01", "2027-01-04", "2027-01-18", "2027-02-12", "2027-02-15", "2027-03-08", "2027-03-22", "2027-03-23", "2027-03-24", "2027-03-25", "2027-03-26", "2027-03-29", "2027-04-16"]);
+const schoolDay = (d: string) => { const w = new Date(d + "T12:00:00Z").getUTCDay(); return w >= 1 && w <= 5 && !NO_SCHOOL.has(d) && d >= "2026-08-10" && d <= "2027-05-28"; };
 // deno-lint-ignore no-explicit-any
 function screenDay(screen: any, d: string) {
   const x = screen && screen.days && screen.days[d]; if (!x) return null;
@@ -140,9 +143,19 @@ function screenDay(screen: any, d: string) {
   const src: any[] = x.cats && x.cats.length ? x.cats.map((c: any) => ({ n: c.n, min: c.min, cat: c.n })) : (x.sites || []), smin = src.reduce((n, w) => n + w.min, 0);
   for (const w of src) by[skind(w.n, w.cat)] += smin ? Math.round((w.min / smin) * Math.min(bmin, smin)) : 0;
   const known = Object.values(by).reduce((n, v) => n + v, 0); by.other += Math.max(0, (x.total || 0) - known);
+  // Dashboard reads net out the laptop's school-hours activity, so scale the per-site split to the day's total.
+  if (x.total && known > x.total) for (const k of Object.keys(by)) by[k] = Math.round((by[k] * x.total) / known);
+  // YouTube videos sorted by title (dashboard read): move the school and music share of YouTube's minutes out of "fun".
+  const yt = x.yt && x.yt.n ? x.yt : null;
+  if (yt) {
+    // deno-lint-ignore no-explicit-any
+    const ytMin = [...(x.sites || []), ...apps].filter((w: any) => /youtube(?!\s*music)/i.test(w.n)).reduce((n: number, w: any) => n + (w.min || 0), 0);
+    const toS = Math.round(ytMin * (yt.school || 0) / yt.n), toM = Math.round(ytMin * (yt.music || 0) / yt.n), mv = Math.min(by.fun, toS + toM);
+    if (mv) { const sPart = Math.round(mv * toS / (toS + toM)); by.fun -= mv; by.study += sPart; by.creative += mv - sPart; }
+  }
   // deno-lint-ignore no-explicit-any
-  const blocked: any[] = x.blocked || [], hwBlocked = blocked.filter((b) => hmMin(b.at) >= hmMin("16:30") && hmMin(b.at) <= hmMin("19:45"));
-  return { total: x.total || 0, by, blocked, hwBlocked };
+  const blocked: any[] = x.blocked || [], hwBlocked = schoolDay(d) ? blocked.filter((b) => hmMin(b.at) >= hmMin("16:30") && hmMin(b.at) <= hmMin("19:45")) : [];
+  return { total: x.total || 0, by, blocked, hwBlocked, yt };
 }
 // deno-lint-ignore no-explicit-any
 function tbDay(s: any, d: string, bm: Record<string, number>) {
@@ -167,17 +180,20 @@ function tbDay(s: any, d: string, bm: Record<string, number>) {
 function timeLines(s: any, date: string, bm: Record<string, number>, full = false) {
   const y = prevDate(date), r = tbDay(s, y, bm || {});
   if (!r.sc && !r.hw && !r.prep && !r.brief) return [] as string[];
-  const L = [`🕒 ${dayLabel(y)}: ${r.sc ? "screens " + hmS(r.sc.total) + " (fun " + hmS(r.sc.by.fun) + (full ? ", school " + hmS(r.sc.by.study) : "") + ", music " + hmS(r.music) + ")" : "no screen report"} · homework ${hmS(r.hw)} · prep ${hmS(r.prep)} · brief ${hmS(r.brief)}${r.sc && r.sc.hwBlocked.length ? " · " + r.sc.hwBlocked.length + " blocked in homework time" : ""}`];
+  const L = [`🕒 ${dayLabel(y)}: ${r.sc ? "screens " + hmS(r.sc.total) + " (fun " + hmS(r.sc.by.fun) + (full ? ", school " + hmS(r.sc.by.study) : "") + ", music " + hmS(r.music) + ")" : "no screen report"} · homework ${hmS(r.hw)} · prep ${hmS(r.prep)} · brief ${hmS(r.brief)}${r.sc && r.sc.hwBlocked.length ? " · " + r.sc.hwBlocked.length + " blocked in homework time" : ""}${r.sc && r.sc.yt ? ` · ▶️ YouTube ${r.sc.yt.n} videos (${r.sc.yt.fun} fun${r.sc.yt.late ? ", " + r.sc.yt.late + " after 10 pm" : ""})` : ""}${schoolDay(y) ? "" : " · no school"}`];
   const rows = Array.from({ length: 7 }, (_, i) => tbDay(s, addDay(y, -i), bm || {})), sd = rows.filter((x) => x.sc);
   const avg = (arr: typeof rows, f: (x: (typeof rows)[number]) => number) => (arr.length ? arr.reduce((n, x) => n + f(x), 0) / arr.length : 0);
   const ins: string[] = [];
   let gap = 0; while (gap < 60 && !tbDay(s, addDay(y, -gap), bm || {}).prepped) gap++;
   if (gap >= 3) ins.push(gap >= 60 ? "no PSAT prep in 2 months" : `no PSAT prep in ${gap} days`);
   if (sd.length) {
+    const yd = sd.filter((x) => x.sc!.yt), late = yd.reduce((n, x) => n + (x.sc!.yt.late || 0), 0), vids = yd.reduce((n, x) => n + x.sc!.yt.n, 0);
+    if (late >= 10) ins.push(`${late} YouTube videos after 10 pm`);
     const fun = avg(sd, (x) => x.sc!.by.fun), work = avg(sd, (x) => x.hw + x.prep + x.brief);
     if (fun > 90 && fun > work * 1.5) ins.push(`fun screens ${hmS(fun)}/day vs ${hmS(work)} homework+prep+brief`);
     const hb = sd.filter((x) => x.sc!.hwBlocked.length).length;
     if (hb >= 3) ins.push(`blocked tries in homework time on ${hb} of ${sd.length} days`);
+    if (late < 10 && vids >= 100) ins.push(`${vids} YouTube videos in ${yd.length} days`);
   }
   if (ins.length) L.push("💡 7 days: " + ins.slice(0, full ? 3 : 2).join(" · "));
   return L;
