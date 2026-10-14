@@ -213,3 +213,10 @@ school days: school work → Daily 20; Sat: Daily 20 → long block or Bluebook 
 (+15 XP) and the chain counts consecutive days. Theme-week goals are now Daily 20 × 5 and two long blocks (`block`:
 a mock section, timed set, Bluebook test or Lab mission) plus the theme goals. The Telegram report shows school
 work done/left, home/dinner/shower times and the Daily 20.
+
+## Coaching tasks
+Two scheduled tasks (Claude, cloud) coach from the Supabase data: "evening tune" daily at 3:45 pm (reads yesterday
+and tonight's homework, nudges `focus_targets` weights by ±1, messages Vinu only when something needs attention) and
+"weekly plan review" Sundays at 7 pm (reviews the week against the Road to 1300 plan, retunes weights, sends a
+weekly note). Both post through `supabase/functions/coach-note` (`POST {text}` + cron secret → every linked
+Telegram chat, prefixed 🧭). They never write to `progress`.
