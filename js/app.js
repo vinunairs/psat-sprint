@@ -1654,6 +1654,57 @@
     if (!r.sc && !r.hw && !r.prep) return null;
     return "Yesterday: " + (r.sc ? hmL(r.sc.total) + " on screens (" + hmL(r.sc.by.fun) + " entertainment)" : "no screen report") + " · homework " + hmL(r.hw) + " · PSAT prep " + hmL(r.prep) + (r.brief ? " · Daily Brief " + hmL(r.brief) : "");
   }
+  /* ---- Day drill-down (admin only): a timeline-style view of one day's Qustodio read — apps, sites,
+     every blocked try with its time and device, and the YouTube breakdown — so settings (block windows,
+     site categories, bedtime) can be tuned against what actually happened. */
+  function dayPicker(screen, uid, n) {
+    const t = today(), days = Array.from({ length: n || 14 }, (_, i) => addDays(t, i - (n || 14)));
+    const sel = (ADMIN.day && ADMIN.day[uid]) || addDays(t, -1);
+    return el("div", { class: "day-pick" }, days.map((d) => {
+      const x = screen && screen.days && screen.days[d], has = !!x;
+      const cls = d === sel ? " on" : "", level = has ? (x.total >= 480 ? " bad" : x.total >= 240 ? " warn" : " good") : "";
+      return el("button", { class: "day-btn" + cls + level, title: has ? fmtDay(d).long + " · " + hmL(x.total || 0) : fmtDay(d).long + " · no report", onclick: () => { ADMIN.day = ADMIN.day || {}; ADMIN.day[uid] = d; renderAdmin(); } },
+        el("span", { class: "muted", text: fmtDay(d).dow[0] }), el("b", { text: String(Number(d.slice(8))) }));
+    }));
+  }
+  function dayDrill(screen, uid) {
+    const d = (ADMIN.day && ADMIN.day[uid]) || addDays(today(), -1);
+    const x = screen && screen.days && screen.days[d];
+    if (!x) return el("p", { class: "muted", text: "No report for " + fmtDay(d).long + "." });
+    const sc = screenDayOf(screen, d), sch = isSchoolDay(d);
+    const head = el("div", { class: "row between" },
+      el("div", {}, el("strong", { text: fmtDay(d).long }), el("span", { class: "muted", text: sch ? " · school day" : " · no school" })),
+      el("span", { class: "chip", text: hmL(x.total || 0) + (x.macAway ? " (" + hmL(x.totalRaw != null ? x.totalRaw : x.total) + " raw, " + hmL(x.macAway) + " laptop-at-school dropped)" : "") }));
+    const dev = x.dev, devBits = [dev && dev.phone ? "Phone " + hmL(dev.phone) : null, dev && dev.mac ? "Mac " + hmL(dev.mac) : null, x.src ? "source: " + x.src : null].filter(Boolean);
+    const devRow = devBits.length ? el("p", { class: "muted", style: "font-size:13px", text: devBits.join(" · ") }) : null;
+    const KEYS = ["study", "creative", "social", "fun", "other"];
+    const catBar = el("div", { class: "track", style: "height:14px;display:flex;overflow:hidden;border-radius:7px" }, KEYS.filter((k) => sc.by[k]).map((k) => el("i", { class: "sc-" + k, style: "flex:" + sc.by[k] + " 0 0 auto", title: KIND_NAME[k] + ": " + hmL(sc.by[k]) })));
+    const catLegend = el("div", { class: "sc-legend" }, KEYS.filter((k) => sc.by[k]).map((k) => el("span", {}, el("i", { class: "sc-" + k }), KIND_NAME[k] + " " + hmL(sc.by[k]))));
+    const apps = (x.apps || []).slice().sort((a, b) => b.min - a.min);
+    const appList = apps.length ? el("ul", { class: "adm-list" }, apps.map((a) => el("li", { text: a.n + " · " + hmL(a.min) + (a.os ? " · " + a.os : "") }))) : el("p", { class: "muted", text: "No app detail." });
+    const sites = ((x.cats && x.cats.length ? x.cats : x.sites) || []).slice().sort((a, b) => b.min - a.min);
+    const siteList = sites.length ? el("ul", { class: "adm-list" }, sites.map((s) => el("li", { text: s.n + " · " + hmL(s.min) }))) : el("p", { class: "muted", text: "No site detail." });
+    const searches = x.searches || [];
+    const blocked = (x.blocked || []).slice().sort((a, b) => hmMin(a.at) - hmMin(b.at));
+    const hw = (b) => sch && hmMin(b.at) >= hmMin("16:30") && hmMin(b.at) <= hmMin("19:45"), late = (b) => hmMin(b.at) >= 22 * 60 || hmMin(b.at) < 5 * 60;
+    const blockList = blocked.length ? el("ul", { class: "adm-list" }, blocked.map((b) => el("li", { text: fmtHM(b.at) + " · " + b.site + (b.dev ? " · " + b.dev : "") + (hw(b) ? " · during homework" : "") + (late(b) ? " · after 10pm" : "") }))) : el("p", { class: "good", text: "No blocked tries." });
+    const blockedN = x.blockedN || [];
+    const yt = x.yt && x.yt.n ? x.yt : null;
+    const ytBlock = yt ? el("div", { style: "display:grid;gap:6px" },
+      el("div", { class: "row between" }, el("strong", { text: "YouTube: " + yt.n + " videos" }), el("span", { class: "muted", style: "font-size:13px", text: [yt.late ? yt.late + " after 10pm" : null, yt.hw ? yt.hw + " during homework" : null, yt.sessions ? yt.sessions + " binge session" + (yt.sessions === 1 ? "" : "s") : null].filter(Boolean).join(" · ") })),
+      el("div", { class: "track", style: "height:12px;display:flex;overflow:hidden;border-radius:6px" }, [["school", "sc-study"], ["music", "sc-creative"], ["fun", "sc-fun"]].filter(([k]) => yt[k]).map(([k, cls]) => el("i", { class: cls, style: "flex:" + yt[k] + " 0 0 auto", title: k + ": " + yt[k] }))),
+      el("p", { class: "muted", style: "font-size:12px", text: "school " + (yt.school || 0) + " · music " + (yt.music || 0) + " · fun " + (yt.fun || 0) + (yt.top && yt.top.length ? " · top channels: " + yt.top.join(", ") : "") }),
+      yt.ex ? el("div", { class: "muted", style: "font-size:12px" }, Object.entries(yt.ex).filter(([, v]) => v && v.length).map(([k, v]) => el("div", { text: k + ": " + v.join(" · ") }))) : null) : null;
+    return el("div", { style: "display:grid;gap:10px" },
+      head, devRow,
+      el("div", { class: "eyebrow", text: "Categories" }), catBar, catLegend,
+      el("div", { class: "eyebrow", text: "Apps" }), appList,
+      el("div", { class: "eyebrow", text: "Sites / categories" }), siteList,
+      searches.length ? el("p", { style: "font-size:13px" }, el("strong", { text: "Searched: " }), searches.join(", ")) : null,
+      el("div", { class: "eyebrow", text: "Blocked tries (" + blocked.length + ")" }), blockList,
+      blockedN.length ? el("p", { class: "muted", style: "font-size:12px", text: "Tried-again count by site: " + blockedN.map((b) => b.site + " ×" + b.n).join(", ") }) : null,
+      yt ? el("div", {}, el("div", { class: "eyebrow", text: "YouTube" }), ytBlock) : null);
+  }
   function renderMyTime() {
     const p = $("#p-mytime"); p.textContent = "";
     p.append(el("div", {}, el("h2", { text: "My time" }), el("p", { class: "muted lede", text: "Where your week went: screens next to homework, prep and music. You and your parent see the same numbers." })));
@@ -2972,6 +3023,10 @@
         tbSrc && tbLine(tbSrc) ? el("p", { class: "tb-line", text: tbLine(tbSrc) }) : null,
         el("button", { class: "btn small" + (open ? "" : " primary"), onclick: () => { ADMIN.open = open ? null : x.row.user_id; renderAdmin(); } }, open ? "Hide details" : "See details"),
         open && tbSrc ? timeCard(tbSrc, { who: x.name }) : null,
+        open && tb && tb.screen ? el("section", { class: "card", style: "display:grid;gap:10px" },
+          el("div", {}, el("h3", { text: "Day by day" }), el("p", { class: "muted", style: "margin-top:.2em", text: "Pick a day for the full read: apps, sites, every blocked try, and YouTube — for tuning Qustodio's rules." })),
+          dayPicker(tb.screen, x.row.user_id),
+          dayDrill(tb.screen, x.row.user_id)) : null,
         open ? adminDetail(x) : null);
       grid.append(card);
     }
