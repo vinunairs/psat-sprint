@@ -489,3 +489,26 @@ body:not(.guest) #footNote{display:none}
 .vb-back{display:grid;gap:6px}.vb-back p{margin:0}
 .vb-word-s{font-size:17px}
 .vb-missed{font-size:13.5px;color:var(--bad);margin:.4em 0 0}
+/* Tonight card */
+.eve-blocks{display:grid;gap:8px}
+.eve-block{display:grid;grid-template-columns:64px 1fr auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.eve-block.done{opacity:.72}
+.eve-at{font-weight:750;font-size:14px;color:var(--pencil-strong)}
+.eve-name{display:grid;gap:6px;min-width:0}
+.d20{display:flex;flex-wrap:wrap;gap:6px}
+.hw-list{display:grid;gap:6px}
+.hw{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:6px 0}
+.hw.done .hw-name{text-decoration:line-through;color:var(--graphite)}
+.hw-main{display:grid;min-width:0}.hw-main .muted{font-size:12.5px}
+.hw .bubble{width:28px;height:28px;border-radius:50%;display:inline-grid;place-items:center;font-size:14px;cursor:pointer}
+.hw .bubble.ghost{border-style:dashed;cursor:default}
+.hw-add input{flex:1;min-width:0;padding:8px 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit;font-size:14px}
+.eve-habs{gap:8px}
+.eve-hab{display:grid;gap:1px;text-align:left;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:8px 12px;font:inherit;font-weight:650;cursor:pointer;min-width:110px}
+.eve-hab small{font-weight:500;color:var(--graphite);font-size:12px}
+.eve-hab.on{border-color:var(--good);background:var(--good-soft)}.eve-hab.on small{color:var(--good)}
+.eve-strip{display:grid;gap:3px;font-size:13px;max-width:280px}
+.eve-strip-head,.eve-strip-row{display:grid;grid-template-columns:28px repeat(7,1fr);gap:4px;align-items:center;text-align:center}
+.eve-strip-row i{display:block;width:12px;height:12px;border-radius:50%;background:var(--sunk);border:1px solid var(--line);margin:0 auto}
+.eve-strip-row i.on{background:var(--good);border-color:var(--good)}
+@media (max-width:480px){.eve-block{grid-template-columns:56px 1fr;}.eve-block>.chip,.eve-block>.btn{grid-column:2}}

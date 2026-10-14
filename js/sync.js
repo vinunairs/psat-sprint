@@ -53,6 +53,9 @@
         a.log = Object.assign({}, b.log || {}, a.log || {});
         a.starList = [...new Set([...(a.starList || []), ...(b.starList || [])])]; a.stars = a.starList.length;
       }
+      byDay("eve", (v) => Object.values(v || {}).filter(Boolean).length);
+      for (const [id, b] of Object.entries(L.hw || {})) { const H = R.hw || (R.hw = {}); if (!H[id] || (b.done && !H[id].done)) { H[id] = Object.assign({}, H[id] || {}, b); changed = true; } }
+      const xs = new Set((R.hwx || []).map((x) => x.id)); for (const x of L.hwx || []) if (!xs.has(x.id)) { (R.hwx || (R.hwx = [])).push(x); changed = true; }
       for (const [w, b] of Object.entries(L.vocab || {})) {
         const V = R.vocab || (R.vocab = {}), a = V[w];
         if (!a || (b.n || 0) > (a.n || 0) || (!a.met && b.met)) { V[w] = b; changed = true; }

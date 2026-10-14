@@ -196,3 +196,20 @@ box 2 the card becomes a test-style blank. Spacing: 1, 3, 7, 14, 30 days; a miss
 `S.vocab[word] = { box, due, met, n, ok, miss }`, merged per word across devices; cards answered per day go in
 `activity[date].words`. Theme weeks get a "Word deck" goal (30 new words in Craft and Structure months, 10 otherwise,
 or `track[].vocab`). The Telegram report shows words known and cards done.
+
+## Tonight card (Today) and Canvas homework
+`supabase/functions/canvas-sync` reads each student's Canvas calendar feed (`app_secrets.canvas_ics_<user_id>`, the
+.ics link from Canvas → Calendar → Calendar Feed) and writes the next two weeks of assignments into the inbox as one
+item `{type:"hw", hw:{at, items:[{id,name,course,due,time?,est,url,added}]}}`. pg_cron jobs `canvas-sync` (3:30 pm)
+and `canvas-sync-evening` (9 pm, New York; the function checks the local clock) call it with `{mode:"cron"}`;
+`{mode:"now"}` runs immediately, `{mode:"preview"}` only parses. Estimates come from the item name (tests 30 min,
+classwork 10, concerts 0, else 20); the student's own estimate (`S.hw[id].est`) survives re-syncs.
+The app's `eveCard()` builds the evening: home time by weekday (`EVE_DEF`, override in `settings.evening`), the
+blocks in order (Mon: school work → Daily 20 → long block; Wed: Daily 20 → school work, violin at 9; other
+school days: school work → Daily 20; Sat: Daily 20 → long block or Bluebook test; Sun: Daily 20 → Lab block),
+"free from" time, tonight's school work with ticks (`S.hw`), items the student adds (`S.hwx`), the evening habits
+(home, dinner, shower: `S.eve[date]`), and a 7-day habit strip. The Daily 20 = 5 cards (`activity.cards` +
+`activity.words`), 10 questions, 1 notebook question (`activity.nb`); when all three are done `activity.d20` is set
+(+15 XP) and the chain counts consecutive days. Theme-week goals are now Daily 20 × 5 and two long blocks (`block`:
+a mock section, timed set, Bluebook test or Lab mission) plus the theme goals. The Telegram report shows school
+work done/left, home/dinner/shower times and the Daily 20.

@@ -621,8 +621,9 @@
     const ph = phaseAt(weekStart(today()) === ws ? today() : ws);
     const th = ph !== "ready" && ph !== "sprint" ? themeAt(ws) : null;
     if (th && (S.tests.length > 0 || S.answered >= 20)) {
-      const goals = [], q = th.q || (ph === "foundations" ? 50 : 60);
-      goals.push({ id: "q", type: "q", target: q, label: "Answer " + q + " practice questions (about " + Math.max(3, Math.round(q / 15)) + " sessions of 30 minutes)" });
+      const goals = [];
+      goals.push({ id: "d20", type: "d20", target: 5, label: "Daily 20 on 5 days (cards, 10 questions, 1 from the notebook)" });
+      goals.push({ id: "block", type: "block", target: 2, label: "Two long blocks: a timed mock section, a Bluebook test, or a Lab mission" });
       if (th.dom && DOM[th.dom]) {
         goals.push({ id: "dom-" + th.dom, type: "dom", d: th.dom, target: th.n || 25, label: (th.n || 25) + " questions on " + DOM[th.dom].name + " (this month's skill)" });
         goals.push({ id: "acc-" + th.dom, type: "acc", d: th.dom, target: th.acc || 75, label: (th.acc || 75) + "% accuracy on " + DOM[th.dom].name });
@@ -631,11 +632,10 @@
       if (th.cards) goals.push({ id: "cards", type: "dom", d: th.cards, target: 10, label: "10 more " + DOM[th.cards].name + " questions" });
       const vn = th.vocab != null ? th.vocab : th.dom === "cs" ? 30 : 10;
       if (vn && window.VOCAB) goals.push({ id: "words", type: "words", target: vn, label: "Word deck: learn " + vn + " new words and review the ones due" + (th.dom === "cs" ? " (about 5 minutes a day)" : "") });
-      goals.push({ id: "timed", type: "timed", target: 1, label: "One timed set (10+ questions at test pace). Before it: 3 slow breaths" });
       const wkNo = Math.round((parseYmd(ws) - parseYmd(weekStart(S.planStart || today()))) / (7 * 864e5));
       if (wkNo % 4 === 2) goals.push({ id: "official", type: "official", target: 1, label: "Take a Bluebook practice test (or one section) and log it" });
       goals.push({ id: "nb", type: "notebook", target: 10, label: "Get the Mistake notebook down to 10 or fewer" });
-      return { phase: ph, goals, v: 4, theme: { title: th.title, why: th.why } };
+      return { phase: ph, goals, v: 5, theme: { title: th.title, why: th.why } };
     }
     const hasData = S.tests.length > 0 || S.answered >= 20;
     const goals = [];
@@ -666,7 +666,7 @@
   }
   function currentWeek() {
     const ws = weekStart(today());
-    if (!S.weeks[ws] || (((S.weeks[ws].v || 1) < 2 || S.weeks[ws].v === 3) && !S.weeks[ws].won)) S.weeks[ws] = makeWeekGoals(ws); // v2 adds official-test goals
+    if (!S.weeks[ws] || (((S.weeks[ws].v || 1) < 2 || S.weeks[ws].v === 3 || S.weeks[ws].v === 4) && !S.weeks[ws].won)) S.weeks[ws] = makeWeekGoals(ws); // v2 adds official-test goals
     return { ws, w: S.weeks[ws] };
   }
   // Returns [done, target, note]
@@ -688,6 +688,8 @@
     }
     if (g.type === "notebook") { const n = S.mistakes.length; return [n <= g.target ? 1 : g.target / n, 1, n + " in the notebook"]; }
     if (g.type === "timed") return [tot.timed || 0, g.target, (tot.timed || 0) + " of " + g.target];
+    if (g.type === "d20") { let n = 0; for (let i = 0; i < 7; i++) if ((S.activity[addDays(tot.ws, i)] || {}).d20) n++; return [n, g.target, n + " of " + g.target + " days"]; }
+    if (g.type === "block") { let n = 0; for (let i = 0; i < 7; i++) { const d = addDays(tot.ws, i); if (longBlockDone(d) || [S.lab, S.lab2].some((L) => L && Object.values(L.log || {}).includes(d))) n++; } return [n, g.target, n + " of " + g.target]; }
     if (g.type === "words") { const n = vWeekNew(tot.ws), due = vDue().length; return [n >= g.target && due === 0 ? 1 : Math.min(n, g.target) / g.target * (due ? 0.95 : 1), 1, n + " of " + g.target + " new" + (due ? " · " + due + " due" : "")]; }
     if (g.type === "lab") { const d = g.m.filter((m) => labDone(g.p).includes(m)).length; return [d, g.m.length, d + " of " + g.m.length + " missions"]; }
     return [0, 1];
@@ -730,6 +732,7 @@
       p.append(el("div", { class: "card mission" }, el("div", { class: "eyebrow", text: "Mock test in progress" }), el("h2", { text: FORMATS[S.mock.kind].name + " mock" }), el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => show("mock") }, "Resume the mock test"))));
     }
     const ic = installCard(); if (ic) p.append(ic);
+    const ec = eveCard(); if (ec) p.append(ec);
     const sprint = mode === "sprint";
     const fc0 = sprint ? null : focusCard(); if (fc0 && mode !== "after") p.append(fc0);
     scorePrompt(p);
@@ -866,7 +869,7 @@
       list,
       w.goals.some((g) => g.type === "official") ? howBox("bluebook", "How to log a Bluebook or Khan Academy test") : null,
       el("div", { class: "row" },
-        el("button", { class: "btn primary", onclick: () => { S.prefs.sel = [focusId]; save(); show("practice"); startPractice([focusId], 10, "auto"); } }, "15 minutes today: " + DOM[focusId].name),
+        el("button", { class: "btn primary", onclick: () => { const nx = d20Parts().find((x) => !x.done); if (nx) nx.go(); else { S.prefs.sel = [focusId]; save(); show("practice"); startPractice([focusId], 10, "auto"); } } }, d20Parts().every((x) => x.done) ? "Extra: " + DOM[focusId].name : "Start the Daily 20"),
         w.goals.some((g) => g.type === "words") ? el("button", { class: "btn", onclick: () => { const d = vDue().length; vStart(d ? Math.min(5, vNewWaiting().length || 5) : 8); } }, "Word deck" + (vDue().length ? " (" + vDue().length + " due)" : "")) : null,
         el("button", { class: "btn", onclick: () => show("mock") }, "Take a mock test")),
       el("p", { class: "muted", style: "font-size:13px", text: "New goals every Monday, picked from your Progress page. Meet them all for +100 XP." })));
@@ -1293,12 +1296,118 @@
       const d = S.deck[id] || (S.deck[id] = { box: 0, added: today() });
       d.box = ok ? Math.min(BOX_DAYS.length - 1, (d.box || 0) + 1) : 0;
       d.due = addDays(today(), ok ? BOX_DAYS[d.box] : 1);
-      if (ok) addXP(2); bumpStreak();
+      if (ok) addXP(2); bumpStreak(); dayOf().cards = (dayOf().cards || 0) + 1;
       RV.i++; RV.flipped = false;
       if (RV.i >= RV.queue.length && RV.plan) planEvent({ k: "deck", spec: RV.plan });
       if (RV.i >= RV.queue.length && RV.back) { const back = RV.back; RV = null; save(); toast("Card added to your deck. Now try 5 like it."); show(back); return; }
       save(); renderReview();
     }
+  }
+
+  /* ================= Tonight: the evening plan =================
+     School work from Canvas (the server drops it into the inbox as {type:"hw"}), the prep block for the day, and the
+     evening habits (home, dinner, shower). Ticks live in S.hw[id] = {done, est}; extras the student adds in S.hwx;
+     the day's habit times in S.eve[date]. The Daily 20 is three parts read from today's activity: 5 cards,
+     10 questions, 1 notebook question. All of it is in one card at the top of Today. */
+  const EVE_DEF = { home: { 1: "16:30", 2: "17:30", 3: "17:30", 4: "17:30", 5: "17:30", 0: "10:00", 6: "10:00" }, fixed: { 3: [{ at: "21:00", min: 30, name: "Violin lesson" }] } };
+  const eveCfg = () => { const c = S.settings.evening || {}; return { home: Object.assign({}, EVE_DEF.home, c.home || {}), fixed: Object.assign({}, EVE_DEF.fixed, c.fixed || {}) }; };
+  let HW = null; // {at, items} from the inbox
+  const hwTicks = () => S.hw || (S.hw = {});
+  const hwExtra = () => S.hwx || (S.hwx = []);
+  function eveDay(d) { const E = S.eve || (S.eve = {}); const k = d || today(); return E[k] || (E[k] = {}); }
+  const nowHM = () => { const n = new Date(); return String(n.getHours()).padStart(2, "0") + ":" + String(n.getMinutes()).padStart(2, "0"); };
+  const hmAdd = (hm, min) => { const [h, m] = hm.split(":").map(Number); const t = Math.min(23 * 60 + 59, h * 60 + m + min); return String(Math.floor(t / 60)).padStart(2, "0") + ":" + String(t % 60).padStart(2, "0"); };
+  const fmtHM = (hm) => { if (!hm) return ""; const [h, m] = hm.split(":").map(Number); return (h % 12 || 12) + ":" + String(m).padStart(2, "0") + (h < 12 ? " am" : " pm"); };
+  const dueWord = (due) => { const t = today(); return due < t ? "was due " + fmtDay(due).dow : due === t ? "due today" : due === addDays(t, 1) ? "due tomorrow" : "due " + fmtDay(due).dow; };
+  // School work shown tonight: due yesterday (in case it wasn't ticked) through 4 days ahead, extras included.
+  function hwList() {
+    const t = today(), lo = addDays(t, -1), hi = addDays(t, 4), T = hwTicks();
+    const all = [...(HW ? HW.items : []), ...hwExtra()].map((x) => { const k = T[x.id] || {}; return Object.assign({}, x, { done: k.done || null, est: k.est != null ? k.est : x.est, isNew: !!(x.added && x.added.startsWith(t) && HW && HW.at.slice(11) === "21:00") }); });
+    return all.filter((x) => x.due >= lo && x.due <= hi && !(x.est === 0 && x.due < t)).sort((a, b) => a.due.localeCompare(b.due) || (a.est === 0 ? 1 : 0) - (b.est === 0 ? 1 : 0) || a.course.localeCompare(b.course));
+  }
+  const hwTonight = () => hwList().filter((x) => x.est > 0 && x.due <= addDays(today(), 1));
+  function hwTick(id, on) { const T = hwTicks(); T[id] = Object.assign(T[id] || {}, { done: on ? today() : null }); if (on) { addXP(5); bumpStreak(); } save(); render(); }
+  function hwEst(id, cur) { const T = hwTicks(); const steps = [10, 20, 30, 45, 60]; const next = steps[(steps.indexOf(cur) + 1) % steps.length]; T[id] = Object.assign(T[id] || {}, { est: next }); save(); render(); }
+  function hwAdd(name, due) { hwExtra().push({ id: "x" + Date.now().toString(36), name, course: "Mine", due, est: 20, added: today() }); save(); render(); }
+  // The Daily 20: cards, questions, notebook. Each part is read from today's activity, so anything he does counts.
+  function d20Parts() {
+    const a = S.activity[today()] || {}, cards = (a.cards || 0) + (a.words || 0), nb = S.mistakes.length;
+    return [
+      { id: "cards", label: "5 cards", done: cards >= 5, note: cards + " of 5", go: () => { const due = dueCards().slice(0, 8); if (due.length) { RV = { queue: due, i: 0, flipped: false }; show("review"); } else vStart(vDue().length ? 0 : 5); } },
+      { id: "q", label: "10 questions", done: (a.q || 0) >= 10, note: Math.min(a.q || 0, 10) + " of 10", go: () => { show("practice"); if (focusWeights().length) startPractice(null, 10, "auto", false, true); else startPractice([focusList()[0].id], 10, "auto"); } },
+      { id: "nb", label: "1 from the notebook", done: (a.nb || 0) >= 1 || !nb, note: nb ? (a.nb || 0) + " redone · " + nb + " waiting" : "notebook empty", go: () => { show("practice"); startPractice([], 0, "auto", true); } }
+    ];
+  }
+  function d20Check() {
+    if (GUEST) return; const a = S.activity[today()]; if (!a || a.d20) return;
+    if (d20Parts().every((p) => p.done)) { a.d20 = true; addXP(15, "Daily 20"); toast("Daily 20 done ✓ " + (d20Chain() > 1 ? d20Chain() + " days in a row" : ""), true); return true; }
+    return false;
+  }
+  function d20Chain() { let n = 0, d = today(); if (!(S.activity[d] || {}).d20) d = addDays(d, -1); while ((S.activity[d] || {}).d20) { n++; d = addDays(d, -1); } return n; }
+  const longBlockDone = (d) => { const a = S.activity[d] || {}; return (a.mock || 0) > 0 || (a.timed || 0) > 0 || S.tests.some((t) => t.date === d && OFFICIAL_SRC.includes(t.source)); };
+  // The evening in order. Dinner and shower float, so they are habits with a time, not blocks.
+  function evePlan() {
+    const d = new Date(), dow = d.getDay(), cfg = eveCfg(), ev = eveDay(), t = today(), school = dow >= 1 && dow <= 5;
+    const hw = hwTonight(), left = hw.filter((x) => !x.done), hwMin = left.reduce((s, x) => s + x.est, 0);
+    const a = S.activity[t] || {};
+    const d20 = { k: "d20", name: "Daily 20", min: 20, done: !!a.d20 };
+    const hwB = { k: "hw", name: hw.length ? "School work · " + hw.length + " item" + (hw.length === 1 ? "" : "s") : "School work · nothing due tomorrow", min: left.length ? Math.max(15, hwMin) : 0, done: hw.length > 0 && !left.length };
+    const block = { k: "block", name: dow === 6 && currentWeek().w.goals.some((g) => g.type === "official") && !S.tests.some((x) => x.date >= weekStart(t) && OFFICIAL_SRC.includes(x.source)) ? "Bluebook practice test" : "Long block · a timed mock section", min: dow === 6 ? 150 : 40, done: longBlockDone(t) };
+    const labB = { k: "lab", name: "Long block · Lab mission, then the notebook", min: 40, done: [S.lab, S.lab2].some((L) => L && Object.values(L.log || {}).includes(t)) };
+    let blocks;
+    if (!school) blocks = dow === 6 ? [d20, block] : [d20, labB];
+    else if (dow === 3) blocks = [d20, hwB];
+    else if (dow === 1) blocks = [hwB, d20, block];
+    else blocks = [hwB, d20];
+    const start = ev.home || cfg.home[dow];
+    let at = hmAdd(start, school ? 20 : 0); // settle in first
+    for (const b of blocks) { b.at = at; at = hmAdd(at, b.min); }
+    const fixed = (cfg.fixed[dow] || []).map((f) => Object.assign({ k: "fixed" }, f));
+    return { start, blocks, freeAt: at, fixed, school };
+  }
+  function eveCard() {
+    if (GUEST) return null;
+    if (d20Check()) save();
+    const t = today(), plan = evePlan(), ev = eveDay(), list = hwList(), tonight = hwTonight(), later = list.filter((x) => !tonight.includes(x));
+    const hab = (k, label, icon) => el("button", { class: "eve-hab" + (ev[k] ? " on" : ""), onclick: () => { ev[k] = ev[k] ? null : nowHM(); save(); render(); } }, el("span", { text: icon + " " + label }), el("small", { text: ev[k] ? fmtHM(ev[k]) : "tap when done" }));
+    const hwRow = (x) => el("div", { class: "hw" + (x.done ? " done" : "") },
+      x.est > 0 ? el("button", { class: "bubble", "aria-pressed": String(!!x.done), "aria-label": "Done", onclick: () => hwTick(x.id, !x.done) }, x.done ? "✓" : "") : el("span", { class: "bubble ghost", text: "•" }),
+      el("span", { class: "hw-main" }, el("span", { class: "hw-name", text: x.name }), el("span", { class: "muted", text: x.course + " · " + dueWord(x.due) + (x.time && x.time !== "23:59" ? " " + fmtHM(x.time) : "") + (x.isNew ? " · new tonight" : "") })),
+      x.est > 0 ? el("button", { class: "btn small ghost num", title: "Tap to change the time you plan for it", onclick: () => hwEst(x.id, x.est) }, x.est + " min") : el("span", { class: "muted", style: "font-size:12px", text: "event" }));
+    const d20 = d20Parts(), d20Done = d20.every((p) => p.done), chain = d20Chain();
+    const blockRow = (b) => {
+      const go = b.k === "d20" ? () => { const n = d20.find((p) => !p.done); if (n) n.go(); } : b.k === "hw" ? null : b.k === "block" ? () => (b.name.startsWith("Bluebook") ? show("log") : show("mock")) : b.k === "lab" ? () => { location.href = (labDone("geo").length < 7 ? "geometry.html" : "concepts.html"); } : null;
+      return el("div", { class: "eve-block" + (b.done ? " done" : "") },
+        el("span", { class: "eve-at num", text: fmtHM(b.at) }),
+        el("span", { class: "eve-name" }, el("b", { text: b.name }), b.min ? el("span", { class: "muted", text: " · " + b.min + " min" }) : null,
+          b.k === "d20" ? el("div", { class: "d20" }, d20.map((p) => el("button", { class: "chipbtn" + (p.done ? " on" : ""), onclick: p.go }, (p.done ? "✓ " : "") + p.label + (p.done ? "" : " · " + p.note)))) : null),
+        b.done ? el("span", { class: "chip good", text: "done" }) : go ? el("button", { class: "btn small primary", onclick: go }, "Start") : null);
+    };
+    const freeLine = plan.blocks.every((b) => b.done) ? "Everything's done. The rest of the evening is yours." : "Free from about " + fmtHM(plan.freeAt) + (plan.fixed.length ? " · " + plan.fixed.map((f) => f.name + " at " + fmtHM(f.at)).join(", ") : "");
+    const addRow = (() => {
+      const inp = el("input", { type: "text", id: "hwAdd", placeholder: "Something not in Canvas? Add it (due tomorrow)", "aria-label": "Add school work" });
+      const btn = el("button", { class: "btn small", onclick: () => { const v = inp.value.trim(); if (v) hwAdd(v, addDays(t, 1)); } }, "Add");
+      inp.addEventListener("keydown", (e) => { if (e.key === "Enter") btn.click(); });
+      return el("div", { class: "row hw-add" }, inp, btn);
+    })();
+    const strip = (() => {
+      const days = Array.from({ length: 7 }, (_, i) => addDays(t, i - 6));
+      const rows = [["🏠", "home", (d) => !!(S.eve && S.eve[d] && S.eve[d].home)], ["📚", "work", (d) => Object.values(hwTicks()).some((k) => k.done === d)], ["✎", "Daily 20", (d) => !!(S.activity[d] || {}).d20], ["🍽", "dinner", (d) => !!(S.eve && S.eve[d] && S.eve[d].dinner)], ["🚿", "shower", (d) => !!(S.eve && S.eve[d] && S.eve[d].shower)]];
+      return el("div", { class: "eve-strip" }, el("div", { class: "eve-strip-head" }, el("span"), days.map((d) => el("span", { class: "muted", text: fmtDay(d).dow[0] }))),
+        rows.map(([ic, label, f]) => el("div", { class: "eve-strip-row", title: label }, el("span", { text: ic }), days.map((d) => el("i", { class: f(d) ? "on" : "", title: label + " " + fmtDay(d).md })))));
+    })();
+    return el("div", { class: "card mission eve" },
+      el("div", { class: "row between" }, el("div", {}, el("div", { class: "eyebrow", text: "Tonight · " + fmtDay(t).long }), el("h2", { text: plan.school ? "Home by " + fmtHM(plan.start) + ". Here's the evening." : "Weekend plan" })),
+        chain ? el("span", { class: "chip good", text: "🔥 Daily 20 × " + chain }) : null),
+      el("div", { class: "eve-blocks" }, plan.blocks.map(blockRow)),
+      el("p", { class: "muted", style: "font-size:14px", text: freeLine }),
+      tonight.length || later.length ? el("div", { class: "hw-list" },
+        tonight.length ? el("div", { class: "eyebrow", text: "Tonight's school work" }) : null, tonight.map(hwRow),
+        later.length ? el("details", { class: "fold" }, el("summary", { text: "Coming up · " + later.length + " more" }), el("div", { class: "hw-list" }, later.map(hwRow))) : null) : el("p", { class: "muted", text: HW ? "Nothing from Canvas in the next few days." : "Canvas work appears here after the 3:30 pm sync." }),
+      addRow,
+      el("div", { class: "row eve-habs" }, hab("home", "Home", "🏠"), hab("dinner", "Dinner", "🍽"), hab("shower", "Shower", "🚿")),
+      strip,
+      HW ? el("p", { class: "muted", style: "font-size:12px", text: "Canvas checked " + HW.at.slice(0, 10) + " at " + fmtHM(HW.at.slice(11)) + ". Tap a time to change how long something takes." }) : null);
   }
 
   /* ================= Word deck: vocabulary for Words in Context =================
@@ -1386,7 +1495,7 @@
     v.box = ok ? (first ? 0 : Math.min(VBOX.length - 1, (v.box || 0) + 1)) : 0;
     v.due = addDays(today(), ok ? VBOX[v.box] : 1);
     const a = dayOf(); a.words = (a.words || 0) + 1;
-    if (ok) addXP(1); bumpStreak(); save(); renderReview();
+    if (ok) addXP(1); bumpStreak(); d20Check(); save(); renderReview();
   }
   function vocabDone(p) {
     const n = VS.right + VS.wrong;
@@ -1571,6 +1680,8 @@
       if (DOMAINS.every((d) => S.stats[d.id] && S.stats[d.id].att > 0)) award("cover");
     }
     if (P.timed && n >= 10) dayOf().timed = (dayOf().timed || 0) + 1;
+    if (P.notebook) dayOf().nb = (dayOf().nb || 0) + n;
+    d20Check();
     planEvent({ k: "practice", res: P.results, notebook: P.notebook, focus: P.focus, timed: P.timed });
     save(); render();
   }
@@ -2882,7 +2993,8 @@
         const ws0 = weekStart(today()); for (const k of Object.keys(S.weeks || {})) if (k >= ws0) delete S.weeks[k];
         save(); toast("Your plan for next year is ready", true); if (TAB === "today") render();
       }
-      FOCUS = row && all.length ? { items: all.filter((x) => !(typeof x.type === "string" && (x.type.startsWith("review:") || x.type.startsWith("log:") || x.type.startsWith("plan:")))), source: row.source, updated: row.updated_at } : null;
+      const hwIt = all.find((x) => x && x.type === "hw" && x.hw); HW = hwIt ? hwIt.hw : null;
+      FOCUS = row && all.length ? { items: all.filter((x) => !(typeof x.type === "string" && (x.type === "hw" || x.type.startsWith("review:") || x.type.startsWith("log:") || x.type.startsWith("plan:")))), source: row.source, updated: row.updated_at } : null;
       if (TAB === "treview") render(); seedDeck(); if (!GUEST && (TAB === "today" || TAB === "practice")) render(); },
     setSocial(api) { SOC = api && !GUEST ? { api } : null; CH = null; socialBadge(); if (SOC) socialLoad(TAB === "friends"); },
     onSettings(fn) { settingsHooks.push(fn); },

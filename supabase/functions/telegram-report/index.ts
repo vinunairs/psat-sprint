@@ -42,15 +42,29 @@ const mmss = (s: number) => Math.floor(s / 60) + ":" + String(Math.round(s % 60)
 const dayLabel = (date: string) => new Date(date + "T12:00:00Z").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 
 async function students() {
-  const [{ data: prog }, { data: profs }, { data: admins }, users, { data: fastL }] = await Promise.all([
+  const [{ data: prog }, { data: profs }, { data: admins }, users, { data: fastL }, { data: inbox }] = await Promise.all([
     admin.from("progress").select("user_id, data"), admin.from("profiles").select("user_id, first_name, test_kind, test_date"),
-    admin.from("admins").select("email"), admin.auth.admin.listUsers({ perPage: 200 }), admin.from("fast_learners").select("user_id")]);
+    admin.from("admins").select("email"), admin.auth.admin.listUsers({ perPage: 200 }), admin.from("fast_learners").select("user_id"), admin.from("focus_targets").select("user_id, items")]);
+  // deno-lint-ignore no-explicit-any
+  const hwBy: Record<string, any> = {}; for (const r of inbox || []) { const it = (Array.isArray(r.items) ? r.items : []).find((x: { type?: string }) => x && x.type === "hw"); if (it) hwBy[r.user_id] = it.hw; }
   const fastIds = new Set((fastL || []).map((f: { user_id: string }) => f.user_id));
   const adminEmails = new Set((admins || []).map((a: { email: string }) => a.email.toLowerCase()));
   const email: Record<string, string> = {}; for (const u of users.data?.users || []) email[u.id] = (u.email || "").toLowerCase();
   const prof: Record<string, { first_name?: string; test_kind?: string; test_date?: string }> = {}; for (const p of profs || []) prof[p.user_id] = p;
-  return (prog || []).filter((r: { user_id: string }) => !adminEmails.has(email[r.user_id] || "") && !fastIds.has(r.user_id)).map((r: { user_id: string; data: Record<string, unknown> }) => ({ id: r.user_id, D: r.data || {}, p: prof[r.user_id] || {}, email: email[r.user_id] || "" }));
+  return (prog || []).filter((r: { user_id: string }) => !adminEmails.has(email[r.user_id] || "") && !fastIds.has(r.user_id)).map((r: { user_id: string; data: Record<string, unknown> }) => ({ id: r.user_id, D: r.data || {}, p: prof[r.user_id] || {}, email: email[r.user_id] || "", hw: hwBy[r.user_id] || null }));
 }
+// School work for the evening: Canvas items due today or tomorrow plus the student's own, with their ticks.
+// deno-lint-ignore no-explicit-any
+function homework(s: any, date: string) {
+  const tomorrow = (() => { const d = new Date(date + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); })();
+  const ticks = s.D.hw || {}, items = [...((s.hw && s.hw.items) || []), ...(s.D.hwx || [])]
+    .map((x: { id: string; name: string; course: string; due: string; est: number }) => ({ ...x, est: ticks[x.id] && ticks[x.id].est != null ? ticks[x.id].est : x.est, done: !!(ticks[x.id] && ticks[x.id].done) }))
+    .filter((x: { est: number; due: string }) => x.est > 0 && x.due >= prevDate(date) && x.due <= tomorrow);
+  const done = items.filter((x: { done: boolean }) => x.done), left = items.filter((x: { done: boolean }) => !x.done);
+  const ev = (s.D.eve || {})[date] || {};
+  return { items, done, left, ev };
+}
+const hm12 = (hm: string) => { const [h, m] = hm.split(":").map(Number); return (h % 12 || 12) + ":" + String(m).padStart(2, "0") + (h < 12 ? "am" : "pm"); };
 
 // deno-lint-ignore no-explicit-any
 function summary(s: any, date: string) {
@@ -87,6 +101,12 @@ function summary(s: any, date: string) {
     const todayM = Object.entries(D.lab2.log || {}).filter(([, d]) => d === date).map(([n]) => n);
     L.push(`💡 Concept Lab: ${D.lab2.done.length} of 7 missions done${todayM.length ? " (today: Mission " + todayM.join(", ") + ")" : ""}`);
   }
+  const H = homework(s, date);
+  if (H.items.length || H.ev.home) {
+    L.push(`🏫 School work: ${H.done.length} of ${H.items.length} done${H.left.length ? " · left: " + H.left.map((x: { course: string; name: string }) => x.course + " – " + x.name).slice(0, 4).join(", ") : ""}`);
+    const hb = [H.ev.home ? "home " + hm12(H.ev.home) : null, H.ev.dinner ? "dinner " + hm12(H.ev.dinner) : null, H.ev.shower ? "shower " + hm12(H.ev.shower) : null, a.d20 ? "Daily 20 ✓" : "Daily 20 not done"].filter(Boolean);
+    L.push("🏠 " + hb.join(" · "));
+  }
   if (D.vocab && Object.keys(D.vocab).length) {
     const V = Object.values(D.vocab) as { box?: number; met?: string }[], known = V.filter((v) => (v.box || 0) >= 2).length, met = V.filter((v) => v.met === date).length;
     L.push(`🔤 Word deck: ${known} words known${a.words ? " · " + a.words + " cards today" : ""}${met ? " (" + met + " new)" : ""}`);
@@ -104,11 +124,15 @@ function short(s: any, date: string, brief?: { done: boolean; opened: boolean; r
   const a = (D.activity || {})[date] || {}, t = (D.time || {})[date];
   const head = `<b>${esc(name)}</b>${left != null && left >= 0 ? " · " + (left === 0 ? kind + " today" : left + "d to " + kind) : ""}`;
   const labToday = Object.entries((D.lab && D.lab.log) || {}).filter(([, d]) => d === date).length + Object.entries((D.lab2 && D.lab2.log) || {}).filter(([, d]) => d === date).length;
-  if (!tasks && !a.q && !a.mock && !a.words && !(t && t.f > 60) && !labToday) return `${head}\n⚠️ No study today${brief ? (brief.done ? " · 📰 Brief ✓" : brief.opened ? " · 📰 Brief " + brief.read + "/" + brief.total : " · 📰 Brief not opened") : ""}`;
+  const H0 = homework(s, date);
+  if (!tasks && !a.q && !a.mock && !a.words && !(t && t.f > 60) && !labToday && !H0.done.length && !H0.ev.home) return `${head}\n⚠️ No study today${brief ? (brief.done ? " · 📰 Brief ✓" : brief.opened ? " · 📰 Brief " + brief.read + "/" + brief.total : " · 📰 Brief not opened") : ""}`;
   const bits = [`✅ ${tasks} task${tasks === 1 ? "" : "s"}`];
   if (t && t.f >= 60) bits.push(`⏱ ${mins(t.f)} min`);
   if (a.q) bits.push(`📝 ${a.c}/${a.q} (${Math.round((a.c / a.q) * 100)}%)`);
   if (a.words) bits.push(`🔤 ${a.words} words`);
+  const H = homework(s, date);
+  if (H.items.length) bits.push(`🏫 ${H.done.length}/${H.items.length}`);
+  bits.push(a.d20 ? "✎ D20 ✓" : "✎ D20 ✗");
   if (brief) bits.push(brief.done ? "📰 ✓" : brief.opened ? "📰 " + brief.read + "/" + brief.total : "📰 ✗");
   const flags: string[] = [];
   for (const [d, v] of Object.entries(a.dom || {})) { const [n, c] = v as number[]; if (n >= 3 && c / n < 0.6) flags.push(`${DOMAINS[d] || d} ${c}/${n}`); }
@@ -118,6 +142,8 @@ function short(s: any, date: string, brief?: { done: boolean; opened: boolean; r
   if (t && t.f >= 600 && t.i > t.f * 0.5) flags.push(`idle ${mins(t.i)} min`);
   if (a.mock) flags.push(`🧪 ${a.mock} mock section${a.mock === 1 ? "" : "s"}`);
   if (labToday) flags.push(`🧩 +${labToday} Lab mission${labToday === 1 ? "" : "s"}`);
+  if (H.left.length) flags.push(`school work left: ${H.left.map((x: { course: string }) => x.course).slice(0, 3).join(", ")}`);
+  if (H.ev.shower) flags.push(`🚿 ${hm12(H.ev.shower)}`);
   return `${head}\n${bits.join(" · ")}${flags.length ? "\n⚠️ " + flags.slice(0, 3).join(" · ") : ""}`;
 }
 
