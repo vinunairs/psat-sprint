@@ -162,7 +162,8 @@
         listInvites: async () => (await call("admin_list_invites")) || [],
         revokeInvite: (code) => call("admin_revoke_invite", { p_code: code }),
         getRewards: async (uid) => (await call("admin_get_rewards", { p_user: uid })) || [],
-        setRewards: (uid, rewards) => call("admin_set_rewards", { p_user: uid, p_rewards: rewards })
+        setRewards: (uid, rewards) => call("admin_set_rewards", { p_user: uid, p_rewards: rewards }),
+        timeBalance: (uid) => call("admin_time_balance", { p_user: uid })
       });
     }
     // Friends: every call is checked on the server (friends only, first names only).
@@ -196,6 +197,13 @@
         const [{ data: f }, { data: ev }] = await Promise.all([sb.from("brief_feeds").select("cards").eq("user_id", user.id).eq("feed_date", date).maybeSingle(), sb.from("brief_events").select("card_id, kind").eq("user_id", user.id).eq("feed_date", date)]);
         const total = f && Array.isArray(f.cards) ? f.cards.length : 0, read = new Set((ev || []).filter((e) => e.kind === "read").map((e) => e.card_id)).size;
         app.setBrief(total ? { date, total, read } : null);
+        // Daily Brief minutes per day (its own time events) for the My time view.
+        if (app.setBriefTime) {
+          const from = new Date(d.getTime() - 14 * 864e5), fd = from.getFullYear() + "-" + String(from.getMonth() + 1).padStart(2, "0") + "-" + String(from.getDate()).padStart(2, "0");
+          const { data: tm } = await sb.from("brief_events").select("feed_date, ms").eq("user_id", user.id).eq("kind", "time").gte("feed_date", fd);
+          const m = {}; for (const r of tm || []) m[r.feed_date] = (m[r.feed_date] || 0) + (r.ms || 0) / 60000;
+          app.setBriefTime(m);
+        }
       } catch (e) { }
     }
     app.refreshBrief = loadBrief;

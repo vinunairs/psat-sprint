@@ -421,15 +421,15 @@
   let TAB = "today";
   // Five destinations, one place per job: Today (the plan), Learn (Lab, flashcards, rules), Practice (questions),
   // Tests (mocks, logging, official tests), Me (progress, rewards, friends, account). Related views share a sub-nav.
-  const GROUP = { today: "today", plan: "today", news: "news", review: "review", practice: "practice", mock: "mock", log: "mock", treview: "mock", matrix: "matrix", rewards: "matrix", friends: "matrix", account: "matrix" };
-  const SUBS = { today: [["today", "Tonight"], ["plan", "Plan"]], mock: [["mock", "Mock test"], ["log", "Log a test"], ["treview", "Test review"]], matrix: [["matrix", "Progress"], ["rewards", "Rewards"], ["friends", "Friends"], ["account", "Account"]] };
+  const GROUP = { today: "today", plan: "today", news: "news", review: "review", practice: "practice", mock: "mock", log: "mock", treview: "mock", matrix: "matrix", mytime: "matrix", rewards: "matrix", friends: "matrix", account: "matrix" };
+  const SUBS = { today: [["today", "Tonight"], ["plan", "Plan"]], mock: [["mock", "Mock test"], ["log", "Log a test"], ["treview", "Test review"]], matrix: [["matrix", "Progress"], ["mytime", "My time"], ["rewards", "Rewards"], ["friends", "Friends"], ["account", "Account"]] };
   function renderSubnav(t) {
     const sn = document.querySelector("nav.subnav"); if (!sn) return;
     const subs = !GUEST && !ADMIN && SUBS[GROUP[t]];
     sn.hidden = !subs; sn.textContent = "";
     if (subs) subs.forEach(([k, label]) => { const b = el("button", { type: "button", "data-tab": k, "aria-current": k === t ? "page" : false, onclick: () => show(k) }, label); sn.append(b); });
   }
-  const RENDERERS_OK = (t) => ["today", "plan", "news", "practice", "mock", "review", "matrix", "log", "treview", "rewards", "friends", "account"].includes(t);
+  const RENDERERS_OK = (t) => ["today", "plan", "news", "practice", "mock", "review", "matrix", "mytime", "log", "treview", "rewards", "friends", "account"].includes(t);
   document.querySelectorAll("nav.tabs button").forEach((b) => b.addEventListener("click", () => show(b.dataset.tab)));
   ["aStreak", "aLevel"].forEach((id) => { const b = document.getElementById(id); if (b) b.addEventListener("click", () => { if (!GUEST && !ADMIN) show("rewards"); }); });
   function show(t) {
@@ -471,7 +471,7 @@
     setLbl("practice", GUEST ? "Try practice" : "Practice"); setLbl("mock", GUEST ? "Try a test" : "Tests");
     const fn = document.getElementById("footNote"); if (fn) fn.textContent = GUEST ? "Create a free student account to save progress and unlock the full site." : "Progress saves on this device first, then to your account.";
     if (!RENDERERS_OK(TAB)) { TAB = "today"; document.querySelectorAll("section.panel").forEach((x) => (x.hidden = x.id !== "p-today")); }
-    renderHeader(); ({ today: renderToday, plan: renderPlan, news: renderNews, practice: renderPractice, mock: renderMock, review: renderReview, matrix: renderMatrix, log: renderLog, treview: renderTReview, rewards: renderRewards, friends: renderFriends, account: renderAccount })[TAB](); }
+    renderHeader(); ({ today: renderToday, plan: renderPlan, news: renderNews, practice: renderPractice, mock: renderMock, review: renderReview, matrix: renderMatrix, mytime: renderMyTime, log: renderLog, treview: renderTReview, rewards: renderRewards, friends: renderFriends, account: renderAccount })[TAB](); }
 
   /* ================= News (Daily Brief inside the hub) ================= */
   // Daily Brief is a separate site on the same domain and shares this sign-in, so it runs here in a frame.
@@ -775,7 +775,6 @@
     if (sprint) renderSprint(p, t);
     else if (mode === "after") renderAfter(p);
     else renderLongPlan(p, mode);
-    const sc = screenCard(); if (sc) p.append(sc);
     p.append(activitiesCard());
   }
   // How the digital tests work (shown on the Tests tab).
@@ -1506,7 +1505,8 @@
     if (/youtube|entertainment|games?|netflix|twitch|reddit|tiktok|itch\.io|roblox|steam|spotify|music/.test(n + " " + c)) return "fun";
     return "other"; };
   const KIND_NAME = { study: "School and study", creative: "Making music", social: "Messages", fun: "Entertainment", other: "Everything else" };
-  function screenDay(d) { const x = SCREEN && SCREEN.days && SCREEN.days[d]; if (!x) return null; const by = { study: 0, creative: 0, social: 0, fun: 0, other: 0 };
+  const screenDay = (d) => screenDayOf(SCREEN, d);
+  function screenDayOf(screen, d) { const x = screen && screen.days && screen.days[d]; if (!x) return null; const by = { study: 0, creative: 0, social: 0, fun: 0, other: 0 };
     // Apps are exclusive; the browser's minutes are split by its sites' categories instead of counted as "other".
     const apps = x.apps || [], sites = x.sites || [], browsers = apps.filter((a) => /edge|chrome|safari|firefox/i.test(a.n)), bmin = browsers.reduce((s, a) => s + a.min, 0);
     for (const a of apps) if (!browsers.includes(a)) by[SCREEN_KIND(a.n)] += a.min;
@@ -1534,6 +1534,105 @@
       bars, legend,
       el("p", { style: "font-size:14px", text: lastLine }),
       funAvg > 120 ? el("p", { class: "muted", style: "font-size:13px", text: "Entertainment is averaging " + hm(funAvg) + " a day. That's where the 20 minutes for the Daily 20 can come from." }) : null);
+  }
+  /* ---- Time balance: screens next to homework, PSAT prep, Daily Brief, music and free evening time ----
+     Works on any student's saved data plus their inbox (screen, hw) and Daily Brief minutes, so the same
+     view serves the student (Me → My time) and the parent (admin card). Screens come from Qustodio (both
+     devices, all day); homework uses start/done taps when there are both, otherwise the estimate. */
+  let BRIEFT = null; // {date: minutes} from Daily Brief's time events
+  const MUSIC_RE = /violin|viola|cello|orchestra|music|band|concert|piano|choir|guitar|drum/i;
+  const hmS = (m) => { m = Math.round(m || 0); return m >= 60 ? Math.floor(m / 60) + "h" + (m % 60 ? String(m % 60).padStart(2, "0") : "") : m + "m"; };
+  const hmL = (m) => { m = Math.round(m || 0); return m >= 60 ? Math.floor(m / 60) + "h " + (m % 60 ? (m % 60) + "m" : "") : m + " min"; };
+  function tbDay(src, d) {
+    const st = src.st || {}, dow = parseYmd(d).getDay(), late = dow === 5 || dow === 6;
+    const sc = screenDayOf(src.screen, d), ev = (st.eve || {})[d] || {};
+    const items = [...((src.hw && src.hw.items) || []), ...(st.hwx || [])];
+    let hw = 0, hwN = 0;
+    for (const [id, k] of Object.entries(st.hw || {})) {
+      if (!k || k.done !== d) continue;
+      const it = items.find((x) => x.id === id) || {};
+      let m = k.start && k.doneAt ? hmMin(k.doneAt) - hmMin(k.start) : null;
+      if (m == null || m <= 0 || m > 240) m = k.est != null ? k.est : it.est != null ? it.est : 20;
+      if (m) { hw += m; hwN++; }
+    }
+    const prep = Math.round((((st.time || {})[d] || {}).f || 0) / 60), brief = Math.round((src.brief || {})[d] || 0);
+    const evs = [...(((st.settings || {}).events) || DEF_EVENTS).filter((e) => (e.dow || []).includes(dow) && !(ev.skip || []).includes(e.id)), ...(st.evx || []).filter((e) => e.date === d)];
+    const dur = (e) => (e.at && e.end ? Math.max(0, hmMin(e.end) - hmMin(e.at)) : 60);
+    const evMin = evs.reduce((n, e) => n + dur(e), 0), musicEv = evs.filter((e) => MUSIC_RE.test(e.name)).reduce((n, e) => n + dur(e), 0);
+    // Evening window: home (logged, else the usual time) to lights out (logged, else 10 pm; 11 pm Fri/Sat), less ~45 min for dinner and shower.
+    const home = ev.home || EVE_DEF.home[dow], bed = ev.bed || (late ? "23:00" : "22:00");
+    const span = Math.max(0, hmMin(bed) + (hmMin(bed) < 300 ? 1440 : 0) - hmMin(home));
+    const free = Math.max(0, span - 45 - hw - prep - brief - evMin);
+    const active = !!((st.activity || {})[d] && ((st.activity[d].q || 0) > 0 || st.activity[d].mock || st.activity[d].cards || st.activity[d].words)) || prep >= 5 || (st.tests || []).some((x) => x.date === d);
+    return { d, sc, hw, hwN, prep, brief, music: (sc ? sc.by.creative : 0) + musicEv, evMin, free, prepped: active, weekend: dow === 0 || dow === 6 };
+  }
+  function tbRows(src, n) { const t = today(); return Array.from({ length: n || 7 }, (_, i) => tbDay(src, addDays(t, i - (n || 7)))); }
+  function tbInsights(src, rows, who) {
+    const you = who === "you", nm = you ? "you" : who, Nm = you ? "You" : who;
+    const st = src.st || {}, out = [], sd = rows.filter((r) => r.sc), avg = (arr, f) => (arr.length ? arr.reduce((n, r) => n + f(r), 0) / arr.length : 0);
+    // 1. PSAT prep: the gap since the last day with practice, or how many days had it.
+    let gap = 0, d = addDays(today(), -1); while (gap < 60 && !tbDay(src, d).prepped) { gap++; d = addDays(d, -1); }
+    const prepDays = rows.filter((r) => r.prepped).length, prepAvg = avg(rows, (r) => r.prep);
+    if (gap >= 3) out.push({ k: "bad", t: gap >= 60 ? "No PSAT prep logged in the last two months." : "No PSAT prep in " + gap + " days (last on " + fmtDay(addDays(today(), -gap - 1)).md + ")." + (you ? " The Daily 20 is 20 minutes." : "") });
+    else out.push({ k: prepDays >= 5 ? "good" : "warn", t: "PSAT prep on " + prepDays + " of 7 days, about " + hmL(prepAvg) + " a day." });
+    if (sd.length) {
+      // 2. Entertainment against the work that moves the score and the grades.
+      const fun = avg(sd, (r) => r.sc.by.fun), work = avg(sd, (r) => r.hw + r.prep + r.brief);
+      if (fun >= 30) out.push({ k: fun > work * 1.5 && fun > 90 ? "bad" : fun > work ? "warn" : "good", t: "Entertainment averaged " + hmL(fun) + " a day; homework, PSAT prep and Daily Brief together " + hmL(work) + (work && fun > work * 1.5 ? " (" + (Math.round((fun / work) * 10) / 10) + "×)." : ".") });
+      // 3. The homework window (Qustodio blocks entertainment 4:30–7:45 pm on school days).
+      const hwB = sd.filter((r) => r.sc.hwBlocked.length), tries = hwB.reduce((n, r) => n + r.sc.hwBlocked.length, 0);
+      const sites = {}; hwB.forEach((r) => r.sc.hwBlocked.forEach((b) => (sites[b.site] = (sites[b.site] || 0) + 1)));
+      const top = Object.entries(sites).sort((a, b) => b[1] - a[1])[0];
+      if (hwB.length) out.push({ k: hwB.length >= 3 ? "bad" : "warn", t: tries + " blocked " + (tries === 1 ? "try" : "tries") + " during homework time on " + hwB.length + " of " + sd.length + " days" + (top ? ", mostly " + top[0] : "") + "." });
+      else if (sd.length >= 3) out.push({ k: "good", t: "No blocked tries during homework time." });
+      // 4. After lights out.
+      const lateN = sd.filter((r) => r.sc.blocked.some((b) => hmMin(b.at) >= 22 * 60 || hmMin(b.at) < 5 * 60)).length;
+      if (lateN) out.push({ k: lateN >= 3 ? "bad" : "warn", t: Nm + (you ? " tried" : " tried") + " a blocked site after 10 pm on " + lateN + " night" + (lateN === 1 ? "" : "s") + "." });
+    }
+    // 5. Music is a hobby, counted on its own rather than as entertainment.
+    const mus = avg(sd.length ? sd : rows, (r) => r.music);
+    if (mus >= 20) out.push({ k: "good", t: "Music averaged " + hmL(mus) + " a day (music apps and lessons), counted as a hobby, not entertainment." });
+    // 6. Free evening time on school nights, once homework is being tracked.
+    const school = rows.filter((r) => !r.weekend);
+    if (rows.some((r) => r.hwN) && school.length) { const fr = avg(school, (r) => r.free); out.push({ k: fr < 30 ? "warn" : "good", t: "About " + hmL(fr) + " free on school evenings after homework, prep and activities." + (fr < 30 ? " That's tight." : "") }); }
+    return out.slice(0, 5);
+  }
+  function timeCard(src, opts) {
+    const o = opts || {}, who = o.who || "you", rows = tbRows(src, 7);
+    const sd = rows.filter((r) => r.sc), any = sd.length || rows.some((r) => r.hw || r.prep || r.brief);
+    if (!any) return o.empty ? el("section", { class: "card" }, el("h3", { text: "Time balance" }), el("p", { class: "muted", text: "Nothing yet. Screen time arrives each morning from Qustodio; homework and prep fill in as they're done." })) : null;
+    const avg = (arr, f) => (arr.length ? arr.reduce((n, r) => n + f(r), 0) / arr.length : 0);
+    const tile = (cls, label, v, sub) => el("div", { class: "tb-tile " + cls }, el("span", { class: "eyebrow", text: label }), el("strong", { class: "num", text: hmS(v) }), el("span", { class: "muted", text: sub }));
+    const tiles = el("div", { class: "tb-tiles" },
+      tile("fun", "Fun screens", avg(sd, (r) => r.sc.by.fun), "YouTube, games…"),
+      tile("hw", "Homework", avg(rows, (r) => r.hw), rows.some((r) => r.hwN) ? "ticked off" : "not tracked yet"),
+      tile("prep", "PSAT prep", avg(rows, (r) => r.prep), rows.filter((r) => r.prepped).length + " of 7 days"),
+      tile("news", "Daily Brief", avg(rows, (r) => r.brief), rows.filter((r) => r.brief).length + " of 7 days"),
+      tile("music", "Music", avg(sd.length ? sd : rows, (r) => r.music), "apps + lessons"),
+      tile("free", "Free evening", avg(rows.filter((r) => !r.weekend), (r) => r.free), "school nights, ≈"));
+    const H = ["", "Screens", "Fun", "HW", "Prep", "Brief", "Music"];
+    const cell = (v, cls) => el("td", { class: cls || "", text: v == null ? "–" : hmS(v) });
+    const table = el("table", { class: "tb-grid" }, el("thead", {}, el("tr", {}, H.map((h) => el("th", { text: h })))),
+      el("tbody", {}, rows.slice().reverse().map((r) => el("tr", {}, el("th", { text: fmtDay(r.d).dow.slice(0, 3) + " " + Number(r.d.slice(8)) }),
+        cell(r.sc ? r.sc.total : null), cell(r.sc ? r.sc.by.fun : null, r.sc && r.sc.by.fun > 120 ? "hi" : ""), cell(r.hw, r.hw ? "" : "zero"), cell(r.prep, r.prep ? "" : "zero"), cell(r.brief, r.brief ? "" : "zero"), cell(r.music, r.music ? "" : "zero")))));
+    const ins = tbInsights(src, rows, who);
+    return el("section", { class: "card tb", style: "display:grid;gap:12px" },
+      el("div", {}, el("h3", { text: o.title || "Time balance" }), el("p", { class: "muted", style: "margin-top:.2em", text: "Last 7 days, average per day. Screens from Qustodio (both devices, all day); the rest from this app." })),
+      tiles,
+      ins.length ? el("ul", { class: "tb-ins" }, ins.map((x) => el("li", { class: x.k, text: x.t }))) : null,
+      el("div", { class: "tb-scroll" }, table));
+  }
+  // One line for collapsed places: yesterday's screens against the work.
+  function tbLine(src) {
+    const r = tbDay(src, addDays(today(), -1));
+    if (!r.sc && !r.hw && !r.prep) return null;
+    return "Yesterday: " + (r.sc ? hmL(r.sc.total) + " on screens (" + hmL(r.sc.by.fun) + " entertainment)" : "no screen report") + " · homework " + hmL(r.hw) + " · PSAT prep " + hmL(r.prep) + (r.brief ? " · Daily Brief " + hmL(r.brief) : "");
+  }
+  function renderMyTime() {
+    const p = $("#p-mytime"); p.textContent = "";
+    p.append(el("div", {}, el("h2", { text: "My time" }), el("p", { class: "muted lede", text: "Where your week went: screens next to homework, prep and music. You and your parent see the same numbers." })));
+    p.append(timeCard({ st: S, screen: SCREEN, hw: HW, brief: BRIEFT }, { who: "you", empty: true }));
+    const sc = screenCard(); if (sc) p.append(sc);
   }
   // Activities editor (Plan page): recurring weekly and one-off events.
   function activitiesCard() {
@@ -2811,7 +2910,9 @@
   async function adminLoad() {
     if (!ADMIN) return;
     ADMIN.err = null; ADMIN.loading = true; renderAdmin();
-    try { ADMIN.rows = await ADMIN.load(); ADMIN.at = new Date(); if (ADMIN.api) ADMIN.invites = await ADMIN.api.listInvites(); } catch (e) { ADMIN.err = (e && e.message) || "Couldn't load students."; }
+    try { ADMIN.rows = await ADMIN.load(); ADMIN.at = new Date();
+      ADMIN.tb = {};
+      if (ADMIN.api && ADMIN.api.timeBalance) await Promise.all(ADMIN.rows.filter((r) => r.data).map(async (r) => { try { ADMIN.tb[r.user_id] = await ADMIN.api.timeBalance(r.user_id); } catch (e) { } })); if (ADMIN.api) ADMIN.invites = await ADMIN.api.listInvites(); } catch (e) { ADMIN.err = (e && e.message) || "Couldn't load students."; }
     ADMIN.loading = false; if (ADMIN) render();
   }
   function renderAdmin() {
@@ -2831,6 +2932,7 @@
       const idleCls = x.idle == null || x.idle > 3 ? "bad" : x.idle > 1 ? "warn" : "good";
       const fmt = FORMATS[x.kind] || FORMATS.psat;
       const open = ADMIN.open === x.row.user_id;
+      const tb = ADMIN.tb && ADMIN.tb[x.row.user_id], tbSrc = tb && (tb.screen || (tb.brief && Object.keys(tb.brief).length)) ? { st: x.D, screen: tb.screen, hw: tb.hw, brief: tb.brief } : null;
       const card = el("div", { class: "card adm-card" + (open ? " open" : "") },
         el("div", { class: "row between" }, el("div", {}, el("h3", { text: x.name }), el("div", { class: "muted", style: "font-size:13px", text: fmt.name + (x.date ? " · " + fmtDay(x.date).md + ", " + parseYmd(x.date).getFullYear() + (x.left != null ? (x.left > 0 ? " · " + x.left + " days away" : x.left === 0 ? " · today" : " · done") : "") : "") + (x.target ? " · target " + x.target : "") })),
           el("span", { class: "chip " + idleCls, text: "Active " + agoText(x.idle) })),
@@ -2841,7 +2943,9 @@
           stat("All time", String(x.D.answered || 0), "answered · " + (x.mistakes = (x.D.mistakes || []).length) + " to redo")),
         x.weakest.length ? el("p", { style: "font-size:14px" }, el("strong", { text: "Weakest: " }), x.weakest.map((w) => w.d.name + " (" + Math.round(w.m * 100) + "%)").join(", ")) : el("p", { class: "muted", style: "font-size:14px", text: "Not enough practice yet to rank skills." }),
         el("p", { class: "muted", style: "font-size:13px" }, (x.row.reminders ? "Reminders on (" + x.row.reminders + " device" + (x.row.reminders === 1 ? "" : "s") + (x.row.remind_hour != null ? ", " + ((x.row.remind_hour % 12) || 12) + (x.row.remind_hour < 12 ? " am" : " pm") : "") + ")" : "Reminders off") + " · " + (x.row.email || "") + (x.row.grade ? " · grade " + x.row.grade : "")),
+        tbSrc && tbLine(tbSrc) ? el("p", { class: "tb-line", text: tbLine(tbSrc) }) : null,
         el("button", { class: "btn small" + (open ? "" : " primary"), onclick: () => { ADMIN.open = open ? null : x.row.user_id; renderAdmin(); } }, open ? "Hide details" : "See details"),
+        open && tbSrc ? timeCard(tbSrc, { who: x.name }) : null,
         open ? adminDetail(x) : null);
       grid.append(card);
     }
@@ -3138,6 +3242,7 @@
       const scIt = all.find((x) => x && x.type === "screen" && x.screen); SCREEN = scIt ? scIt.screen : null;
       FOCUS = row && all.length ? { items: all.filter((x) => !(typeof x.type === "string" && (x.type === "hw" || x.type === "screen" || x.type.startsWith("review:") || x.type.startsWith("log:") || x.type.startsWith("plan:")))), source: row.source, updated: row.updated_at } : null;
       if (TAB === "treview") render(); seedDeck(); if (!GUEST && (TAB === "today" || TAB === "practice")) render(); },
+    setBriefTime(m) { BRIEFT = m || null; if (TAB === "mytime") render(); },
     setBrief(b) {
       BRIEF = b || null; if (BRIEF) { try { localStorage.setItem(KEY + "-brief", "1"); } catch (e) { } }
       const nbtn = document.querySelector('nav.tabs button[data-tab="news"]'); if (nbtn) nbtn.hidden = !newsOn();

@@ -47,11 +47,13 @@ async function students() {
     admin.from("admins").select("email"), admin.auth.admin.listUsers({ perPage: 200 }), admin.from("fast_learners").select("user_id"), admin.from("focus_targets").select("user_id, items")]);
   // deno-lint-ignore no-explicit-any
   const hwBy: Record<string, any> = {}; for (const r of inbox || []) { const it = (Array.isArray(r.items) ? r.items : []).find((x: { type?: string }) => x && x.type === "hw"); if (it) hwBy[r.user_id] = it.hw; }
+  // deno-lint-ignore no-explicit-any
+  const scBy: Record<string, any> = {}; for (const r of inbox || []) { const it = (Array.isArray(r.items) ? r.items : []).find((x: { type?: string }) => x && x.type === "screen"); if (it) scBy[r.user_id] = it.screen; }
   const fastIds = new Set((fastL || []).map((f: { user_id: string }) => f.user_id));
   const adminEmails = new Set((admins || []).map((a: { email: string }) => a.email.toLowerCase()));
   const email: Record<string, string> = {}; for (const u of users.data?.users || []) email[u.id] = (u.email || "").toLowerCase();
   const prof: Record<string, { first_name?: string; test_kind?: string; test_date?: string }> = {}; for (const p of profs || []) prof[p.user_id] = p;
-  return (prog || []).filter((r: { user_id: string }) => !adminEmails.has(email[r.user_id] || "") && !fastIds.has(r.user_id)).map((r: { user_id: string; data: Record<string, unknown> }) => ({ id: r.user_id, D: r.data || {}, p: prof[r.user_id] || {}, email: email[r.user_id] || "", hw: hwBy[r.user_id] || null }));
+  return (prog || []).filter((r: { user_id: string }) => !adminEmails.has(email[r.user_id] || "") && !fastIds.has(r.user_id)).map((r: { user_id: string; data: Record<string, unknown> }) => ({ id: r.user_id, D: r.data || {}, p: prof[r.user_id] || {}, email: email[r.user_id] || "", hw: hwBy[r.user_id] || null, screen: scBy[r.user_id] || null }));
 }
 // School work for the evening: Canvas items due today or tomorrow plus the student's own, with their ticks.
 // deno-lint-ignore no-explicit-any
@@ -114,6 +116,78 @@ function summary(s: any, date: string) {
   return L.join("\n");
 }
 
+// ---- Time balance: yesterday's screens (Qustodio's daily email, parsed into the inbox each morning) next to
+// homework, PSAT prep, Daily Brief and music, plus up to two insights from the last 7 days. Mirrors the app's My time view.
+const hmS = (m: number) => { m = Math.round(m || 0); return m >= 60 ? Math.floor(m / 60) + "h" + (m % 60 ? String(m % 60).padStart(2, "0") : "") : m + "m"; };
+const hmMin = (hm: string) => { const [h, m] = (hm || "0:0").split(":").map(Number); return h * 60 + m; };
+const addDay = (date: string, n: number) => { const d = new Date(date + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+function skind(name: string, cat = "") {
+  const n = (name || "").toLowerCase(), c = (cat || "").toLowerCase();
+  if (/educational|search portal|canvas|classlink|instructure|github\.io|docs\.google|classroom|khan|collegeboard|bluebook|school|reference/.test(n + " " + c)) return "study";
+  if (/fl studio|garageband|logic|ableton|audacity|music creation|finale|musescore/.test(n)) return "creative";
+  if (/whatsapp|messages|imessage|discord|snapchat|instagram|facetime|social/.test(n + " " + c)) return "social";
+  if (/youtube|entertainment|games?|netflix|twitch|reddit|tiktok|itch\.io|roblox|steam|spotify|music/.test(n + " " + c)) return "fun";
+  return "other";
+}
+// deno-lint-ignore no-explicit-any
+function screenDay(screen: any, d: string) {
+  const x = screen && screen.days && screen.days[d]; if (!x) return null;
+  const by: Record<string, number> = { study: 0, creative: 0, social: 0, fun: 0, other: 0 };
+  // deno-lint-ignore no-explicit-any
+  const apps: any[] = x.apps || [], browsers = apps.filter((a) => /edge|chrome|safari|firefox/i.test(a.n)), bmin = browsers.reduce((n, a) => n + a.min, 0);
+  for (const a of apps) if (!browsers.includes(a)) by[skind(a.n)] += a.min;
+  // deno-lint-ignore no-explicit-any
+  const src: any[] = x.cats && x.cats.length ? x.cats.map((c: any) => ({ n: c.n, min: c.min, cat: c.n })) : (x.sites || []), smin = src.reduce((n, w) => n + w.min, 0);
+  for (const w of src) by[skind(w.n, w.cat)] += smin ? Math.round((w.min / smin) * Math.min(bmin, smin)) : 0;
+  const known = Object.values(by).reduce((n, v) => n + v, 0); by.other += Math.max(0, (x.total || 0) - known);
+  // deno-lint-ignore no-explicit-any
+  const blocked: any[] = x.blocked || [], hwBlocked = blocked.filter((b) => hmMin(b.at) >= hmMin("16:30") && hmMin(b.at) <= hmMin("19:45"));
+  return { total: x.total || 0, by, blocked, hwBlocked };
+}
+// deno-lint-ignore no-explicit-any
+function tbDay(s: any, d: string, bm: Record<string, number>) {
+  const D = s.D, dow = new Date(d + "T12:00:00Z").getUTCDay(), sc = screenDay(s.screen, d), ev = (D.eve || {})[d] || {};
+  const items = [...((s.hw && s.hw.items) || []), ...(D.hwx || [])];
+  let hw = 0;
+  // deno-lint-ignore no-explicit-any
+  for (const [id, k] of Object.entries(D.hw || {}) as [string, any][]) {
+    if (!k || k.done !== d) continue;
+    const it = items.find((x: { id: string }) => x.id === id) || {};
+    let m = k.start && k.doneAt ? hmMin(k.doneAt) - hmMin(k.start) : null;
+    if (m == null || m <= 0 || m > 240) m = k.est != null ? k.est : it.est != null ? it.est : 20;
+    hw += m || 0;
+  }
+  const prep = Math.round((((D.time || {})[d] || {}).f || 0) / 60), a = (D.activity || {})[d] || {};
+  const evs = [...(((D.settings || {}).events) || []).filter((e: { dow?: number[]; id: string }) => (e.dow || []).includes(dow) && !(ev.skip || []).includes(e.id)), ...(D.evx || []).filter((e: { date: string }) => e.date === d)];
+  const musicEv = evs.filter((e: { name: string }) => /violin|viola|cello|orchestra|music|band|concert|piano|choir|guitar|drum/i.test(e.name)).reduce((n: number, e: { at?: string; end?: string }) => n + (e.at && e.end ? Math.max(0, hmMin(e.end) - hmMin(e.at)) : 60), 0);
+  const prepped = (a.q || 0) > 0 || !!a.mock || !!a.cards || !!a.words || prep >= 5 || (D.tests || []).some((x: { date: string }) => x.date === d);
+  return { sc, hw, prep, brief: Math.round(bm[d] || 0), music: (sc ? sc.by.creative : 0) + musicEv, prepped };
+}
+// deno-lint-ignore no-explicit-any
+function timeLines(s: any, date: string, bm: Record<string, number>, full = false) {
+  const y = prevDate(date), r = tbDay(s, y, bm || {});
+  if (!r.sc && !r.hw && !r.prep && !r.brief) return [] as string[];
+  const L = [`🕒 ${dayLabel(y)}: ${r.sc ? "screens " + hmS(r.sc.total) + " (fun " + hmS(r.sc.by.fun) + (full ? ", school " + hmS(r.sc.by.study) : "") + ", music " + hmS(r.music) + ")" : "no screen report"} · homework ${hmS(r.hw)} · prep ${hmS(r.prep)} · brief ${hmS(r.brief)}${r.sc && r.sc.hwBlocked.length ? " · " + r.sc.hwBlocked.length + " blocked in homework time" : ""}`];
+  const rows = Array.from({ length: 7 }, (_, i) => tbDay(s, addDay(y, -i), bm || {})), sd = rows.filter((x) => x.sc);
+  const avg = (arr: typeof rows, f: (x: (typeof rows)[number]) => number) => (arr.length ? arr.reduce((n, x) => n + f(x), 0) / arr.length : 0);
+  const ins: string[] = [];
+  let gap = 0; while (gap < 60 && !tbDay(s, addDay(y, -gap), bm || {}).prepped) gap++;
+  if (gap >= 3) ins.push(gap >= 60 ? "no PSAT prep in 2 months" : `no PSAT prep in ${gap} days`);
+  if (sd.length) {
+    const fun = avg(sd, (x) => x.sc!.by.fun), work = avg(sd, (x) => x.hw + x.prep + x.brief);
+    if (fun > 90 && fun > work * 1.5) ins.push(`fun screens ${hmS(fun)}/day vs ${hmS(work)} homework+prep+brief`);
+    const hb = sd.filter((x) => x.sc!.hwBlocked.length).length;
+    if (hb >= 3) ins.push(`blocked tries in homework time on ${hb} of ${sd.length} days`);
+  }
+  if (ins.length) L.push("💡 7 days: " + ins.slice(0, full ? 3 : 2).join(" · "));
+  return L;
+}
+async function briefMinutes(date: string) {
+  const { data } = await admin.from("brief_events").select("user_id, feed_date, ms").eq("kind", "time").gte("feed_date", addDay(date, -8)).lte("feed_date", date);
+  const out: Record<string, Record<string, number>> = {};
+  for (const r of data || []) { const u = out[r.user_id] || (out[r.user_id] = {}); u[r.feed_date] = (u[r.feed_date] || 0) + (r.ms || 0) / 60000; }
+  return out;
+}
 // Short version (the 9 pm message): one status line plus only the things worth a parent's attention.
 // deno-lint-ignore no-explicit-any
 function short(s: any, date: string, brief?: { done: boolean; opened: boolean; read: number; total: number }) {
@@ -253,16 +327,16 @@ function prevDate(date: string) { const d = new Date(date + "T12:00:00Z"); d.set
 async function chats() { const { data } = await admin.from("telegram_chats").select("chat_id").eq("enabled", true); return (data || []).map((c: { chat_id: number }) => c.chat_id); }
 async function reportText(date: string, full = false) {
   // deno-lint-ignore no-explicit-any
-  const [list, brief, fast] = await Promise.all([students(), briefLines(date).catch(() => ({} as Record<string, any>)), fastLearners().catch(() => [])]);
+  const [list, brief, fast, bmin] = await Promise.all([students(), briefLines(date).catch(() => ({} as Record<string, any>)), fastLearners().catch(() => []), briefMinutes(date).catch(() => ({} as Record<string, Record<string, number>>))]);
   const ids = new Set([...list.map((s) => s.id), ...fast.map((f: { user_id: string }) => f.user_id)]);
   if (full) {
-    const blocks = list.map((s) => summary(s, date) + (brief[s.id] ? "\n" + brief[s.id].line : ""));
+    const blocks = list.map((s) => [summary(s, date), ...timeLines(s, date, bmin[s.id] || {}, true)].join("\n") + (brief[s.id] ? "\n" + brief[s.id].line : ""));
     // deno-lint-ignore no-explicit-any
     for (const f of fast as any[]) blocks.push(fastFull(f, date, brief[f.user_id]));
     for (const [id, b] of Object.entries(brief)) if (!ids.has(id)) blocks.push(`👤 <b>${esc(b.name)}</b>\n${b.line}`);
     return blocks.length ? blocks.join("\n\n") + `\n\n<a href="${SITE}">Open Test Prep Hub</a> · <a href="${SITE}fast/">FAST Prep</a>` : "No students yet.";
   }
-  const blocks = list.map((s) => short(s, date, brief[s.id] && brief[s.id].info));
+  const blocks = list.map((s) => [short(s, date, brief[s.id] && brief[s.id].info), ...timeLines(s, date, bmin[s.id] || {})].join("\n"));
   // deno-lint-ignore no-explicit-any
   for (const f of fast as any[]) blocks.push(fastShort(f, date, brief[f.user_id] && brief[f.user_id].info));
   const others = Object.entries(brief).filter(([id]) => !ids.has(id)).map(([, b]) => `${esc(b.name)} ${b.info.done ? "✓" : b.info.opened ? b.info.read + "/" + b.info.total : "✗"}`);

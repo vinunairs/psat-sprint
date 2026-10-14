@@ -552,3 +552,30 @@ body[data-tab="today"]:not(.admin):not(.guest) .hero-card{display:none}
 .news-frame{display:block;width:100%;height:70vh;border:0;border-radius:var(--r-lg);background:var(--surface);box-shadow:var(--shadow)}
 body[data-tab="news"] footer.foot{display:none}
 @media (max-width:899px){body[data-tab="news"]{padding-bottom:0}}
+
+/* ---------- Time balance (Me → My time, admin card) ---------- */
+.tb-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+@media (min-width:700px){.tb-tiles{grid-template-columns:repeat(6,minmax(0,1fr))}}
+.tb-tile{display:flex;flex-direction:column;gap:2px;padding:10px;border-radius:12px;background:var(--sunk);min-width:0}
+.tb-tile .eyebrow{font-size:10.5px;letter-spacing:.04em;overflow-wrap:anywhere}
+.tb-tile strong{font-size:20px;line-height:1.1}
+.tb-tile .muted{font-size:11.5px}
+.tb-tile.fun{background:color-mix(in srgb,#f59e0b 14%,var(--surface))}
+.tb-tile.hw{background:color-mix(in srgb,#0b5e8a 12%,var(--surface))}
+.tb-tile.prep{background:color-mix(in srgb,#5b3fe0 12%,var(--surface))}
+.tb-tile.news{background:color-mix(in srgb,#0f6e5a 12%,var(--surface))}
+.tb-tile.music{background:color-mix(in srgb,#db2777 10%,var(--surface))}
+.tb-ins{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.tb-ins li{font-size:14px;padding:8px 10px 8px 30px;border-radius:10px;background:var(--sunk);position:relative}
+.tb-ins li::before{position:absolute;left:10px;top:8px;font-weight:800}
+.tb-ins li.bad::before{content:"!";color:var(--bad)}
+.tb-ins li.warn::before{content:"•";color:#d97706}
+.tb-ins li.good::before{content:"✓";color:var(--good)}
+.tb-scroll{overflow-x:auto}
+.tb-grid{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+.tb-grid th,.tb-grid td{padding:5px 3px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+.tb-grid thead th{font-size:11.5px;color:var(--graphite);font-weight:700}
+.tb-grid tbody th{text-align:left;font-weight:700}
+.tb-grid td.zero{color:var(--graphite);opacity:.55}
+.tb-grid td.hi{color:#b45309;font-weight:800}
+.tb-line{font-size:13.5px;margin:0;padding:8px 10px;border-radius:10px;background:var(--sunk)}
