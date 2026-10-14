@@ -421,7 +421,7 @@
   let TAB = "today";
   // Five destinations, one place per job: Today (the plan), Learn (Lab, flashcards, rules), Practice (questions),
   // Tests (mocks, logging, official tests), Me (progress, rewards, friends, account). Related views share a sub-nav.
-  const GROUP = { today: "today", plan: "today", review: "review", practice: "practice", mock: "mock", log: "mock", treview: "mock", matrix: "matrix", rewards: "matrix", friends: "matrix", account: "matrix" };
+  const GROUP = { today: "today", plan: "today", news: "news", review: "review", practice: "practice", mock: "mock", log: "mock", treview: "mock", matrix: "matrix", rewards: "matrix", friends: "matrix", account: "matrix" };
   const SUBS = { today: [["today", "Tonight"], ["plan", "Plan"]], mock: [["mock", "Mock test"], ["log", "Log a test"], ["treview", "Test review"]], matrix: [["matrix", "Progress"], ["rewards", "Rewards"], ["friends", "Friends"], ["account", "Account"]] };
   function renderSubnav(t) {
     const sn = document.querySelector("nav.subnav"); if (!sn) return;
@@ -429,12 +429,13 @@
     sn.hidden = !subs; sn.textContent = "";
     if (subs) subs.forEach(([k, label]) => { const b = el("button", { type: "button", "data-tab": k, "aria-current": k === t ? "page" : false, onclick: () => show(k) }, label); sn.append(b); });
   }
-  const RENDERERS_OK = (t) => ["today", "plan", "practice", "mock", "review", "matrix", "log", "treview", "rewards", "friends", "account"].includes(t);
+  const RENDERERS_OK = (t) => ["today", "plan", "news", "practice", "mock", "review", "matrix", "log", "treview", "rewards", "friends", "account"].includes(t);
   document.querySelectorAll("nav.tabs button").forEach((b) => b.addEventListener("click", () => show(b.dataset.tab)));
   ["aStreak", "aLevel"].forEach((id) => { const b = document.getElementById(id); if (b) b.addEventListener("click", () => { if (!GUEST && !ADMIN) show("rewards"); }); });
   function show(t) {
     if (GUEST && !["today", "practice", "mock"].includes(t)) t = "today";
     if (ADMIN && !GUEST) t = "admin";
+    if (TAB === "news" && t !== "news" && window.PSApp && window.PSApp.refreshBrief) window.PSApp.refreshBrief();
     TAB = t;
     document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === GROUP[t])));
     renderSubnav(t);
@@ -465,10 +466,39 @@
     }
     if (!GUEST && syncExams(S)) { save(); for (const fn of settingsHooks) { try { fn(S.settings); } catch (x) { } } }
     const setLbl = (tab, txt) => { const b = document.querySelector('nav.tabs button[data-tab="' + tab + '"] .lbl'); if (b) b.textContent = txt; };
+    const nbtn = document.querySelector('nav.tabs button[data-tab="news"]'); if (nbtn) nbtn.hidden = !newsOn();
+    if (TAB === "news" && !newsOn()) TAB = "today";
     setLbl("practice", GUEST ? "Try practice" : "Practice"); setLbl("mock", GUEST ? "Try a test" : "Tests");
     const fn = document.getElementById("footNote"); if (fn) fn.textContent = GUEST ? "Create a free student account to save progress and unlock the full site." : "Progress saves on this device first, then to your account.";
     if (!RENDERERS_OK(TAB)) { TAB = "today"; document.querySelectorAll("section.panel").forEach((x) => (x.hidden = x.id !== "p-today")); }
-    renderHeader(); ({ today: renderToday, plan: renderPlan, practice: renderPractice, mock: renderMock, review: renderReview, matrix: renderMatrix, log: renderLog, treview: renderTReview, rewards: renderRewards, friends: renderFriends, account: renderAccount })[TAB](); }
+    renderHeader(); ({ today: renderToday, plan: renderPlan, news: renderNews, practice: renderPractice, mock: renderMock, review: renderReview, matrix: renderMatrix, log: renderLog, treview: renderTReview, rewards: renderRewards, friends: renderFriends, account: renderAccount })[TAB](); }
+
+  /* ================= News (Daily Brief inside the hub) ================= */
+  // Daily Brief is a separate site on the same domain and shares this sign-in, so it runs here in a frame.
+  // The tab shows for Daily Brief learners only: anyone who has had a brief on this device.
+  function newsOn() {
+    if (GUEST || ADMIN) return false;
+    if (BRIEF) return true;
+    try { return localStorage.getItem(KEY + "-brief") === "1"; } catch (e) { return false; }
+  }
+  function renderNews() {
+    const p = $("#p-news");
+    if (!p.querySelector("iframe.news-frame")) {
+      p.textContent = "";
+      p.append(el("iframe", { class: "news-frame", src: "../daily-brief/", title: "Daily Brief", allow: "microphone; autoplay; clipboard-write" }));
+    }
+    fitNews(); requestAnimationFrame(fitNews);
+  }
+  // The frame fills the screen between the app bar and the bottom tabs and scrolls inside, so Daily Brief's
+  // own pop-up sheets and toasts stay on screen.
+  function fitNews() {
+    const p = document.getElementById("p-news"), fr = p && p.querySelector("iframe.news-frame");
+    if (!fr || p.hidden) return;
+    const nav = document.querySelector("nav.tabs"), phone = window.innerWidth < 900;
+    const below = phone && nav ? nav.offsetHeight + 8 : 16;
+    fr.style.height = Math.max(380, Math.round(window.innerHeight - fr.getBoundingClientRect().top - below)) + "px";
+  }
+  window.addEventListener("resize", fitNews);
 
   /* ================= Today ================= */
   function taskList(day, only, moved) {
@@ -1456,7 +1486,8 @@
     const nb = BRIEF && BRIEF.date === t ? BRIEF : null;
     const news = el("section", { class: "card td-sec td-news" },
       el("div", { class: "td-news-main" }, tag("news", "Daily news"), el("b", { text: nb ? (nb.read >= nb.total && nb.total ? "Today's brief: done" : "Today's brief · " + nb.read + " of " + nb.total + " cards read") : "Today's brief" }), el("span", { class: "muted", text: nb && nb.total ? (nb.read >= nb.total ? "Nice." : "About " + Math.max(1, nb.total - nb.read) + " minutes left") : "About 10 minutes" })),
-      el("a", { class: "btn", href: "https://vinunairs.github.io/daily-brief/", target: "_blank", rel: "noopener" }, nb && nb.read >= nb.total && nb.total ? "Open" : "Read"));
+      newsOn() ? el("button", { class: "btn", type: "button", onclick: () => show("news") }, nb && nb.read >= nb.total && nb.total ? "Open" : "Read")
+        : el("a", { class: "btn", href: "https://vinunairs.github.io/daily-brief/", target: "_blank", rel: "noopener" }, nb && nb.read >= nb.total && nb.total ? "Open" : "Read"));
     // Habits
     const hab = (k, label) => el("button", { class: "eve-hab" + (ev[k] ? " on" : ""), onclick: () => { ev[k] = ev[k] ? null : nowHM(); save(); render(); } }, el("span", { text: label }), el("small", { text: ev[k] ? fmtHM(ev[k]) : "tap" }));
     const habits = el("div", { class: "td-habs" }, hab("home", "Home"), hab("dinner", "Dinner"), hab("shower", "Shower"), hab("bed", "Lights out"));
@@ -3107,7 +3138,10 @@
       const scIt = all.find((x) => x && x.type === "screen" && x.screen); SCREEN = scIt ? scIt.screen : null;
       FOCUS = row && all.length ? { items: all.filter((x) => !(typeof x.type === "string" && (x.type === "hw" || x.type === "screen" || x.type.startsWith("review:") || x.type.startsWith("log:") || x.type.startsWith("plan:")))), source: row.source, updated: row.updated_at } : null;
       if (TAB === "treview") render(); seedDeck(); if (!GUEST && (TAB === "today" || TAB === "practice")) render(); },
-    setBrief(b) { BRIEF = b || null; if (TAB === "today") render(); },
+    setBrief(b) {
+      BRIEF = b || null; if (BRIEF) { try { localStorage.setItem(KEY + "-brief", "1"); } catch (e) { } }
+      const nbtn = document.querySelector('nav.tabs button[data-tab="news"]'); if (nbtn) nbtn.hidden = !newsOn();
+      if (TAB === "today") render(); },
     setSocial(api) { SOC = api && !GUEST ? { api } : null; CH = null; socialBadge(); if (SOC) socialLoad(TAB === "friends"); },
     onSettings(fn) { settingsHooks.push(fn); },
     // Record which account this device's progress belongs to (does not count as a change).

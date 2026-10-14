@@ -244,3 +244,7 @@ apps:[{n,min,os}], sites:[{n,min,cat}], cats:[{n,min}], searches:[], blocked:[{s
 browser's minutes are split by Qustodio's site categories) and counts blocked tries between 4:30 and 7:45 pm as the
 homework-window distraction signal. The card shows a 7-day stacked bar, the latest day's line, and the weekly
 blocked-during-homework count. Activities: the default violin lesson is Tuesday 9:00 pm (migrated with `fixed`).
+
+## News tab (Daily Brief inside the hub)
+
+Daily Brief (vinunairs/daily-brief) shares this site's sign-in: both use the storage key `sb-frdcgfafsumdqjbjdhmf-auth-token` on the same domain, so signing in or out on either does both. The **News** tab shows Daily Brief in a frame (`../daily-brief/`), sized to fill the screen between the app bar and the bottom tabs; Daily Brief hides its own header there. The tab appears only for Daily Brief learners (anyone who has had a brief on that device), and the Today card's Daily news button opens it. Leaving the tab refreshes the "cards read" count on Today. Daily Brief's push notifications still open the standalone site.

@@ -198,6 +198,7 @@
         app.setBrief(total ? { date, total, read } : null);
       } catch (e) { }
     }
+    app.refreshBrief = loadBrief;
     // Rewards are set by the parent (admin); the student's copy follows them.
     async function loadRewards() {
       if (!user || !app.setRewardCfg) return;
