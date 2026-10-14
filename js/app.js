@@ -745,6 +745,7 @@
     if (sprint) renderSprint(p, t);
     else if (mode === "after") renderAfter(p);
     else renderLongPlan(p, mode);
+    const sc = screenCard(); if (sc) p.append(sc);
     p.append(activitiesCard());
   }
   // How the digital tests work (shown on the Tests tab).
@@ -1314,9 +1315,10 @@
      evening habits (home, dinner, shower). Ticks live in S.hw[id] = {done, est}; extras the student adds in S.hwx;
      the day's habit times in S.eve[date]. The Daily 20 is three parts read from today's activity: 5 cards,
      10 questions, 1 notebook question. All of it is in one card at the top of Today. */
-  const EVE_DEF = { home: { 1: "16:30", 2: "17:30", 3: "17:30", 4: "17:30", 5: "17:30", 0: "10:00", 6: "10:00" }, fixed: { 3: [{ at: "21:00", min: 30, name: "Violin lesson" }] } };
+  const EVE_DEF = { home: { 1: "16:30", 2: "17:30", 3: "17:30", 4: "17:30", 5: "17:30", 0: "10:00", 6: "10:00" }, fixed: {} };
   const eveCfg = () => { const c = S.settings.evening || {}; return { home: Object.assign({}, EVE_DEF.home, c.home || {}), fixed: Object.assign({}, EVE_DEF.fixed, c.fixed || {}) }; };
   let HW = null; // {at, items} from the inbox
+  let SCREEN = null; // {days:{date:{...}}} from the inbox (Qustodio daily summary, parsed by the morning task)
   const hwTicks = () => S.hw || (S.hw = {});
   const hwExtra = () => S.hwx || (S.hwx = []);
   function eveDay(d) { const E = S.eve || (S.eve = {}); const k = d || today(); return E[k] || (E[k] = {}); }
@@ -1352,8 +1354,8 @@
   const longBlockDone = (d) => { const a = S.activity[d] || {}; return (a.mock || 0) > 0 || (a.timed || 0) > 0 || S.tests.some((t) => t.date === d && OFFICIAL_SRC.includes(t.source)); };
   // Activities with a clock: recurring (settings.events: {id,name,dow:[1-7 or 0],at,end}) and one-offs (S.evx: {id,name,date,at,end}),
   // plus Canvas events (est 0) for the day, which block the evening until the student says they are over.
-  const DEF_EVENTS = [{ id: "violin", name: "Violin lesson", dow: [3], at: "21:00", end: "21:30" }];
-  const recEvents = () => (S.settings.events || (S.settings.events = DEF_EVENTS.map((e) => Object.assign({}, e))));
+  const DEF_EVENTS = [{ id: "violin", name: "Violin lesson", dow: [2], at: "21:00", end: "21:30" }];
+  const recEvents = () => { const E = S.settings.events || (S.settings.events = DEF_EVENTS.map((e) => Object.assign({}, e))); const v = E.find((e) => e.id === "violin"); if (v && !v.fixed) { v.dow = [2]; v.fixed = true; } return E; };
   const oneEvents = () => S.evx || (S.evx = []);
   const hmMin = (hm) => { const [h, m] = (hm || "0:0").split(":").map(Number); return h * 60 + m; };
   const minHM = (n) => String(Math.floor(n / 60)).padStart(2, "0") + ":" + String(n % 60).padStart(2, "0");
@@ -1386,7 +1388,7 @@
     let blocks;
     if (light) blocks = left.length ? [hwB, cards] : [cards];
     else if (!school) blocks = dow === 6 ? [d20, block] : [d20, labB];
-    else if (dow === 3) blocks = [d20, hwB];
+    else if (events.some((e) => e.src !== "canvas")) blocks = [d20, hwB];
     else if (dow === 1) blocks = [hwB, d20, block];
     else blocks = [hwB, d20];
     // Start times: walk forward from settling in, skipping event windows.
@@ -1463,6 +1465,44 @@
     const evEdit = el("a", { class: "muted td-ev", href: "#plan", onclick: (e) => { e.preventDefault(); show("plan"); setTimeout(() => { const x = document.getElementById("activities"); if (x) x.scrollIntoView({ block: "start" }); }, 50); } }, "+ Add an activity");
     const over = plan.events.filter((e) => e.src === "canvas").map((e) => el("button", { class: "btn small ghost", onclick: () => skipEventToday(e.id) }, e.name + " is over"));
     return el("div", { class: "td" }, head, why, plan.light && over.length ? el("div", { class: "row" }, over) : null, school, prep, news, habits, el("div", { class: "td-foot" }, planLine, evEdit));
+  }
+  // Screen time (Plan page): the last 7 days from Qustodio's daily summary, sorted into kinds, with blocked tries
+  // during the homework window counted as the distraction signal.
+  const SCREEN_KIND = (name, cat) => { const n = (name || "").toLowerCase(), c = (cat || "").toLowerCase();
+    if (/educational|search portal|canvas|classlink|instructure|github\.io|docs\.google|classroom|khan|collegeboard|bluebook|school|reference/.test(n + " " + c)) return "study";
+    if (/fl studio|garageband|logic|ableton|audacity|music creation|finale|musescore/.test(n)) return "creative";
+    if (/whatsapp|messages|imessage|discord|snapchat|instagram|facetime|social/.test(n + " " + c)) return "social";
+    if (/youtube|entertainment|games?|netflix|twitch|reddit|tiktok|itch\.io|roblox|steam|spotify|music/.test(n + " " + c)) return "fun";
+    return "other"; };
+  const KIND_NAME = { study: "School and study", creative: "Making music", social: "Messages", fun: "Entertainment", other: "Everything else" };
+  function screenDay(d) { const x = SCREEN && SCREEN.days && SCREEN.days[d]; if (!x) return null; const by = { study: 0, creative: 0, social: 0, fun: 0, other: 0 };
+    // Apps are exclusive; the browser's minutes are split by its sites' categories instead of counted as "other".
+    const apps = x.apps || [], sites = x.sites || [], browsers = apps.filter((a) => /edge|chrome|safari|firefox/i.test(a.n)), bmin = browsers.reduce((s, a) => s + a.min, 0);
+    for (const a of apps) if (!browsers.includes(a)) by[SCREEN_KIND(a.n)] += a.min;
+    // Qustodio's site categories (Educational, Search Portal, Entertainment…) cover more of the browser time than its top-3 domains.
+    const src = (x.cats && x.cats.length ? x.cats.map((c) => ({ n: c.n, min: c.min, cat: c.n })) : sites), smin = src.reduce((s, w) => s + w.min, 0);
+    for (const w of src) by[SCREEN_KIND(w.n, w.cat)] += smin ? Math.round((w.min / smin) * Math.min(bmin, smin)) : 0;
+    const known = Object.values(by).reduce((s, v) => s + v, 0); by.other += Math.max(0, (x.total || 0) - known);
+    const hwWin = (x.blocked || []).filter((b) => { const m = hmMin(b.at); return m >= hmMin("16:30") && m <= hmMin("19:45"); });
+    return { total: x.total || 0, by, blocked: x.blocked || [], hwBlocked: hwWin, searches: x.searches || [] }; }
+  function screenCard() {
+    if (!SCREEN || !SCREEN.days) return null;
+    const t = today(), days = Array.from({ length: 7 }, (_, i) => addDays(t, i - 7)), rows = days.map((d) => [d, screenDay(d)]);
+    const max = Math.max(60, ...rows.map(([, r]) => (r ? r.total : 0)));
+    const hm = (m) => (m >= 60 ? Math.floor(m / 60) + "h " + (m % 60 ? (m % 60) + "m" : "") : m + "m").trim();
+    const bars = el("div", { class: "sc-bars" }, rows.map(([d, r]) => el("div", { class: "sc-col", title: r ? fmtDay(d).long + " · " + hm(r.total) : fmtDay(d).long + " · no report" },
+      el("div", { class: "sc-stack", style: "height:" + (r ? Math.round((r.total / max) * 100) : 0) + "%" }, r ? ["study", "creative", "social", "fun", "other"].map((k) => el("i", { class: "sc-" + k, style: "flex:" + r.by[k] })) : null),
+      el("span", { class: "muted", text: fmtDay(d).dow[0] }))));
+    const last = rows.slice().reverse().find(([, r]) => r), wk = rows.filter(([, r]) => r);
+    const avg = wk.length ? Math.round(wk.reduce((s, [, r]) => s + r.total, 0) / wk.length) : 0;
+    const hwB = wk.reduce((s, [, r]) => s + r.hwBlocked.length, 0), funAvg = wk.length ? Math.round(wk.reduce((s, [, r]) => s + r.by.fun, 0) / wk.length) : 0;
+    const legend = el("div", { class: "sc-legend" }, ["study", "creative", "social", "fun", "other"].map((k) => el("span", {}, el("i", { class: "sc-" + k }), KIND_NAME[k])));
+    const lastLine = last ? fmtDay(last[0]).dow + ": " + hm(last[1].total) + " on screens" + (last[1].by.study ? " · " + hm(last[1].by.study) + " school" : "") + (last[1].by.creative ? " · " + hm(last[1].by.creative) + " music" : "") + (last[1].by.fun ? " · " + hm(last[1].by.fun) + " entertainment" : "") + (last[1].hwBlocked.length ? " · " + last[1].hwBlocked.length + " blocked " + (last[1].hwBlocked.length === 1 ? "try" : "tries") + " during homework" : "") : "No report yet.";
+    return el("section", { class: "card", style: "display:grid;gap:10px" },
+      el("div", { class: "row between" }, el("div", {}, el("h3", { text: "Screen time" }), el("p", { class: "muted", style: "margin-top:.2em", text: "Both devices, from Qustodio's morning report. Averaging " + hm(avg) + " a day this week." })), hwB ? el("span", { class: "chip bad", text: hwB + " blocked during homework" }) : el("span", { class: "chip good", text: "0 blocked during homework" })),
+      bars, legend,
+      el("p", { style: "font-size:14px", text: lastLine }),
+      funAvg > 120 ? el("p", { class: "muted", style: "font-size:13px", text: "Entertainment is averaging " + hm(funAvg) + " a day. That's where the 20 minutes for the Daily 20 can come from." }) : null);
   }
   // Activities editor (Plan page): recurring weekly and one-off events.
   function activitiesCard() {
@@ -3064,7 +3104,8 @@
         save(); toast("Your plan for next year is ready", true); if (TAB === "today") render();
       }
       const hwIt = all.find((x) => x && x.type === "hw" && x.hw); HW = hwIt ? hwIt.hw : null;
-      FOCUS = row && all.length ? { items: all.filter((x) => !(typeof x.type === "string" && (x.type === "hw" || x.type.startsWith("review:") || x.type.startsWith("log:") || x.type.startsWith("plan:")))), source: row.source, updated: row.updated_at } : null;
+      const scIt = all.find((x) => x && x.type === "screen" && x.screen); SCREEN = scIt ? scIt.screen : null;
+      FOCUS = row && all.length ? { items: all.filter((x) => !(typeof x.type === "string" && (x.type === "hw" || x.type === "screen" || x.type.startsWith("review:") || x.type.startsWith("log:") || x.type.startsWith("plan:")))), source: row.source, updated: row.updated_at } : null;
       if (TAB === "treview") render(); seedDeck(); if (!GUEST && (TAB === "today" || TAB === "practice")) render(); },
     setBrief(b) { BRIEF = b || null; if (TAB === "today") render(); },
     setSocial(api) { SOC = api && !GUEST ? { api } : null; CH = null; socialBadge(); if (SOC) socialLoad(TAB === "friends"); },

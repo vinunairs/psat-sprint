@@ -234,3 +234,13 @@ for their day until "<event> is over" is tapped. `evePlan()` subtracts the event
 under 45 min + homework remains, it is a light night: only the cards (and work due tomorrow), the Daily 20 chain
 passes through (`activity[date].d20skip`). The hero card is hidden on Today. The Plan tab (sub-nav under Today)
 holds the weekly goals, focus card, score prompt, fix-it list, roadmap and the activities editor.
+
+## Screen time (Plan page)
+Qustodio has no API and its dashboard signs out quickly, so the source is its **Daily Summary Report** email
+(8:16 am, yesterday's totals) plus the **Activity Alert** emails (blocked sites with times). A scheduled Claude task
+reads them from Vinu's Gmail each morning and writes one inbox item `{type:"screen", screen:{at, days:{date:{total,
+apps:[{n,min,os}], sites:[{n,min,cat}], cats:[{n,min}], searches:[], blocked:[{site,at,dev}]}}}}` (last 28 days).
+`screenDay()` sorts minutes into school/study, making music, messages, entertainment, other (apps are exclusive; the
+browser's minutes are split by Qustodio's site categories) and counts blocked tries between 4:30 and 7:45 pm as the
+homework-window distraction signal. The card shows a 7-day stacked bar, the latest day's line, and the weekly
+blocked-during-homework count. Activities: the default violin lesson is Tuesday 9:00 pm (migrated with `fixed`).
