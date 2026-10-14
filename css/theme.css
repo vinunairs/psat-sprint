@@ -512,3 +512,28 @@ body:not(.guest) #footNote{display:none}
 .eve-strip-row i{display:block;width:12px;height:12px;border-radius:50%;background:var(--sunk);border:1px solid var(--line);margin:0 auto}
 .eve-strip-row i.on{background:var(--good);border-color:var(--good)}
 @media (max-width:480px){.eve-block{grid-template-columns:56px 1fr;}.eve-block>.chip,.eve-block>.btn{grid-column:2}}
+/* Today, simplified */
+body[data-tab="today"]:not(.admin):not(.guest) .hero-card{display:none}
+.td{display:grid;gap:12px}
+.td-head{display:grid;gap:4px;padding:4px 2px 2px}
+.td-head h2{font-size:clamp(22px,5.5vw,26px);line-height:1.15;margin:.1em 0}
+.td-sec{display:grid;gap:10px;padding:14px}
+.tag{display:inline-block;font-size:11.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;border-radius:6px;padding:3px 8px;white-space:nowrap}
+.tag.school{color:#0b5e8a;background:#dcefff}.tag.prep{color:#4a2fc9;background:#e9e4fb}.tag.news{color:#0f6e5a;background:#d9f3ea}
+.td-block{display:grid;grid-template-columns:64px 1fr auto;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:12px}
+.td-block.done{opacity:.72}
+.td-news{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.td-news-main{display:grid;gap:4px;min-width:0}.td-news-main .tag{width:max-content}
+.td-habs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.td-habs .eve-hab{min-width:0;padding:8px 9px}.td-habs .eve-hab span{font-size:13.5px}
+.td-plan{display:flex;justify-content:space-between;align-items:center;flex:1;text-decoration:none;color:var(--graphite);font-size:14px;padding:4px 2px}
+.td-plan b{color:var(--pencil-strong)}
+.td-ev{font-size:13px;text-decoration:none;white-space:nowrap}
+.td-why{display:grid;gap:8px;padding:10px 12px;border-radius:12px;background:var(--sunk);font-size:14px}
+.hw-main{background:none;border:0;padding:0;text-align:left;font:inherit;color:inherit;display:grid;min-width:0;cursor:pointer}
+.hw-over{font-size:12.5px;color:var(--warn,#b4650a);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.ev-form{display:grid;gap:8px}
+.ev-form input[type=text],.ev-form input[type=date],.ev-form input[type=time]{padding:8px 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit;font-size:14px;min-width:0}
+.ev-form input[type=text]{width:100%;box-sizing:border-box}
+@media (max-width:420px){.td-habs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.td-foot{display:grid;gap:6px;justify-items:start}.td-foot .td-plan{width:100%;box-sizing:border-box}

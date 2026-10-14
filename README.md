@@ -220,3 +220,17 @@ and tonight's homework, nudges `focus_targets` weights by ±1, messages Vinu onl
 "weekly plan review" Sundays at 7 pm (reviews the week against the Road to 1300 plan, retunes weights, sends a
 weekly note). Both post through `supabase/functions/coach-note` (`POST {text}` + cron secret → every linked
 Telegram chat, prefixed 🧭). They never write to `progress`.
+
+## Today (Oct 14 redesign) and Plan
+Today shows only tonight: a headline (home time and "free from", or "<event> tonight. Light night."), then three
+labelled blocks — School work (Canvas items with tick, tap-to-start timing in `S.hw[id].start/doneAt`, tappable
+estimate, "new tonight", an "over the estimate" nudge), PSAT prep (Daily 20 pills, one next-step button, the long
+block on Mon/Sat/Sun), Daily news (today's Daily Brief read count via `brief_feeds`/`brief_events`, link to the
+Daily Brief site) — then the habit buttons (Home, Dinner, Shower, Lights out → `S.eve[date]`) and a one-line link
+to Plan. The morning after a school day with no Daily 20, three chips ask why (`S.eve[date].why`).
+Activities: recurring `settings.events` ({id,name,dow[],at,end}; default Wednesday violin 9:00) and one-offs
+`S.evx` ({id,name,date,at,end}), edited on the Plan page; Canvas items with est 0 (concerts etc.) count as events
+for their day until "<event> is over" is tapped. `evePlan()` subtracts the event windows from the evening; if
+under 45 min + homework remains, it is a light night: only the cards (and work due tomorrow), the Daily 20 chain
+passes through (`activity[date].d20skip`). The hero card is hidden on Today. The Plan tab (sub-nav under Today)
+holds the weekly goals, focus card, score prompt, fix-it list, roadmap and the activities editor.

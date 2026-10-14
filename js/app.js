@@ -421,15 +421,15 @@
   let TAB = "today";
   // Five destinations, one place per job: Today (the plan), Learn (Lab, flashcards, rules), Practice (questions),
   // Tests (mocks, logging, official tests), Me (progress, rewards, friends, account). Related views share a sub-nav.
-  const GROUP = { today: "today", review: "review", practice: "practice", mock: "mock", log: "mock", treview: "mock", matrix: "matrix", rewards: "matrix", friends: "matrix", account: "matrix" };
-  const SUBS = { mock: [["mock", "Mock test"], ["log", "Log a test"], ["treview", "Test review"]], matrix: [["matrix", "Progress"], ["rewards", "Rewards"], ["friends", "Friends"], ["account", "Account"]] };
+  const GROUP = { today: "today", plan: "today", review: "review", practice: "practice", mock: "mock", log: "mock", treview: "mock", matrix: "matrix", rewards: "matrix", friends: "matrix", account: "matrix" };
+  const SUBS = { today: [["today", "Tonight"], ["plan", "Plan"]], mock: [["mock", "Mock test"], ["log", "Log a test"], ["treview", "Test review"]], matrix: [["matrix", "Progress"], ["rewards", "Rewards"], ["friends", "Friends"], ["account", "Account"]] };
   function renderSubnav(t) {
     const sn = document.querySelector("nav.subnav"); if (!sn) return;
     const subs = !GUEST && !ADMIN && SUBS[GROUP[t]];
     sn.hidden = !subs; sn.textContent = "";
     if (subs) subs.forEach(([k, label]) => { const b = el("button", { type: "button", "data-tab": k, "aria-current": k === t ? "page" : false, onclick: () => show(k) }, label); sn.append(b); });
   }
-  const RENDERERS_OK = (t) => ["today", "practice", "mock", "review", "matrix", "log", "treview", "rewards", "friends", "account"].includes(t);
+  const RENDERERS_OK = (t) => ["today", "plan", "practice", "mock", "review", "matrix", "log", "treview", "rewards", "friends", "account"].includes(t);
   document.querySelectorAll("nav.tabs button").forEach((b) => b.addEventListener("click", () => show(b.dataset.tab)));
   ["aStreak", "aLevel"].forEach((id) => { const b = document.getElementById(id); if (b) b.addEventListener("click", () => { if (!GUEST && !ADMIN) show("rewards"); }); });
   function show(t) {
@@ -468,7 +468,7 @@
     setLbl("practice", GUEST ? "Try practice" : "Practice"); setLbl("mock", GUEST ? "Try a test" : "Tests");
     const fn = document.getElementById("footNote"); if (fn) fn.textContent = GUEST ? "Create a free student account to save progress and unlock the full site." : "Progress saves on this device first, then to your account.";
     if (!RENDERERS_OK(TAB)) { TAB = "today"; document.querySelectorAll("section.panel").forEach((x) => (x.hidden = x.id !== "p-today")); }
-    renderHeader(); ({ today: renderToday, practice: renderPractice, mock: renderMock, review: renderReview, matrix: renderMatrix, log: renderLog, treview: renderTReview, rewards: renderRewards, friends: renderFriends, account: renderAccount })[TAB](); }
+    renderHeader(); ({ today: renderToday, plan: renderPlan, practice: renderPractice, mock: renderMock, review: renderReview, matrix: renderMatrix, log: renderLog, treview: renderTReview, rewards: renderRewards, friends: renderFriends, account: renderAccount })[TAB](); }
 
   /* ================= Today ================= */
   function taskList(day, only, moved) {
@@ -727,20 +727,25 @@
   function renderToday() {
     if (GUEST) return renderLanding();
     const p = $("#p-today"); p.textContent = "";
-    const t = today(), mode = planMode();
     if (S.mock && S.mock.phase !== "done") {
       p.append(el("div", { class: "card mission" }, el("div", { class: "eyebrow", text: "Mock test in progress" }), el("h2", { text: FORMATS[S.mock.kind].name + " mock" }), el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => show("mock") }, "Resume the mock test"))));
     }
     const ic = installCard(); if (ic) p.append(ic);
-    const ec = eveCard(); if (ec) p.append(ec);
-    const sprint = mode === "sprint";
+    try { labSync(); } catch (e) { }
+    const tc = todayCard(); if (tc) p.append(tc);
+  }
+  // Plan: everything about the weeks and months ahead, one tap from Today.
+  function renderPlan() {
+    const p = $("#p-plan"); p.textContent = "";
+    const t = today(), mode = planMode(), sprint = mode === "sprint";
+    p.append(el("div", {}, el("h2", { text: "Plan" }), el("p", { class: "muted lede", text: "The weeks and months ahead. Tonight lives on the Today tab." })));
     const fc0 = sprint ? null : focusCard(); if (fc0 && mode !== "after") p.append(fc0);
     scorePrompt(p);
-    try { labSync(); } catch (e) { }
     const fxc = fixCard(); if (fxc) p.append(fxc);
     if (sprint) renderSprint(p, t);
     else if (mode === "after") renderAfter(p);
     else renderLongPlan(p, mode);
+    p.append(activitiesCard());
   }
   // How the digital tests work (shown on the Tests tab).
   function howTestCard() {
@@ -1345,69 +1350,134 @@
   }
   function d20Chain() { let n = 0, d = today(); if (!(S.activity[d] || {}).d20) d = addDays(d, -1); while ((S.activity[d] || {}).d20) { n++; d = addDays(d, -1); } return n; }
   const longBlockDone = (d) => { const a = S.activity[d] || {}; return (a.mock || 0) > 0 || (a.timed || 0) > 0 || S.tests.some((t) => t.date === d && OFFICIAL_SRC.includes(t.source)); };
+  // Activities with a clock: recurring (settings.events: {id,name,dow:[1-7 or 0],at,end}) and one-offs (S.evx: {id,name,date,at,end}),
+  // plus Canvas events (est 0) for the day, which block the evening until the student says they are over.
+  const DEF_EVENTS = [{ id: "violin", name: "Violin lesson", dow: [3], at: "21:00", end: "21:30" }];
+  const recEvents = () => (S.settings.events || (S.settings.events = DEF_EVENTS.map((e) => Object.assign({}, e))));
+  const oneEvents = () => S.evx || (S.evx = []);
+  const hmMin = (hm) => { const [h, m] = (hm || "0:0").split(":").map(Number); return h * 60 + m; };
+  const minHM = (n) => String(Math.floor(n / 60)).padStart(2, "0") + ":" + String(n % 60).padStart(2, "0");
+  function eventsOn(date) {
+    const dow = parseYmd(date).getDay(), ev = eveDay(date), out = [];
+    for (const e of recEvents()) if ((e.dow || []).includes(dow) && !(ev.skip || []).includes(e.id)) out.push(Object.assign({ src: "rec" }, e));
+    for (const e of oneEvents()) if (e.date === date) out.push(Object.assign({ src: "one" }, e));
+    for (const x of (HW ? HW.items : [])) if (x.est === 0 && x.due === date && !(ev.skip || []).includes(x.id)) out.push({ id: x.id, name: x.name, src: "canvas", at: null, end: null, course: x.course });
+    return out.sort((a, b) => hmMin(a.at || "17:00") - hmMin(b.at || "17:00"));
+  }
+  function addEvent(e) { if (e.weekly) recEvents().push({ id: "e" + Date.now().toString(36), name: e.name, dow: [e.dow], at: e.at, end: e.end }); else oneEvents().push({ id: "x" + Date.now().toString(36), name: e.name, date: e.date, at: e.at, end: e.end }); save(); render(); }
+  function removeEvent(id) { S.settings.events = recEvents().filter((e) => e.id !== id); S.evx = oneEvents().filter((e) => e.id !== id); save(); render(); }
+  function skipEventToday(id) { const ev = eveDay(); (ev.skip || (ev.skip = [])).push(id); save(); render(); }
   // The evening in order. Dinner and shower float, so they are habits with a time, not blocks.
   function evePlan() {
     const d = new Date(), dow = d.getDay(), cfg = eveCfg(), ev = eveDay(), t = today(), school = dow >= 1 && dow <= 5;
     const hw = hwTonight(), left = hw.filter((x) => !x.done), hwMin = left.reduce((s, x) => s + x.est, 0);
     const a = S.activity[t] || {};
+    const start = ev.home || cfg.home[dow], events = eventsOn(t), bedBy = "21:45";
+    // Minutes the evening really has: from settling in to lights-out, minus event windows (a Canvas event with no time takes the whole evening).
+    const windows = events.map((e) => [hmMin(e.at || hmAdd(start, 20)) - (e.src === "canvas" ? 0 : 15), hmMin(e.end || bedBy) + (e.src === "canvas" ? 0 : 10)]);
+    let free = 0; for (let m = hmMin(hmAdd(start, 20)); m < hmMin(bedBy); m += 5) if (!windows.some(([x, y]) => m >= x && m < y)) free += 5;
+    const light = events.length > 0 && free < 45 + hwMin;
     const d20 = { k: "d20", name: "Daily 20", min: 20, done: !!a.d20 };
     const hwB = { k: "hw", name: hw.length ? "School work · " + hw.length + " item" + (hw.length === 1 ? "" : "s") : "School work · nothing due tomorrow", min: left.length ? Math.max(15, hwMin) : 0, done: hw.length > 0 && !left.length };
-    const block = { k: "block", name: dow === 6 && currentWeek().w.goals.some((g) => g.type === "official") && !S.tests.some((x) => x.date >= weekStart(t) && OFFICIAL_SRC.includes(x.source)) ? "Bluebook practice test" : "Long block · a timed mock section", min: dow === 6 ? 150 : 40, done: longBlockDone(t) };
+    const bbDue = dow === 6 && currentWeek().w.goals.some((g) => g.type === "official") && !S.tests.some((x) => x.date >= weekStart(t) && OFFICIAL_SRC.includes(x.source));
+    const block = { k: "block", name: bbDue ? "Bluebook practice test" : "Long block · a timed mock section", min: bbDue ? 150 : 40, done: longBlockDone(t), bb: bbDue };
     const labB = { k: "lab", name: "Long block · Lab mission, then the notebook", min: 40, done: [S.lab, S.lab2].some((L) => L && Object.values(L.log || {}).includes(t)) };
+    const cards = { k: "cards", name: "Just the cards tonight", min: 5, done: ((a.cards || 0) + (a.words || 0)) >= 5 };
     let blocks;
-    if (!school) blocks = dow === 6 ? [d20, block] : [d20, labB];
+    if (light) blocks = left.length ? [hwB, cards] : [cards];
+    else if (!school) blocks = dow === 6 ? [d20, block] : [d20, labB];
     else if (dow === 3) blocks = [d20, hwB];
     else if (dow === 1) blocks = [hwB, d20, block];
     else blocks = [hwB, d20];
-    const start = ev.home || cfg.home[dow];
-    let at = hmAdd(start, school ? 20 : 0); // settle in first
-    for (const b of blocks) { b.at = at; at = hmAdd(at, b.min); }
-    const fixed = (cfg.fixed[dow] || []).map((f) => Object.assign({ k: "fixed" }, f));
-    return { start, blocks, freeAt: at, fixed, school };
+    // Start times: walk forward from settling in, skipping event windows.
+    let at = hmMin(hmAdd(start, school ? 20 : 0));
+    const skipTo = (m) => { for (const [x, y] of windows) if (m >= x && m < y) return skipTo(y); return m; };
+    for (const b of blocks) { if (light) { b.at = null; continue; } at = skipTo(at); b.at = minHM(at); at += b.min; }
+    if (light && !a.d20 && !a.d20skip) { (S.activity[t] || (S.activity[t] = { q: 0, c: 0, dom: {}, mock: 0 })).d20skip = events[0].name; }
+    else if (!light && a.d20skip) delete a.d20skip;
+    return { start, blocks, freeAt: minHM(skipTo(at)), events, school, light, freeMin: Math.max(0, free - blocks.reduce((s, b) => s + (b.done ? 0 : b.min), 0)) };
   }
-  function eveCard() {
+  // Daily 20 chain: a declared event night passes through without breaking it.
+  function d20Chain() { let n = 0, d = today(); const A = (x) => S.activity[x] || {}; if (!A(d).d20) d = addDays(d, -1); let guard = 0; while (guard++ < 400) { if (A(d).d20) n++; else if (!A(d).d20skip) break; d = addDays(d, -1); } return n; }
+  let BRIEF = null; // {date, total, read} from Daily Brief
+  function hwStart(id) { const T = hwTicks(); T[id] = Object.assign(T[id] || {}, { start: nowHM() }); save(); render(); }
+  function todayCard() {
     if (GUEST) return null;
     if (d20Check()) save();
-    const t = today(), plan = evePlan(), ev = eveDay(), list = hwList(), tonight = hwTonight(), later = list.filter((x) => !tonight.includes(x));
-    const hab = (k, label, icon) => el("button", { class: "eve-hab" + (ev[k] ? " on" : ""), onclick: () => { ev[k] = ev[k] ? null : nowHM(); save(); render(); } }, el("span", { text: icon + " " + label }), el("small", { text: ev[k] ? fmtHM(ev[k]) : "tap when done" }));
-    const hwRow = (x) => el("div", { class: "hw" + (x.done ? " done" : "") },
-      x.est > 0 ? el("button", { class: "bubble", "aria-pressed": String(!!x.done), "aria-label": "Done", onclick: () => hwTick(x.id, !x.done) }, x.done ? "✓" : "") : el("span", { class: "bubble ghost", text: "•" }),
-      el("span", { class: "hw-main" }, el("span", { class: "hw-name", text: x.name }), el("span", { class: "muted", text: x.course + " · " + dueWord(x.due) + (x.time && x.time !== "23:59" ? " " + fmtHM(x.time) : "") + (x.isNew ? " · new tonight" : "") })),
-      x.est > 0 ? el("button", { class: "btn small ghost num", title: "Tap to change the time you plan for it", onclick: () => hwEst(x.id, x.est) }, x.est + " min") : el("span", { class: "muted", style: "font-size:12px", text: "event" }));
-    const d20 = d20Parts(), d20Done = d20.every((p) => p.done), chain = d20Chain();
-    const blockRow = (b) => {
-      const go = b.k === "d20" ? () => { const n = d20.find((p) => !p.done); if (n) n.go(); } : b.k === "hw" ? null : b.k === "block" ? () => (b.name.startsWith("Bluebook") ? show("log") : show("mock")) : b.k === "lab" ? () => { location.href = (labDone("geo").length < 7 ? "geometry.html" : "concepts.html"); } : null;
-      return el("div", { class: "eve-block" + (b.done ? " done" : "") },
-        el("span", { class: "eve-at num", text: fmtHM(b.at) }),
-        el("span", { class: "eve-name" }, el("b", { text: b.name }), b.min ? el("span", { class: "muted", text: " · " + b.min + " min" }) : null,
-          b.k === "d20" ? el("div", { class: "d20" }, d20.map((p) => el("button", { class: "chipbtn" + (p.done ? " on" : ""), onclick: p.go }, (p.done ? "✓ " : "") + p.label + (p.done ? "" : " · " + p.note)))) : null),
-        b.done ? el("span", { class: "chip good", text: "done" }) : go ? el("button", { class: "btn small primary", onclick: go }, "Start") : null);
+    const t = today(), plan = evePlan(), ev = eveDay(), list = hwList(), tonight = hwTonight(), later = list.filter((x) => !tonight.includes(x) && x.est > 0);
+    const d20 = d20Parts(), chain = d20Chain(), a = S.activity[t] || {};
+    const tag = (cls, text) => el("span", { class: "tag " + cls, text });
+    const headline = plan.light ? plan.events[0].name + " tonight. Light night." : !plan.school ? (plan.blocks[1] && plan.blocks[1].bb ? "Bluebook test day. Then you're free." : fmtDay(t).dow === "Sat" ? "Saturday: one long block, then free." : "Sunday: Lab block, then free.") : "Home by " + fmtHM(plan.start) + ". Free from about " + fmtHM(plan.freeAt) + ".";
+    const evLine = plan.events.map((e) => e.name + (e.at ? " at " + fmtHM(e.at) : "") + (e.src === "canvas" ? "" : "")).join(" · ");
+    const head = el("div", { class: "td-head" }, el("div", { class: "eyebrow", text: fmtDay(t).long }), el("h2", { text: headline }),
+      el("div", { class: "row between" }, el("span", { class: "muted", text: evLine || (plan.school ? "Nothing else on tonight" : "") }), chain ? el("span", { class: "chip good", text: "🔥 Daily 20 × " + chain }) : null));
+    // Yesterday's Daily 20 didn't happen on a school day: one tap says why.
+    const y = addDays(t, -1), yd = parseYmd(y).getDay(), ya = S.activity[y] || {}, yev = eveDay(y);
+    const why = yd >= 1 && yd <= 5 && !ya.d20 && !ya.d20skip && !yev.why && (Object.values(S.activity).some((x) => x.d20) || Object.keys(S.activity).length >= 3) ? el("div", { class: "td-why" }, el("span", { text: "Yesterday's Daily 20 didn't happen. What got in the way?" }),
+      el("div", { class: "row" }, [["homework", "Homework ran over"], ["tired", "Too tired"], ["other", "Something else"]].map(([k, l]) => el("button", { class: "chipbtn", onclick: () => { yev.why = k; save(); render(); } }, l)))) : null;
+    // School work
+    const hwRow = (x) => {
+      const k = hwTicks()[x.id] || {}, running = k.start && !x.done, over = running && (hmMin(nowHM()) - hmMin(k.start)) > x.est + 15;
+      return el("div", { class: "hw" + (x.done ? " done" : "") },
+        el("button", { class: "bubble", "aria-pressed": String(!!x.done), "aria-label": "Done", onclick: () => { const T = hwTicks(); T[x.id] = Object.assign(T[x.id] || {}, { done: x.done ? null : today(), doneAt: x.done ? null : nowHM() }); if (!x.done) { addXP(5); bumpStreak(); } save(); render(); } }, x.done ? "✓" : ""),
+        el("button", { class: "hw-main", onclick: () => { if (!x.done && !k.start) hwStart(x.id); }, title: x.done || k.start ? "" : "Tap when you start" },
+          el("span", { class: "hw-name", text: x.name }),
+          el("span", { class: "muted", text: x.course + " · " + dueWord(x.due) + (x.time && x.time !== "23:59" ? " " + fmtHM(x.time) : "") + (x.isNew ? " · new tonight" : "") + (running ? " · started " + fmtHM(k.start) : x.done && k.start && k.doneAt ? " · took " + Math.max(1, hmMin(k.doneAt) - hmMin(k.start)) + " min" : "") }),
+          over ? el("span", { class: "hw-over" }, "Over the estimate. ", el("button", { class: "btn small ghost", onclick: (e) => { e.stopPropagation(); hwEst(x.id, x.est); } }, "Need more time")) : null),
+        el("button", { class: "btn small ghost num", title: "Tap to change the time you plan for it", onclick: () => hwEst(x.id, x.est) }, x.est + " min"));
     };
-    const freeLine = plan.blocks.every((b) => b.done) ? "Everything's done. The rest of the evening is yours." : "Free from about " + fmtHM(plan.freeAt) + (plan.fixed.length ? " · " + plan.fixed.map((f) => f.name + " at " + fmtHM(f.at)).join(", ") : "");
     const addRow = (() => {
       const inp = el("input", { type: "text", id: "hwAdd", placeholder: "Something not in Canvas? Add it (due tomorrow)", "aria-label": "Add school work" });
       const btn = el("button", { class: "btn small", onclick: () => { const v = inp.value.trim(); if (v) hwAdd(v, addDays(t, 1)); } }, "Add");
       inp.addEventListener("keydown", (e) => { if (e.key === "Enter") btn.click(); });
       return el("div", { class: "row hw-add" }, inp, btn);
     })();
-    const strip = (() => {
-      const days = Array.from({ length: 7 }, (_, i) => addDays(t, i - 6));
-      const rows = [["🏠", "home", (d) => !!(S.eve && S.eve[d] && S.eve[d].home)], ["📚", "work", (d) => Object.values(hwTicks()).some((k) => k.done === d)], ["✎", "Daily 20", (d) => !!(S.activity[d] || {}).d20], ["🍽", "dinner", (d) => !!(S.eve && S.eve[d] && S.eve[d].dinner)], ["🚿", "shower", (d) => !!(S.eve && S.eve[d] && S.eve[d].shower)]];
-      return el("div", { class: "eve-strip" }, el("div", { class: "eve-strip-head" }, el("span"), days.map((d) => el("span", { class: "muted", text: fmtDay(d).dow[0] }))),
-        rows.map(([ic, label, f]) => el("div", { class: "eve-strip-row", title: label }, el("span", { text: ic }), days.map((d) => el("i", { class: f(d) ? "on" : "", title: label + " " + fmtDay(d).md })))));
-    })();
-    return el("div", { class: "card mission eve" },
-      el("div", { class: "row between" }, el("div", {}, el("div", { class: "eyebrow", text: "Tonight · " + fmtDay(t).long }), el("h2", { text: plan.school ? "Home by " + fmtHM(plan.start) + ". Here's the evening." : "Weekend plan" })),
-        chain ? el("span", { class: "chip good", text: "🔥 Daily 20 × " + chain }) : null),
-      el("div", { class: "eve-blocks" }, plan.blocks.map(blockRow)),
-      el("p", { class: "muted", style: "font-size:14px", text: freeLine }),
-      tonight.length || later.length ? el("div", { class: "hw-list" },
-        tonight.length ? el("div", { class: "eyebrow", text: "Tonight's school work" }) : null, tonight.map(hwRow),
-        later.length ? el("details", { class: "fold" }, el("summary", { text: "Coming up · " + later.length + " more" }), el("div", { class: "hw-list" }, later.map(hwRow))) : null) : el("p", { class: "muted", text: HW ? "Nothing from Canvas in the next few days." : "Canvas work appears here after the 3:30 pm sync." }),
-      addRow,
-      el("div", { class: "row eve-habs" }, hab("home", "Home", "🏠"), hab("dinner", "Dinner", "🍽"), hab("shower", "Shower", "🚿")),
-      strip,
-      HW ? el("p", { class: "muted", style: "font-size:12px", text: "Canvas checked " + HW.at.slice(0, 10) + " at " + fmtHM(HW.at.slice(11)) + ". Tap a time to change how long something takes." }) : null);
+    const hwDone = tonight.filter((x) => x.done).length, hwMin = tonight.filter((x) => !x.done).reduce((s, x) => s + x.est, 0);
+    const school = el("section", { class: "card td-sec" },
+      el("div", { class: "row between" }, el("div", { class: "row", style: "gap:8px" }, tag("school", "School work"), el("span", { class: "muted", text: tonight.length ? hwDone + " of " + tonight.length + " done" + (hwMin ? " · " + hwMin + " min" : "") : "nothing due tomorrow" })), HW ? el("span", { class: "muted", style: "font-size:12.5px", text: "Canvas " + fmtHM(HW.at.slice(11)) }) : null),
+      tonight.length ? el("div", { class: "hw-list" }, tonight.map(hwRow)) : null,
+      later.length ? el("details", { class: "fold" }, el("summary", { text: "Coming up · " + later.length + " more" }), el("div", { class: "hw-list" }, later.map(hwRow))) : null,
+      addRow);
+    // PSAT prep
+    const nextPart = d20.find((x) => !x.done), prepBlocks = plan.blocks.filter((b) => b.k !== "hw");
+    const prepLine = plan.light ? "Light night: 5 cards keep the chain" : d20.every((x) => x.done) ? "Daily 20 done" : "Daily 20 · " + d20.filter((x) => x.done).length + " of 3 · about " + (d20.filter((x) => !x.done).length * 7) + " min left";
+    const prepGo = () => { if (plan.light) { const c = d20[0]; c.go(); } else if (nextPart) nextPart.go(); };
+    const prepBtn = plan.light ? (a.cards + a.words >= 5 ? null : "Start the cards") : nextPart ? (d20.some((x) => x.done) ? "Continue: " + nextPart.label : "Start the Daily 20") : null;
+    const blockRow = (b) => el("div", { class: "td-block" + (b.done ? " done" : "") }, el("span", { class: "eve-at num", text: b.at ? fmtHM(b.at) : "" }), el("span", {}, el("b", { text: b.name }), el("span", { class: "muted", text: " · " + b.min + " min" })),
+      b.done ? el("span", { class: "chip good", text: "done" }) : el("button", { class: "btn small", onclick: () => (b.k === "block" ? show(b.bb ? "log" : "mock") : (location.href = labDone("geo").length < 7 ? "geometry.html" : "concepts.html")) }, "Open"));
+    const prep = el("section", { class: "card td-sec" },
+      el("div", { class: "row between" }, el("div", { class: "row", style: "gap:8px" }, tag("prep", "PSAT prep"), el("span", { class: "muted", text: prepLine })), el("span", { class: "muted", style: "font-size:12.5px", text: plan.light ? "whenever you can" : fmtHM((plan.blocks.find((b) => b.k === "d20") || {}).at || "") })),
+      el("div", { class: "d20" }, d20.map((x) => el("button", { class: "chipbtn" + (x.done ? " on" : ""), onclick: x.go }, (x.done ? "✓ " : "") + x.label))),
+      prepBtn ? el("button", { class: "btn primary", onclick: prepGo }, prepBtn) : null,
+      prepBlocks.filter((b) => b.k === "block" || b.k === "lab").map(blockRow));
+    // Daily news
+    const nb = BRIEF && BRIEF.date === t ? BRIEF : null;
+    const news = el("section", { class: "card td-sec td-news" },
+      el("div", { class: "td-news-main" }, tag("news", "Daily news"), el("b", { text: nb ? (nb.read >= nb.total && nb.total ? "Today's brief: done" : "Today's brief · " + nb.read + " of " + nb.total + " cards read") : "Today's brief" }), el("span", { class: "muted", text: nb && nb.total ? (nb.read >= nb.total ? "Nice." : "About " + Math.max(1, nb.total - nb.read) + " minutes left") : "About 10 minutes" })),
+      el("a", { class: "btn", href: "https://vinunairs.github.io/daily-brief/", target: "_blank", rel: "noopener" }, nb && nb.read >= nb.total && nb.total ? "Open" : "Read"));
+    // Habits
+    const hab = (k, label) => el("button", { class: "eve-hab" + (ev[k] ? " on" : ""), onclick: () => { ev[k] = ev[k] ? null : nowHM(); save(); render(); } }, el("span", { text: label }), el("small", { text: ev[k] ? fmtHM(ev[k]) : "tap" }));
+    const habits = el("div", { class: "td-habs" }, hab("home", "Home"), hab("dinner", "Dinner"), hab("shower", "Shower"), hab("bed", "Lights out"));
+    const wk = currentWeek(), tot = weekTotals(wk.ws), doneG = wk.w.goals.filter((g) => goalDone(g, tot)).length, th = themeAt(wk.ws);
+    const planLine = el("a", { class: "td-plan", href: "#plan", onclick: (e) => { e.preventDefault(); show("plan"); } }, el("span", { text: "This week: " + doneG + " of " + wk.w.goals.length + " goals" + (th ? " · " + th.title : "") }), el("b", { text: "Plan ›" }));
+    const evEdit = el("a", { class: "muted td-ev", href: "#plan", onclick: (e) => { e.preventDefault(); show("plan"); setTimeout(() => { const x = document.getElementById("activities"); if (x) x.scrollIntoView({ block: "start" }); }, 50); } }, "+ Add an activity");
+    const over = plan.events.filter((e) => e.src === "canvas").map((e) => el("button", { class: "btn small ghost", onclick: () => skipEventToday(e.id) }, e.name + " is over"));
+    return el("div", { class: "td" }, head, why, plan.light && over.length ? el("div", { class: "row" }, over) : null, school, prep, news, habits, el("div", { class: "td-foot" }, planLine, evEdit));
+  }
+  // Activities editor (Plan page): recurring weekly and one-off events.
+  function activitiesCard() {
+    const DOWN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const list = el("div", { class: "hw-list" });
+    recEvents().forEach((e) => list.append(el("div", { class: "hw" }, el("span", { class: "muted", style: "font-size:12px", text: "weekly" }), el("span", { class: "hw-main" }, el("span", { class: "hw-name", text: e.name }), el("span", { class: "muted", text: (e.dow || []).map((d) => DOWN[d]).join(", ") + " · " + fmtHM(e.at) + (e.end ? " – " + fmtHM(e.end) : "") })), el("button", { class: "btn small ghost", onclick: () => removeEvent(e.id) }, "Remove"))));
+    oneEvents().filter((e) => e.date >= addDays(today(), -1)).sort((a, b) => a.date.localeCompare(b.date)).forEach((e) => list.append(el("div", { class: "hw" }, el("span", { class: "muted", style: "font-size:12px", text: "once" }), el("span", { class: "hw-main" }, el("span", { class: "hw-name", text: e.name }), el("span", { class: "muted", text: fmtDay(e.date).long + " · " + fmtHM(e.at) + (e.end ? " – " + fmtHM(e.end) : "") })), el("button", { class: "btn small ghost", onclick: () => removeEvent(e.id) }, "Remove"))));
+    const name = el("input", { type: "text", id: "evName", placeholder: "Orchestra concert", "aria-label": "Activity" });
+    const date = el("input", { type: "date", id: "evDate", value: today(), "aria-label": "Date" });
+    const at = el("input", { type: "time", id: "evAt", value: "18:00", "aria-label": "Start" });
+    const end = el("input", { type: "time", id: "evEnd", value: "21:00", "aria-label": "End" });
+    const weekly = el("input", { type: "checkbox", id: "evWeekly" });
+    const form = el("div", { class: "ev-form" }, name, el("div", { class: "row" }, date, at, el("span", { class: "muted", text: "to" }), end), el("label", { class: "row", style: "gap:6px" }, weekly, "Repeat every week on this weekday"),
+      el("button", { class: "btn small primary", onclick: () => { const n = name.value.trim(); if (!n || !date.value) return; addEvent({ name: n, date: date.value, at: at.value, end: end.value, weekly: weekly.checked, dow: parseYmd(date.value).getDay() }); } }, "Add"));
+    return el("section", { class: "card", id: "activities", style: "display:grid;gap:12px" }, el("div", {}, el("h3", { text: "Activities" }), el("p", { class: "muted", text: "Lessons, rehearsals, concerts, chores. The evening plan works around them; a long one makes it a light night and keeps the Daily 20 chain." })), list, form);
   }
 
   /* ================= Word deck: vocabulary for Words in Context =================
@@ -2996,6 +3066,7 @@
       const hwIt = all.find((x) => x && x.type === "hw" && x.hw); HW = hwIt ? hwIt.hw : null;
       FOCUS = row && all.length ? { items: all.filter((x) => !(typeof x.type === "string" && (x.type === "hw" || x.type.startsWith("review:") || x.type.startsWith("log:") || x.type.startsWith("plan:")))), source: row.source, updated: row.updated_at } : null;
       if (TAB === "treview") render(); seedDeck(); if (!GUEST && (TAB === "today" || TAB === "practice")) render(); },
+    setBrief(b) { BRIEF = b || null; if (TAB === "today") render(); },
     setSocial(api) { SOC = api && !GUEST ? { api } : null; CH = null; socialBadge(); if (SOC) socialLoad(TAB === "friends"); },
     onSettings(fn) { settingsHooks.push(fn); },
     // Record which account this device's progress belongs to (does not count as a change).

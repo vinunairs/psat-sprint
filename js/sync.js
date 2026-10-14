@@ -56,6 +56,8 @@
       byDay("eve", (v) => Object.values(v || {}).filter(Boolean).length);
       for (const [id, b] of Object.entries(L.hw || {})) { const H = R.hw || (R.hw = {}); if (!H[id] || (b.done && !H[id].done)) { H[id] = Object.assign({}, H[id] || {}, b); changed = true; } }
       const xs = new Set((R.hwx || []).map((x) => x.id)); for (const x of L.hwx || []) if (!xs.has(x.id)) { (R.hwx || (R.hwx = [])).push(x); changed = true; }
+      const es = new Set((R.evx || []).map((x) => x.id)); for (const x of L.evx || []) if (!es.has(x.id)) { (R.evx || (R.evx = [])).push(x); changed = true; }
+      if (L.settings && L.settings.events && (!R.settings || !R.settings.events)) { (R.settings || (R.settings = {})).events = L.settings.events; changed = true; }
       for (const [w, b] of Object.entries(L.vocab || {})) {
         const V = R.vocab || (R.vocab = {}), a = V[w];
         if (!a || (b.n || 0) > (a.n || 0) || (!a.met && b.met)) { V[w] = b; changed = true; }
@@ -186,6 +188,16 @@
       if (!user || !app.setFocus) return;
       try { const { data } = await sb.from("focus_targets").select("items, source, updated_at").eq("user_id", user.id).maybeSingle(); app.setFocus(data || null); } catch (e) { }
     }
+    // Today's Daily Brief, for the Daily news block on Today (same account; the student can read only their own rows).
+    async function loadBrief() {
+      if (!user || !app.setBrief) return;
+      try {
+        const d = new Date(), date = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+        const [{ data: f }, { data: ev }] = await Promise.all([sb.from("brief_feeds").select("cards").eq("user_id", user.id).eq("feed_date", date).maybeSingle(), sb.from("brief_events").select("card_id, kind").eq("user_id", user.id).eq("feed_date", date)]);
+        const total = f && Array.isArray(f.cards) ? f.cards.length : 0, read = new Set((ev || []).filter((e) => e.kind === "read").map((e) => e.card_id)).size;
+        app.setBrief(total ? { date, total, read } : null);
+      } catch (e) { }
+    }
     // Rewards are set by the parent (admin); the student's copy follows them.
     async function loadRewards() {
       if (!user || !app.setRewardCfg) return;
@@ -209,7 +221,7 @@
 
     app.onSave(() => schedulePush());
     window.addEventListener("online", () => { if (user) pushNow(); });
-    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && user) { pull(false); loadFocus(); } });
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && user) { pull(false); loadFocus(); loadBrief(); } });
 
     sb.auth.onAuthStateChange((event, session) => {
       const was = user && user.id;
@@ -221,7 +233,7 @@
           if (user && user.id !== was && (await isFastLearner())) { location.replace("fast/"); return; }
           app.setGuest(false); // load this device's student copy, then reconcile with the account
           app.expect(user.id);
-          if (user && user.id !== was) { await pull(true); await loadProfile(); await checkAdmin(); await loadFocus(); await loadRewards(); }
+          if (user && user.id !== was) { await pull(true); await loadProfile(); await checkAdmin(); await loadFocus(); await loadRewards(); await loadBrief(); }
         }, 0);
       } else {
         status = "off";
