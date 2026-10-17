@@ -652,7 +652,8 @@
     const th = ph !== "ready" && ph !== "sprint" ? themeAt(ws) : null;
     if (th && (S.tests.length > 0 || S.answered >= 20)) {
       const goals = [];
-      goals.push({ id: "d20", type: "d20", target: 5, label: "Daily 20 on 5 days (cards, 10 questions, 1 from the notebook)" });
+      const ov = (S.settings.wk || {})[ws] || {}, d20T = ov.d20 || 5, nbT = ov.nb || 10; // one-off targets for a catch-up week, set from the parent's plan
+      goals.push({ id: "d20", type: "d20", target: d20T, label: "Daily 20 on " + d20T + " days (cards, 10 questions, 1 from the notebook)" });
       goals.push({ id: "block", type: "block", target: 2, label: "Two long blocks: a timed mock section, a Bluebook test, or a Lab mission" });
       if (th.dom && DOM[th.dom]) {
         goals.push({ id: "dom-" + th.dom, type: "dom", d: th.dom, target: th.n || 25, label: (th.n || 25) + " questions on " + DOM[th.dom].name + " (this month's skill)" });
@@ -664,7 +665,7 @@
       if (vn && window.VOCAB) goals.push({ id: "words", type: "words", target: vn, label: "Word deck: learn " + vn + " new words and review the ones due" + (th.dom === "cs" ? " (about 5 minutes a day)" : "") });
       const wkNo = Math.round((parseYmd(ws) - parseYmd(weekStart(S.planStart || today()))) / (7 * 864e5));
       if (wkNo % 4 === 2) goals.push({ id: "official", type: "official", target: 1, label: "Take a Bluebook practice test (or one section) and log it" });
-      goals.push({ id: "nb", type: "notebook", target: 10, label: "Get the Mistake notebook down to 10 or fewer" });
+      goals.push({ id: "nb", type: "notebook", target: nbT, label: "Get the Mistake notebook down to " + nbT + " or fewer" });
       return { phase: ph, goals, v: 5, theme: { title: th.title, why: th.why } };
     }
     const hasData = S.tests.length > 0 || S.answered >= 20;
@@ -3314,10 +3315,11 @@
       if (plan && (S.settings.trackV || 0) < (plan.plan.v || 1)) {
         const ex = S.settings.exams || (S.settings.exams = []);
         for (const e of plan.plan.exams || []) if (e && e.id && !ex.some((x) => x.id === e.id || (x.kind === e.kind && x.date === e.date))) ex.push(Object.assign({}, e));
-        S.settings.track = plan.plan.track || []; S.settings.trackV = plan.plan.v || 1;
+        const first = !(S.settings.trackV || 0);
+        S.settings.track = plan.plan.track || []; S.settings.wk = plan.plan.wk || {}; S.settings.trackV = plan.plan.v || 1;
         syncExams(S);
         const ws0 = weekStart(today()); for (const k of Object.keys(S.weeks || {})) if (k >= ws0) delete S.weeks[k];
-        save(); toast("Your plan for next year is ready", true); if (TAB === "today") render();
+        save(); toast(first ? "Your plan for next year is ready" : "Your goals for this week were adjusted", true); if (TAB === "today") render();
       }
       const hwIt = all.find((x) => x && x.type === "hw" && x.hw); HW = hwIt ? hwIt.hw : null;
       const scIt = all.find((x) => x && x.type === "screen" && x.screen); SCREEN = scIt ? scIt.screen : null;
