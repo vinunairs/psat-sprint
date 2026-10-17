@@ -660,11 +660,13 @@
         goals.push({ id: "acc-" + th.dom, type: "acc", d: th.dom, target: th.acc || 75, label: (th.acc || 75) + "% accuracy on " + DOM[th.dom].name });
       }
       if (th.lab) { const left = th.lab.m.filter((m) => !labDone(th.lab.p).includes(m)).slice(0, 2); if (left.length) goals.push({ id: "lab", type: "lab", p: th.lab.p, m: left, label: (th.lab.p === "cx" ? "Concept Lab" : "Geometry Lab") + ": Mission" + (left.length > 1 ? "s " : " ") + left.join(" and ") }); }
+      if (th.lab2) { const left2 = th.lab2.m.filter((m) => !labDone(th.lab2.p).includes(m)).slice(0, 1); if (left2.length) goals.push({ id: "lab2", type: "lab", p: th.lab2.p, m: left2, label: (th.lab2.p === "cx" ? "Concept Lab" : "Geometry Lab") + ": Mission " + left2[0] + " (one lesson a week alongside)" }); }
+      const lessonsOpen = th.lab && th.lab.m.some((m) => !labDone(th.lab.p).includes(m)); // lessons first: the practice-test goal waits until this theme's lab is finished
       if (th.cards) goals.push({ id: "cards", type: "dom", d: th.cards, target: 10, label: "10 more " + DOM[th.cards].name + " questions" });
       const vn = th.vocab != null ? th.vocab : th.dom === "cs" ? 30 : 10;
       if (vn && window.VOCAB) goals.push({ id: "words", type: "words", target: vn, label: "Word deck: learn " + vn + " new words and review the ones due" + (th.dom === "cs" ? " (about 5 minutes a day)" : "") });
       const wkNo = Math.round((parseYmd(ws) - parseYmd(weekStart(S.planStart || today()))) / (7 * 864e5));
-      if (wkNo % 4 === 2) goals.push({ id: "official", type: "official", target: 1, label: "Take a Bluebook practice test (or one section) and log it" });
+      if (wkNo % 4 === 2 && !lessonsOpen) goals.push({ id: "official", type: "official", target: 1, label: "Take a Bluebook practice test (or one section) and log it" });
       goals.push({ id: "nb", type: "notebook", target: nbT, label: "Get the Mistake notebook down to " + nbT + " or fewer" });
       return { phase: ph, goals, v: 5, theme: { title: th.title, why: th.why } };
     }
