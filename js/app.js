@@ -1440,6 +1440,42 @@
   function d20Chain() { let n = 0, d = today(); const A = (x) => S.activity[x] || {}; if (!A(d).d20) d = addDays(d, -1); let guard = 0; while (guard++ < 400) { if (A(d).d20) n++; else if (!A(d).d20skip) break; d = addDays(d, -1); } return n; }
   let BRIEF = null; // {date, total, read} from Daily Brief
   function hwStart(id) { const T = hwTicks(); T[id] = Object.assign(T[id] || {}, { start: nowHM() }); save(); render(); }
+  // This week's goals as a tick-list on the main screen (the Plan page has the same goals with progress bars).
+  function goalGo(g) {
+    if (g.type === "dom" || g.type === "acc") return () => { S.prefs.sel = [g.d]; save(); show("practice"); startPractice([g.d], 10, "auto"); };
+    if (g.type === "lab") return () => { location.href = g.p === "cx" ? "concepts.html" : "geometry.html"; };
+    if (g.type === "words") return () => { const d = vDue().length; vStart(d ? Math.min(5, vNewWaiting().length || 5) : 8); };
+    if (g.type === "notebook") return () => { show("practice"); startPractice([], 0, "auto", true); };
+    if (g.type === "block" || g.type === "mock" || g.type === "timed") return () => show("mock");
+    if (g.type === "official") return () => show("log");
+    if (g.type === "q" || g.type === "cover") return () => { show("practice"); startPractice([focusList()[0].id], 10, "auto"); };
+    if (g.type === "d20") return () => { const nx = d20Parts().find((x) => !x.done); if (nx) nx.go(); };
+    return null;
+  }
+  function weekChecklist() {
+    const m = planMode(); if (GUEST || m === "sprint" || m === "after") return null;
+    const { ws, w } = currentWeek(), tot = weekTotals(ws), done = w.goals.filter((g) => goalDone(g, tot)).length;
+    const rows = w.goals.map((g) => {
+      const [a, b, note] = goalProgress(g, tot), ok = a >= b, go = ok ? null : goalGo(g);
+      return el("div", { class: "goal tdg" + (ok ? " done" : "") },
+        el("span", { class: "bubble", "aria-hidden": "true", "aria-pressed": String(ok) }, ok ? "✓" : ""),
+        el("span", {}, el("span", { class: "gl", text: g.label }), el("div", { class: "muted", style: "font-size:12.5px", text: note || Math.min(a, b) + " of " + b })),
+        go && g.type !== "acc" ? el("button", { class: "btn small", onclick: go }, "Go") : el("span"));
+    });
+    return el("div", { class: "td-goals" },
+      el("div", { class: "row between" }, el("span", { class: "eyebrow", text: "This week's goals · " + done + " of " + w.goals.length + " done" }), el("a", { href: "#plan", class: "muted", style: "font-size:13px", onclick: (e) => { e.preventDefault(); show("plan"); } }, "Full plan ›")),
+      el("div", { class: "goals" }, rows));
+  }
+  // The same lists for another student's saved data (admin view): borrows their data as the current state while it reads.
+  function psatToday(D) {
+    const keep = S;
+    try {
+      S = D; const m = planMode(); if (m === "sprint" || m === "after") return null;
+      const { ws, w } = currentWeek(), tot = weekTotals(ws), parts = d20Parts();
+      return { parts: parts.map((x) => ({ label: x.label, ok: x.done, note: x.note })), d20: !!(S.activity[today()] || {}).d20,
+        goals: w.goals.map((g) => { const [a, b, note] = goalProgress(g, tot); return { label: g.label, ok: a >= b, note: note || Math.min(a, b) + " of " + b }; }) };
+    } catch (e) { return null; } finally { S = keep; }
+  }
   function todayCard() {
     if (GUEST) return null;
     if (d20Check()) save();
@@ -1488,7 +1524,8 @@
       el("div", { class: "row between" }, el("div", { class: "row", style: "gap:8px" }, tag("prep", "PSAT prep"), el("span", { class: "muted", text: prepLine })), el("span", { class: "muted", style: "font-size:12.5px", text: plan.light ? "whenever you can" : fmtHM((plan.blocks.find((b) => b.k === "d20") || {}).at || "") })),
       el("div", { class: "d20" }, d20.map((x) => el("button", { class: "chipbtn" + (x.done ? " on" : ""), onclick: x.go }, (x.done ? "✓ " : "") + x.label))),
       prepBtn ? el("button", { class: "btn primary", onclick: prepGo }, prepBtn) : null,
-      prepBlocks.filter((b) => b.k === "block" || b.k === "lab").map(blockRow));
+      prepBlocks.filter((b) => b.k === "block" || b.k === "lab").map(blockRow),
+      weekChecklist());
     // Daily news
     const nb = BRIEF && BRIEF.date === t ? BRIEF : null;
     const news = el("section", { class: "card td-sec td-news" },
@@ -3022,7 +3059,9 @@
         x.weakest.length ? el("p", { style: "font-size:14px" }, el("strong", { text: "Weakest: " }), x.weakest.map((w) => w.d.name + " (" + Math.round(w.m * 100) + "%)").join(", ")) : el("p", { class: "muted", style: "font-size:14px", text: "Not enough practice yet to rank skills." }),
         el("p", { class: "muted", style: "font-size:13px" }, (x.row.reminders ? "Reminders on (" + x.row.reminders + " device" + (x.row.reminders === 1 ? "" : "s") + (x.row.remind_hour != null ? ", " + ((x.row.remind_hour % 12) || 12) + (x.row.remind_hour < 12 ? " am" : " pm") : "") + ")" : "Reminders off") + " · " + (x.row.email || "") + (x.row.grade ? " · grade " + x.row.grade : "")),
         tbSrc && tbLine(tbSrc) ? el("p", { class: "tb-line", text: tbLine(tbSrc) }) : null,
+        (() => { const pt = psatToday(x.D); return pt ? el("p", { class: "tb-line", text: "PSAT today: Daily 20 " + (pt.d20 ? "✓" : pt.parts.filter((q) => q.ok).length + " of " + pt.parts.length) + " · this week's goals " + pt.goals.filter((g) => g.ok).length + " of " + pt.goals.length }) : null; })(),
         el("button", { class: "btn small" + (open ? "" : " primary"), onclick: () => { ADMIN.open = open ? null : x.row.user_id; renderAdmin(); } }, open ? "Hide details" : "See details"),
+        open ? psatCard(x) : null,
         open && tbSrc ? timeCard(tbSrc, { who: x.name }) : null,
         open && tb && tb.screen ? el("section", { class: "card", style: "display:grid;gap:10px" },
           el("div", {}, el("h3", { text: "Day by day" }), el("p", { class: "muted", style: "margin-top:.2em", text: "Pick a day for the full read: apps, sites, every blocked try, and YouTube — for tuning Qustodio's rules." })),
@@ -3144,6 +3183,14 @@
       ADMIN.api.getRewards(uidv).then((r) => draw(Array.isArray(r) ? r : [])).catch(() => { host.textContent = ""; host.append(el("p", { class: "muted", style: "font-size:14px", text: "Rewards editing isn't available yet." })); });
     } else draw(x.D.rewards || []);
     return host;
+  }
+  function psatCard(x) {
+    const pt = psatToday(x.D); if (!pt) return null;
+    const li = (ok, label, note) => el("li", { class: ok ? "done" : "" }, el("span", { class: "tdk", text: ok ? "✓" : "○" }), el("span", { text: label }), el("span", { class: "muted", text: " · " + note }));
+    return el("section", { class: "card", style: "display:grid;gap:10px" },
+      el("div", {}, el("h3", { text: "PSAT checklist for today" }), el("p", { class: "muted", style: "margin-top:.2em", text: "Ticks as he works. Updates when his app syncs." })),
+      el("div", { class: "eyebrow", text: "Daily 20" }), el("ul", { class: "psat-list" }, pt.parts.map((q) => li(q.ok, q.label, q.note))),
+      el("div", { class: "eyebrow", text: "This week's goals" }), el("ul", { class: "psat-list" }, pt.goals.map((g) => li(g.ok, g.label, g.note))));
   }
   function adminDetail(x) {
     const box = el("div", { class: "adm-detail" });

@@ -589,3 +589,17 @@ body[data-tab="news"] footer.foot{display:none}
 .day-btn.bad{border-color:color-mix(in srgb,var(--bad) 55%,var(--line))}
 .day-btn.on{background:var(--pencil);border-color:var(--pencil);color:#fff}
 .day-btn.on .muted{color:#fff;opacity:.85}
+
+/* Main-screen week checklist and the admin PSAT checklist */
+.td-goals{display:grid;gap:10px;margin-top:4px;padding-top:12px;border-top:1px solid var(--line)}
+.td-goals .goals{gap:10px}
+.tdg{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center}
+.tdg .btn{white-space:nowrap}
+.tdg .gl{font-size:14.5px}
+.tdg.done .gl{text-decoration:line-through}
+.psat-list{list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:14px}
+.psat-list li{display:grid;grid-template-columns:22px 1fr;gap:2px 6px}
+.psat-list li .muted{grid-column:2;font-size:12.5px}
+.psat-list li.done>span:nth-child(2){text-decoration:line-through;color:var(--graphite)}
+.psat-list .tdk{font-weight:800}
+.psat-list li.done .tdk{color:var(--good)}
