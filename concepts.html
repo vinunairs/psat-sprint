@@ -211,7 +211,7 @@ header.hero .back{display:none}
     <p style="color:var(--muted);max-width:62ch">The question types from Practice Test 2 that school hasn't covered yet. Learn each idea here first, then practice it.</p>
     <div class="statrow">
       <span class="pill" id="countdown">PSAT: Oct 7</span>
-      <span class="pill">Missions done: <b id="prog">0</b> / 7</span>
+      <span class="pill">Missions done: <b id="prog">0</b> / 8</span>
       <span class="pill">First-try stars: <b id="stars">0</b></span>
       <a class="pill" href="geometry.html" style="text-decoration:none;color:var(--ink)">Geometry Lab →</a>
     </div>
@@ -226,13 +226,14 @@ header.hero .back{display:none}
     <a href="#l5" data-v="l5" data-l="5"><span class="n">5</span>Shifting graphs</a>
     <a href="#l6" data-v="l6" data-l="6"><span class="n">6</span>Fraction equations</a>
     <a href="#l7" data-v="l7" data-l="7"><span class="n">7</span>Notes → goal</a>
+    <a href="#l8" data-v="l8" data-l="8"><span class="n">8</span>Find the proof</a>
     <span class="sep"></span>
     <a href="#sheet" data-v="sheet"><span class="n">★</span>Cheat sheet</a>
   </nav>
 
   <!-- START -->
   <section class="view" id="start">
-    <h2>Seven missions. Learn it here, then practice it.</h2>
+    <h2>Eight missions. Learn it here, then practice it.</h2>
     <div class="how">
       <h3>How each mission works · about 8 minutes</h3>
       <ol>
@@ -241,7 +242,7 @@ header.hero .back{display:none}
         <li><b>Walk through it.</b> A PSAT-style problem, one small step at a time.</li>
         <li><b>Your turn.</b> A new problem, no steps. Get it first try for a star.</li>
       </ol>
-      <p>Missions 1–6 are Advanced Math, the area that cost the most points on Practice Test 2. Mission 7 is a Reading and Writing method that works on every "use the notes" question.</p>
+      <p>Missions 1–6 are Advanced Math, the area that cost the most points on Practice Test 2. Mission 7 is a Reading and Writing method that works on every "use the notes" question. Mission 8 is a Reading method for finding the proof in a passage before you look at the answer choices.</p>
       <button class="bigbtn" id="go">Start Mission 1</button>
     </div>
     <div class="path" id="path"></div>
@@ -478,6 +479,36 @@ header.hero .back{display:none}
     </div>
   </section>
 
+  <!-- MISSION 8 -->
+  <section class="view" id="l8" hidden>
+    <div class="lhead"><span class="lnum">Mission 8</span><h2>Reading: find the proof before you choose</h2><span class="time">≈ 9 min</span></div>
+    <div class="grid">
+      <div class="figcol"><div class="fig">
+        <div class="notes"><h3>The passage</h3><p style="margin:0">Researchers surveyed 18 coastal villages after a major tsunami. Mangrove trees grow in salty water along tropical shorelines. In villages sheltered by a wide belt of dense mangroves, far fewer people died than in villages with no mangroves. Some of the villages had fishing as their main trade.</p></div>
+        <div class="goalbox"><b>Claim to test:</b> mangroves protect coastal villages from tsunami damage.</div>
+        <div id="sort8"></div>
+      </div></div>
+      <div class="stages" data-lesson="8">
+        <div class="stage" data-st="g"><div class="sh"><span class="sn">1</span><h3>Play</h3></div><div class="body">
+          <p class="goal">Four sentences from the passage are shown below it. For each one, decide: does it <b>prove the claim</b>, or does it just <b>mention the topic</b>?</p>
+          <p>Being about mangroves or tsunamis is not enough. Proof is a fact that makes the claim <i>true</i>.</p>
+          <div class="status" data-status>Sort all four sentences.</div>
+          <button class="linkbtn" data-skip>Skip this step</button></div></div>
+        <div class="stage locked" data-st="r"><div class="sh"><span class="sn">2</span><h3>The rule</h3></div><p class="lockmsg">Finish step 1 to unlock.</p><div class="body rule">
+          <p class="key">predict from the passage, then match</p>
+          <p><b>1.</b> Read the question first: is it a conclusion, a main idea, evidence for a claim, or a word meaning?</p>
+          <p><b>2.</b> Read the passage for <b>the proof sentence</b>: the one with the result, the number, the contrast ("but", "however") or the reason ("because").</p>
+          <p><b>3.</b> <b>Say the answer in your own words before you look at the choices.</b> Then pick the choice that matches, and be able to point to the words that prove it.</p>
+          <p><b>4.</b> Cross out choices that are <b>true but not said</b>, <b>too strong</b> ("always", "proves"), or <b>only half right</b>.</p>
+          <p class="trap"><b>Trap:</b> answering from the numbers and the choices alone. Your Reading questions average about 30 seconds in the app and the test gives about 70. A passage question answered in 15 seconds was a guess. Spend the extra time finding the proof.</p></div></div>
+        <div class="stage locked" data-st="w"><div class="sh"><span class="sn">3</span><h3>Walk through it</h3></div><p class="lockmsg">Finish step 2 to unlock.</p><div class="body">
+          <p class="q"><b>Text:</b> Marine biologists tracking sea otters noticed that in kelp forests where otters were common, sea urchins were few and the kelp was thick. In bays where otters had been hunted out, urchins multiplied and grazed the kelp down to bare rock. The researchers concluded that otters help the kelp forest by ___<br><br><b>Which choice most logically completes the text?</b></p>
+          <div data-walk></div></div></div>
+        <div class="stage locked" data-st="s"><div class="sh"><span class="sn">4</span><h3>Your turn</h3></div><p class="lockmsg">Finish step 3 to unlock.</p><div class="body" data-solo></div></div>
+      </div>
+    </div>
+  </section>
+
   <!-- CHEAT SHEET -->
   <section class="view" id="sheet" hidden>
     <h2 style="margin-bottom:14px">Cheat sheet</h2>
@@ -496,6 +527,7 @@ header.hero .back{display:none}
         <li>Read the <b>question</b> first. Skip the notes.</li>
         <li>Underline the goal: contrast, similarity, introduce, emphasize, explain.</li>
         <li>Every choice is true. Ask: <b>does it do THAT?</b></li>
+        <li>Passage questions: find the <b>proof sentence</b> (result, number, "but", "because"), say the answer in your own words, <i>then</i> match a choice you can point to.</li>
         <li>Contrast → names both things and uses while / unlike / whereas.</li>
         <li>Unfamiliar audience → says what the thing is.</li>
       </ul>
@@ -541,7 +573,7 @@ const st=n=>(S[n]=S[n]||{g:0,r:0,w:0,s:0});
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 const PRAISE=['Nice.','Yes!','Exactly.','That\'s it.','Clean.','Locked in.','You got it.','Right on.'];
 const praise=()=>PRAISE[Math.floor(Math.random()*PRAISE.length)];
-const COUNT=7;
+const COUNT=8;
 
 /* ===== stage unlocking ===== */
 function refreshStages(n){const box=document.querySelector(`.stages[data-lesson="${n}"]`);if(!box)return;const s=st(n);
@@ -591,10 +623,10 @@ function solo(n,d){const host=document.querySelector(`.stages[data-lesson="${n}"
     else{miss++;b.classList.add('wrong');b.disabled=true;fb.innerHTML=`<p class="hint"><b>Hint:</b> ${d.hint}</p>`}}));
   if(s.s){host.querySelectorAll('.chips button').forEach((x,j)=>{x.disabled=true;if(j===d.a)x.classList.add('right')});
     fb.innerHTML=`<div class="why"><ol>${d.why.map(w=>`<li>${w}</li>`).join('')}</ol></div>${nextBar(n)}`;bindNext(fb)}}
-const TITLES={1:'How many solutions',2:'None or infinitely many',3:'Line meets parabola',4:'Factors and zeros',5:'Shifting graphs',6:'Fraction equations',7:'Notes → goal'};
-const BLURB={1:'b² − 4ac counts the solutions without solving.',2:'Same x-part? Then it\'s none or infinitely many.',3:'Set the y\'s equal. Each crossing is a solution.',4:'Zero at a means a factor (x − a).',5:'Inside works backwards. a · bˣ starts at a.',6:'Multiply every term. Check for zero denominators.',7:'Every choice is true. Pick the one that does the job.'};
+const TITLES={1:'How many solutions',2:'None or infinitely many',3:'Line meets parabola',4:'Factors and zeros',5:'Shifting graphs',6:'Fraction equations',7:'Notes → goal',8:'Find the proof'};
+const BLURB={1:'b² − 4ac counts the solutions without solving.',2:'Same x-part? Then it\'s none or infinitely many.',3:'Set the y\'s equal. Each crossing is a solution.',4:'Zero at a means a factor (x − a).',5:'Inside works backwards. a · bˣ starts at a.',6:'Multiply every term. Check for zero denominators.',7:'Every choice is true. Pick the one that does the job.',8:'Predict from the passage first. Pick the choice you can point to.'};
 function nextBar(n){const nn=+n+1;return nn<=COUNT?`<div class="nextbar" style="margin-top:12px"><p>Mission ${n} complete. Short break, then:</p><button data-next="l${nn}">Mission ${nn}: ${TITLES[nn]}</button></div>`
-  :`<div class="nextbar" style="margin-top:12px"><p>All seven missions done. Now practice them in the app, or read the cheat sheet:</p><button data-next="sheet">Cheat sheet</button></div>`}
+  :`<div class="nextbar" style="margin-top:12px"><p>All eight missions done. Now practice them in the app, or read the cheat sheet:</p><button data-next="sheet">Cheat sheet</button></div>`}
 function bindNext(el){el.querySelectorAll('[data-next]').forEach(b=>b.addEventListener('click',()=>show(b.dataset.next)))}
 
 /* ===== views ===== */
@@ -715,6 +747,20 @@ function d7(){const host=$('#sort7');host.innerHTML=SORT7.map((x,i)=>{const a=so
   if(done)goalHit(7,`Only one sentence does the goal, even though all four are true. That's every "use the notes" question: find the job, then find the one choice that does it.`);
   else goalStatus(7,`Sorted correctly: <b>${SORT7.filter((x,i)=>sortAns[i]===x.y).length} of 4</b>.`)}
 
+/* ===== M8 find the proof: sort sentences ===== */
+const SORT8=[
+ {t:'Mangrove trees grow in salty water along tropical shorelines.',y:false,why:'True, but it only describes mangroves. It says nothing about protection.'},
+ {t:'In villages sheltered by a wide belt of dense mangroves, far fewer people died than in villages with no mangroves.',y:true,why:'A result that compares villages with and without mangroves. That is the proof.'},
+ {t:'Researchers surveyed 18 coastal villages after a major tsunami.',y:false,why:'It tells you how the study was done, not what it found.'},
+ {t:'Some of the villages had fishing as their main trade.',y:false,why:'A detail about the villages. It does not connect to protection, so it proves nothing.'}];
+const sortAns8={};
+function d8(){const host=$('#sort8');host.innerHTML=SORT8.map((x,i)=>{const a=sortAns8[i];const ok=a!==undefined&&a===x.y;
+  return `<div class="sortrow${ok?' right':''}"><p>${x.t}</p><div class="btns"><button data-i="${i}" data-y="1" ${ok?'disabled':''}>Proves it</button><button data-i="${i}" data-y="0" ${ok?'disabled':''}>Just mentions it</button></div>${a!==undefined?`<p class="why">${ok?'✓ ':'✗ Not quite. '}${x.why}</p>`:''}</div>`}).join('');
+  host.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{sortAns8[b.dataset.i]=b.dataset.y==='1';d8()}));
+  const done=SORT8.every((x,i)=>sortAns8[i]===x.y);
+  if(done)goalHit(8,`Only one sentence is proof, and it is the one with a result and a comparison. Find that sentence first, and the answer choices get easy.`);
+  else goalStatus(8,`Sorted correctly: <b>${SORT8.filter((x,i)=>sortAns8[i]===x.y).length} of 4</b>.`)}
+
 /* ===== walk-throughs ===== */
 walk(1,[
  {p:'Name a, b and c.',o:['a = 1, b = −6, c = k','a = 1, b = 6, c = k','a = k, b = −6, c = 1'],a:0,show:'a = 1, b = −6, c = k',hint:'a goes with x², b with x (keep its sign), c is the plain number.',ok:'b keeps its minus sign.'},
@@ -757,6 +803,14 @@ walk(7,[
  {p:'Which choice does that?',o:['Scientists study how axolotls regrow tissue.','The axolotl, a salamander from lakes near Mexico City, can regrow lost legs.','Unlike the tiger salamander, the axolotl keeps its gills.'],a:1,show:'The axolotl, a salamander from lakes near Mexico City, can regrow lost legs.',hint:'Find the one that tells you what an axolotl is.',ok:'Only this one says what it is (a salamander) and where it lives.'},
  {p:'New goal: <b>explain why scientists are interested in the axolotl.</b> Which choice does that?',o:['The axolotl keeps its gills its whole life.','Because it can regrow legs and parts of its heart and spine, the axolotl helps scientists learn how body tissue regrows.','The axolotl lives in lakes near Mexico City.'],a:1,show:'Because it can regrow…, the axolotl helps scientists learn how body tissue regrows.',hint:'Look for a reason ("because") tied to the scientists.',ok:'The goal says "why", so the answer gives a reason.'}]);
 
+walk(8,[
+ {p:'Read the question first. It says "most logically completes the text." What is it asking for?',o:['The main idea of the whole text','A conclusion the evidence supports','The meaning of a word'],a:1,show:'A conclusion the evidence supports',hint:'"Logically completes" means: what follows from the facts given?',ok:'Completion questions always want what the evidence points to.'},
+ {p:'Find the proof. Where otters were common, what happened to urchins and kelp?',o:['Few urchins, thick kelp','Many urchins, thin kelp','No difference'],a:0,show:'Few urchins, thick kelp',hint:'Reread sentence 1: "sea urchins were few and the kelp was thick."',ok:''},
+ {p:'Where the otters were hunted out?',o:['Urchins multiplied and ate the kelp down to bare rock','Kelp grew thicker','Nothing changed'],a:0,show:'Urchins multiplied and the kelp was grazed bare',hint:'Reread sentence 2.',ok:''},
+ {p:'<b>Predict before looking at the choices.</b> In your own words, how do otters help the kelp?',o:['By keeping the urchins down, so the kelp survives','By eating the kelp','By growing new kelp'],a:0,show:'By keeping the urchin numbers down',hint:'Otters present → few urchins → thick kelp. Otters gone → many urchins → bare rock.',ok:'That prediction is the answer. Now the choices only have to match it.'},
+ {p:'Now match: which choice fits the prediction?',o:['competing with urchins for food','keeping urchin numbers low, which lets the kelp thrive','preferring kelp forests to open bays','suffering when urchins multiply'],a:1,show:'keeping urchin numbers low, which lets the kelp thrive',hint:'Match your own sentence: otters keep the urchins down, so the kelp survives.',ok:'The others are not supported: nothing says otters compete for food, nothing says they prefer kelp forests, and nothing says they suffer.'},
+ {p:'Last check: point to the proof. Which words in the text prove your choice?',o:['"urchins were few and the kelp was thick" vs "urchins multiplied… kelp grazed down to bare rock"','"Marine biologists tracking sea otters"','"kelp forests"'],a:0,show:'The two results side by side',hint:'Proof is a result, not a topic word.',ok:'If you can point to the words, it is right. If you can only say it sounds right, go back.'}]);
+
 /* ===== your turn ===== */
 solo(1,{q:'How many real solutions does 2x² − 3x + 5 = 0 have?',o:['Zero','Exactly one','Exactly two','Infinitely many'],a:0,
   hint:'a = 2, b = −3, c = 5. Find b² − 4ac.',why:['D = (−3)² − 4(2)(5) = 9 − 40 = −31.','Negative → the parabola never touches the x-axis → no real solutions.']});
@@ -774,12 +828,16 @@ solo(7,{q:'<b>Notes:</b> Honeybees live in colonies of tens of thousands. Bumble
   o:['Both honeybees and bumblebees pollinate crops.','Honeybee colonies can hold tens of thousands of bees, while bumblebee colonies usually have a few hundred.','Bumblebees can shake pollen loose from flowers such as tomatoes by buzzing, a method honeybees can\'t use.','Bumblebees pollinate tomato flowers.'],a:2,
   hint:'The goal has two parts: a difference, and it has to be about pollinating.',why:['A is a similarity.','B is a difference, but about colony size, not pollinating. That\'s the trap.','C names both bees, shows a difference, and it\'s about pollinating. ✓','D only mentions one bee.']});
 
+solo(8,{q:'<b>Text:</b> Researchers found that people who cycle to work take fewer sick days than people who drive. A skeptic pointed out that people who choose to cycle may simply be healthier to begin with. To answer the skeptic, the researchers will need evidence that cycling itself makes the difference.<br><br><b>Which finding, if true, would most directly support the researchers?</b>',
+  o:['Cyclists say they enjoy their commute more than drivers do.','The same people took fewer sick days after they switched from driving to cycling than before.','Cycling to work is more common in cities with bike lanes.','Drivers spend more total time commuting than cyclists do.'],a:1,
+  hint:'The skeptic says cyclists were healthier to begin with. Which choice rules that out by comparing the same people?',why:['The objection is "they were already healthier", so the proof must hold the people constant.','B compares the same people before and after. If their sick days fell after switching, cycling is the likely cause. ✓','A is about enjoyment, C about bike lanes and D about time. All true-sounding, none answers the skeptic.']});
+
 /* ===== countdown ===== */
 (function(){const now=new Date(),t=new Date(now.getFullYear(),now.getMonth(),now.getDate()),d=Math.round((new Date(2026,9,7)-t)/864e5);
   $('#countdown').innerHTML=d>1?`PSAT in <b>${d}</b> days`:d===1?'PSAT is <b>tomorrow</b>':d===0?'PSAT is <b>today</b>':'PSAT: Oct 7, 2026'})();
 
 /* ===== boot ===== */
-d1();d2();d3();d4();d5();d6();d7();
+d1();d2();d3();d4();d5();d6();d7();d8();
 for(let n=1;n<=COUNT;n++)refreshStages(n);
 for(let n=1;n<=COUNT;n++)if(st(n).g){const el=document.querySelector(`.stages[data-lesson="${n}"] [data-status]`);if(el){el.classList.add('win');el.innerHTML='Done. Play with the figure any time.'}}
 show((location.hash||'').slice(1)||'start');

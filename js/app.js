@@ -543,7 +543,7 @@
   }
   // Geometry Lab (geometry.html) keeps its own progress in this browser: {1: {g, r, w, s}, ...}; s = mission finished.
   // Two Labs: geometry.html (Geometry & Trig, synced to S.lab) and concepts.html (Concept Lab, synced to S.lab2).
-  const LABS = { geo: { key: "gtlab-v2", field: "lab", page: "geometry.html", n: 7 }, cx: { key: "cxlab-v1", field: "lab2", page: "concepts.html", n: 7 } };
+  const LABS = { geo: { key: "gtlab-v2", field: "lab", page: "geometry.html", n: 8 }, cx: { key: "cxlab-v1", field: "lab2", page: "concepts.html", n: 8 } };
   function labState(p) { try { return JSON.parse(localStorage.getItem(LABS[p || "geo"].key) || "{}") || {}; } catch (e) { return {}; } }
   // Copy Lab progress into the synced state (admin view, Telegram) and tick Lab plan tasks that are finished.
   // Missions done on any device add up (the account keeps the union), and a finished mission ticks its plan
@@ -750,12 +750,12 @@
       el("div", { class: "eyebrow", text: "Interactive lessons · New question types" }),
       el("h2", { text: "Concept Lab" }),
       el("p", { class: "muted", style: "margin-top:.3em", text: "Learn the Advanced Math types from Practice Test 2 (how many solutions, factors, shifts, fraction equations) and the notes-question method, before practicing them." }),
-      el("div", { class: "row", style: "margin-top:12px;align-items:center" }, el("a", { class: "btn primary", href: "concepts.html" }, cx ? (cx >= 7 ? "Review the Concept Lab" : "Continue the Concept Lab") : "Open the Concept Lab"), el("span", { class: "muted", style: "font-size:13.5px", text: cx + " of 7 missions done" }))),
+      el("div", { class: "row", style: "margin-top:12px;align-items:center" }, el("a", { class: "btn primary", href: "concepts.html" }, cx ? (cx >= 8 ? "Review the Concept Lab" : "Continue the Concept Lab") : "Open the Concept Lab"), el("span", { class: "muted", style: "font-size:13.5px", text: cx + " of 7 missions done" }))),
       el("div", { class: "card mission" },
       el("div", { class: "eyebrow", text: "Interactive lessons · Geometry & Trig" }),
       el("h2", { text: "Geometry & Trig Lab" }),
-      el("p", { class: "muted", style: "margin-top:.3em", text: "Seven short missions with moving figures, each ending in a real PSAT-style problem." }),
-      (() => { const n = ((S.lab && S.lab.done) || []).length; return el("div", { class: "row", style: "margin-top:12px;align-items:center" }, el("a", { class: "btn primary", href: "geometry.html" }, n ? (n >= 7 ? "Review the Lab" : "Continue the Lab") : "Open the Lab"), el("span", { class: "muted", style: "font-size:13.5px", text: n + " of 7 missions done" })); })()));
+      el("p", { class: "muted", style: "margin-top:.3em", text: "Eight short missions with moving figures, each ending in a real PSAT-style problem." }),
+      (() => { const n = ((S.lab && S.lab.done) || []).length; return el("div", { class: "row", style: "margin-top:12px;align-items:center" }, el("a", { class: "btn primary", href: "geometry.html" }, n ? (n >= 8 ? "Review the Lab" : "Continue the Lab") : "Open the Lab"), el("span", { class: "muted", style: "font-size:13.5px", text: n + " of 7 missions done" })); })()));
   }
   function renderToday() {
     if (GUEST) return renderLanding();
@@ -3225,8 +3225,8 @@
       ws ? el("li", { text: "This week's goals: " + ws.done + " of " + ws.total + " done (" + ws.q + " of " + ws.qTarget + " questions)" }) : null,
       el("li", { text: "Review deck: " + Object.keys(x.D.deck || {}).length + " strategy cards · badges earned: " + Object.keys(x.D.badges || {}).length }),
       ...treviewAdmin(x.D),
-      el("li", { text: "Concept Lab: " + ((x.D.lab2 && x.D.lab2.done) || []).length + " of 7 missions" + (x.D.lab2 && x.D.lab2.done && x.D.lab2.done.length ? " (" + x.D.lab2.done.join(", ") + ")" : "") }),
-      el("li", { text: "Geometry Lab: " + ((x.D.lab && x.D.lab.done) || []).length + " of 7 missions" + (x.D.lab && x.D.lab.done && x.D.lab.done.length ? " (" + x.D.lab.done.join(", ") + ")" + (x.D.lab.stars ? ", " + x.D.lab.stars + " first try" : "") : "") }),
+      el("li", { text: "Concept Lab: " + ((x.D.lab2 && x.D.lab2.done) || []).length + " of 8 missions" + (x.D.lab2 && x.D.lab2.done && x.D.lab2.done.length ? " (" + x.D.lab2.done.join(", ") + ")" : "") }),
+      el("li", { text: "Geometry Lab: " + ((x.D.lab && x.D.lab.done) || []).length + " of 8 missions" + (x.D.lab && x.D.lab.done && x.D.lab.done.length ? " (" + x.D.lab.done.join(", ") + ")" + (x.D.lab.stars ? ", " + x.D.lab.stars + " first try" : "") : "") }),
       exams.length ? el("li", { text: "Tests planned: " + exams.join("; ") }) : null,
       el("li", { text: "Joined " + (x.row.joined ? new Date(x.row.joined).toLocaleDateString() : "—") + " · last sign-in " + (x.row.last_sign_in ? new Date(x.row.last_sign_in).toLocaleDateString() : "—") })));
     return box;

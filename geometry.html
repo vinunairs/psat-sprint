@@ -197,7 +197,7 @@ header.hero .back{display:none}
     <h1>Geometry &amp; Trig Lab</h1>
     <div class="statrow">
       <span class="pill" id="countdown">PSAT: Oct 7</span>
-      <span class="pill">Missions done: <b id="prog">0</b> / 7</span>
+      <span class="pill">Missions done: <b id="prog">0</b> / 8</span>
       <span class="pill">First-try stars: <b id="stars">0</b></span>
     </div>
   </header>
@@ -211,6 +211,7 @@ header.hero .back{display:none}
     <a href="#l5" data-v="l5" data-l="5"><span class="n">5</span>Similar triangles</a>
     <a href="#l6" data-v="l6" data-l="6"><span class="n">6</span>Area &amp; volume</a>
     <a href="#l7" data-v="l7" data-l="7"><span class="n">7</span>Shortcuts</a>
+    <a href="#l8" data-v="l8" data-l="8"><span class="n">8</span>Circles</a>
     <span class="sep"></span>
     <a href="#which" data-v="which"><span class="n">?</span>When to use what</a>
     <a href="#sheet" data-v="sheet"><span class="n">★</span>Cheat sheet</a>
@@ -219,7 +220,7 @@ header.hero .back{display:none}
 
   <!-- START -->
   <section class="view" id="start">
-    <h2>Seven missions. Everything the PSAT asks in geometry and trig.</h2>
+    <h2>Eight missions. Geometry, trig and circles.</h2>
     <div class="how">
       <h3>How each mission works · about 8 minutes</h3>
       <ol>
@@ -453,6 +454,38 @@ header.hero .back{display:none}
     </div>
   </section>
 
+  <!-- MISSION 8 -->
+  <section class="view" id="l8" hidden>
+    <div class="lhead"><span class="lnum">Mission 8</span><h2>Circles: a slice is a fraction</h2><span class="time">≈ 9 min</span></div>
+    <div class="grid">
+      <div class="figcol"><div class="fig">
+        <svg id="fig11" viewBox="0 0 300 290" role="img" aria-label="Circle with a slice cut out, showing its arc and area"></svg>
+        <div class="controls">
+          <label for="s11t">Angle <input id="s11t" type="range" min="15" max="330" step="5" value="120"><span id="v11t"></span></label>
+          <label for="s11r">Radius <input id="s11r" type="range" min="1" max="12" value="6"><span id="v11r"></span></label>
+        </div>
+        <div class="readout" id="r11"></div>
+      </div></div>
+      <div class="stages" data-lesson="8">
+        <div class="stage" data-st="g"><div class="sh"><span class="sn">1</span><h3>Play</h3></div><div class="body">
+          <p class="goal">Slide the angle until the slice is exactly <b>one-sixth</b> of the circle.</p>
+          <p>Watch the fraction in the readout. Then change the radius: does the fraction change?</p>
+          <div class="status" data-status>Not there yet. Keep sliding.</div>
+          <button class="linkbtn" data-skip>Skip this step</button></div></div>
+        <div class="stage locked" data-st="r"><div class="sh"><span class="sn">2</span><h3>The rule</h3></div><p class="lockmsg">Finish step 1 to unlock.</p><div class="body rule">
+          <p>A slice with angle θ is the fraction <span class="m">θ/360</span> of the whole circle. Every slice question starts there.</p>
+          <p class="key">arc = fraction × 2πr<br>sector area = fraction × πr²</p>
+          <p><b>Radians:</b> 180° = π, so 60° = π/3 and 90° = π/2. To convert, multiply degrees by π/180.</p>
+          <p><b>Circle equation:</b> <span class="m">(x − h)² + (y − k)² = r²</span>. The center is (h, k), so flip the signs you see. The number on the right is r², not r.</p>
+          <p class="trap"><b>Trap:</b> mixing up the two formulas. Arc is a <i>length</i> (uses 2πr). Sector is an <i>area</i> (uses πr²). And 25 on the right side of an equation means r = 5.</p></div></div>
+        <div class="stage locked" data-st="w"><div class="sh"><span class="sn">3</span><h3>Walk through it</h3></div><p class="lockmsg">Finish step 2 to unlock.</p><div class="body">
+          <p class="q">A circle has radius <span class="m">6</span>. A slice of <span class="m">60°</span> is cut out. Find the arc length, the sector area and the angle in radians. Then read a circle's equation.</p>
+          <div data-walk></div></div></div>
+        <div class="stage locked" data-st="s"><div class="sh"><span class="sn">4</span><h3>Your turn</h3></div><p class="lockmsg">Finish step 3 to unlock.</p><div class="body" data-solo></div></div>
+      </div>
+    </div>
+  </section>
+
   <!-- WHEN TO USE WHAT -->
   <section class="view" id="which" hidden>
     <div class="lhead"><span class="lnum">?</span><h2>When to use what</h2></div>
@@ -623,11 +656,11 @@ function solo(n,d){const host=document.querySelector(`.stages[data-lesson="${n}"
     else{miss++;b.classList.add('wrong');b.disabled=true;fb.innerHTML=`<p class="hint"><b>Hint:</b> ${d.hint}</p>`}}));
   if(s.s){host.querySelectorAll('.chips button').forEach((x,j)=>{x.disabled=true;if(j===d.a)x.classList.add('right')});
     fb.innerHTML=`<div class="why"><ol>${d.why.map(w=>`<li>${w}</li>`).join('')}</ol></div>${nextBar(n)}`;bindNext(fb)}}
-function nextBar(n){const nn=+n+1;return nn<=7?`<div class="nextbar" style="margin-top:12px"><p>Mission ${n} complete. Short break, then:</p><button data-next="l${nn}">Mission ${nn}: ${TITLES[nn]}</button></div>`
-  :`<div class="nextbar" style="margin-top:12px"><p>All seven missions done. One last check before the practice test:</p><button data-next="which">When to use what</button></div>`}
+function nextBar(n){const nn=+n+1;return nn<=8?`<div class="nextbar" style="margin-top:12px"><p>Mission ${n} complete. Short break, then:</p><button data-next="l${nn}">Mission ${nn}: ${TITLES[nn]}</button></div>`
+  :`<div class="nextbar" style="margin-top:12px"><p>All eight missions done. One last check before the practice test:</p><button data-next="which">When to use what</button></div>`}
 function bindNext(el){el.querySelectorAll('[data-next]').forEach(b=>b.addEventListener('click',()=>show(b.dataset.next)))}
-const TITLES={1:'Parallel lines',2:'Triangle angles',3:'Pythagoras',4:'SOH CAH TOA',5:'Similar triangles',6:'Area & volume',7:'Test-day shortcuts'};
-const BLURB={1:'Two angle sizes, one question to ask.',2:'180°, and the outside-angle shortcut.',3:'Squares on the sides. Know your triples.',4:'Opposite and adjacent depend on where you stand.',5:'One scale factor runs everything.',6:'Count cubes. Doubling is not ×2.',7:'Pick numbers, whole minus part, try the answers.'};
+const TITLES={1:'Parallel lines',2:'Triangle angles',3:'Pythagoras',4:'SOH CAH TOA',5:'Similar triangles',6:'Area & volume',7:'Test-day shortcuts',8:'Circles'};
+const BLURB={1:'Two angle sizes, one question to ask.',2:'180°, and the outside-angle shortcut.',3:'Squares on the sides. Know your triples.',4:'Opposite and adjacent depend on where you stand.',5:'One scale factor runs everything.',6:'Count cubes. Doubling is not ×2.',7:'Pick numbers, whole minus part, try the answers.',8:'A slice is a fraction. Arc, area, and the circle equation.'};
 
 /* ===== views ===== */
 const views=[...document.querySelectorAll('section.view')].map(s=>s.id);
@@ -637,14 +670,14 @@ function show(id){if(!views.includes(id))id='start';document.querySelectorAll('s
   if(id==='start')renderPath();window.scrollTo({top:0,behavior:'auto'});
   const on=document.querySelector('nav.lessons a.on');if(on)on.scrollIntoView({block:'nearest',inline:'center'})}
 document.querySelectorAll('nav.lessons a').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();show(a.dataset.v)}));
-function nextMission(){for(let n=1;n<=7;n++)if(!st(n).s)return 'l'+n;return 'sheet'}
+function nextMission(){for(let n=1;n<=8;n++)if(!st(n).s)return 'l'+n;return 'sheet'}
 $('#go').addEventListener('click',()=>show(nextMission()));
-function renderPath(){$('#path').innerHTML=[1,2,3,4,5,6,7].map(n=>{const s=st(n);const stat=s.s?(s.s===2?'✓ done · ★ first try':'✓ done'):s.g?'in progress':'not started';
+function renderPath(){$('#path').innerHTML=[1,2,3,4,5,6,7,8].map(n=>{const s=st(n);const stat=s.s?(s.s===2?'✓ done · ★ first try':'✓ done'):s.g?'in progress':'not started';
   return `<button class="mcard" data-next="l${n}"><span class="k">Mission ${n}</span><span class="t">${TITLES[n]}</span><span class="s">${BLURB[n]}</span><span class="st" style="color:${s.s?'var(--good)':'var(--muted)'}">${stat}</span></button>`}).join('');bindNext($('#path'))}
-function syncProg(){let d=0,stars=0;for(let n=1;n<=7;n++){const s=st(n);if(s.s)d++;if(s.s===2)stars++}
+function syncProg(){let d=0,stars=0;for(let n=1;n<=8;n++){const s=st(n);if(s.s)d++;if(s.s===2)stars++}
   $('#prog').textContent=d;$('#stars').textContent=stars;
   document.querySelectorAll('nav.lessons a[data-l]').forEach(a=>a.classList.toggle('done',!!st(a.dataset.l).s));
-  $('#go').textContent=d===7?'Review the cheat sheet':d===0?'Start Mission 1':'Continue: '+TITLES[+nextMission().slice(1)]}
+  $('#go').textContent=d===8?'Review the cheat sheet':d===0?'Start Mission 1':'Continue: '+TITLES[+nextMission().slice(1)]}
 
 /* ===== slider sweeps ===== */
 const anims={};
@@ -746,6 +779,9 @@ function d6(){const k=+$('#s6').value;$('#v6').textContent=k.toFixed(2);
   if(Math.abs(k-0.5)<0.001)goalHit(5,'DE = 6 is half of BC, and D sits exactly halfway along AB. Same k for every side. But the area is only 0.25 of the big triangle: k² = 0.5² = 0.25.');
   else goalStatus(5,`DE is <b>${r2(12*k)}</b>. Target: 6.`)}
 $('#s6').addEventListener('input',d6);
+solo(8,{q:'A circle has radius 8. A sector has a central angle of 90°. What is the area of the sector?',o:['8π','16π','32π','64π'],a:1,
+  hint:'90° out of 360° is what fraction? Then take that fraction of the whole circle\'s area πr².',why:['90/360 = 1/4.','Whole circle: π × 8² = 64π.','One quarter: 64π ÷ 4 = 16π. (8π would be an arc length, a different thing.)']});
+
 
 /* ===== M6 volume ===== */
 let prevV9=null;
@@ -811,6 +847,18 @@ $('#s7t').addEventListener('input',()=>{theta7=+$('#s7t').value;bend7=null;d7()}
 $('#rad7').addEventListener('click',()=>{theta7=57.3;$('#s7t').value=57;if(reduce){bend7=1;d7();return}const t0=performance.now();bend7=0;
   const f=now=>{const u=Math.min(1,(now-t0-400)/1400);bend7=u<0?0:(1-Math.cos(u*Math.PI))/2;d7();if(u<1)requestAnimationFrame(f)};requestAnimationFrame(f)});
 
+/* ===== M8 circles ===== */
+function d11(){const r=+$('#s11r').value,th=+$('#s11t').value;$('#v11t').textContent=th+'°';$('#v11r').textContent=r;
+  const c=P(150,145),R=110;let s=`<circle cx="${c.x}" cy="${c.y}" r="${R}" class="k-dim" stroke-width="2"/>`+wedge(c,R,0,th,'w-hyp');
+  const p0=pol(c,R,0),p1=pol(c,R,th);
+  s+=`<path d="M${p0.x} ${p0.y} A${R} ${R} 0 ${th>180?1:0} 0 ${r1(p1.x)} ${r1(p1.y)}" class="k-opp" stroke-width="6" stroke-linecap="round"/>`+L(c,p0,'k-ink')+L(c,p1,'k-ink')
+    +`<circle cx="${c.x}" cy="${c.y}" r="3.5" class="dot"/>`+T(pol(c,R/2,-14),'r = '+r,'lbl',13)+T(pol(c,R+20,th/2),'arc','t-opp',13);
+  $('#fig11').innerHTML=s;const g=gcd(th,360);
+  $('#r11').innerHTML=`fraction = ${th}/360 = <b>${th/g}/${360/g}</b><br><span class="c-opp">arc</span> = ${th/g}/${360/g} × 2π(${r}) = ${piFrac(th*r,180)} ≈ ${r2(th*r*Math.PI/180)}<br><span class="c-hyp">sector</span> = ${th/g}/${360/g} × π(${r})² = ${piFrac(th*r*r,360)} ≈ ${r2(th*r*r*Math.PI/360)}`;
+  if(th===60)goalHit(8,`60° is 60/360 = one-sixth of the circle. The arc is one-sixth of the circumference and the slice is one-sixth of the area. The radius changes the size, never the fraction.`);
+  else goalStatus(8,`Angle is <b>${th}°</b> = ${th/g}/${360/g} of the circle. Target: 1/6.`)}
+$('#s11t').addEventListener('input',d11);$('#s11r').addEventListener('input',d11);
+
 /* ===== bonus: circle equation ===== */
 const sq=v=>v===0?'':(v>0?` − ${v}`:` + ${-v}`),term=(n,v)=>n===0?'':(n>0?` + ${n===1?'':n}${v}`:` − ${n===-1?'':-n}${v}`),fac=(v,h)=>h===0?`${v}²`:`(${v}${sq(h)})²`;
 let step8=0;
@@ -866,6 +914,16 @@ walk(6,[
  {p:'Volume of a cylinder = base area × height. The base is a circle with radius 3. Base area = πr² = ?',o:['6π','9π','3π'],a:1,show:'9π',hint:'r² = 3 × 3',ok:'π × 3² = 9π.'},
  {p:'Now multiply by the height, 10.',o:['90π','19π','900π'],a:0,show:'V = 90π',hint:'9π × 10',ok:'Leave it as 90π unless the answers are decimals (≈ 282.7).'},
  {p:'If the radius doubles to 6 and the height stays 10, the volume becomes how many times bigger?',o:['×2','×8','×4'],a:2,show:'×4',hint:'Only the radius changed, and it\'s squared in the formula.',ok:'6² = 36 and 3² = 9: 36 ÷ 9 = 4. New volume 360π. Only r changed, so it\'s ×2², not ×2³.'}]);
+
+walk(8,[
+ {p:'The slice is 60° of a 360° circle. What fraction of the whole circle is it?',o:['1/6','1/3','6/60'],a:0,show:'60/360 = 1/6',hint:'Put the angle over 360 and simplify.',ok:'60 goes into 360 six times.'},
+ {p:'The whole circle has radius 6. Its circumference 2πr is?',o:['6π','12π','36π'],a:1,show:'2π × 6 = 12π',hint:'Circumference = 2 × π × radius.',ok:'12π is the whole way around.'},
+ {p:'The arc is 1/6 of the circumference. Arc length = ?',o:['2π','6π','12π'],a:0,show:'12π ÷ 6 = 2π',hint:'One sixth of 12π.',ok:'An arc is a length, so it uses the circumference.'},
+ {p:'Now the sector, an area. The whole circle area πr² is?',o:['6π','12π','36π'],a:2,show:'π × 6² = 36π',hint:'r² is 6 × 6.',ok:'Area uses r squared.'},
+ {p:'The sector is 1/6 of that area. Sector area = ?',o:['6π','2π','12π'],a:0,show:'36π ÷ 6 = 6π',hint:'One sixth of 36π.',ok:'Same fraction, different whole: 2π for the arc, 6π for the slice.'},
+ {p:'60° in radians. Since 180° = π, 60° is one third of that.',o:['π/3','π/6','60π'],a:0,show:'π/3',hint:'60 is one third of 180.',ok:'Multiply degrees by π/180: 60π/180 = π/3.'},
+ {p:'Now an equation: (x − 3)² + (y + 2)² = 25. What is the center?',o:['(3, −2)','(−3, 2)','(3, 2)'],a:0,show:'(3, −2)',hint:'Flip the signs: x − 3 means h = 3. y + 2 means k = −2.',ok:'Inside the brackets the sign is the opposite of the coordinate.'},
+ {p:'And the radius?',o:['25','5','√5'],a:1,show:'r = 5',hint:'The right side is r², not r. What squared makes 25?',ok:'25 = r², so r = 5. The most common circle trap on the test.'}]);
 
 /* ===== your turn (new numbers, no steps) ===== */
 solo(1,{q:'Two parallel lines are cut by a transversal. Two same-side interior angles measure (2x + 20)° and (3x + 10)°. What is x?',o:['10','30','34','50'],a:1,
@@ -974,9 +1032,9 @@ drillStart();
   $('#countdown').innerHTML=d>1?`PSAT in <b>${d}</b> days`:d===1?'PSAT is <b>tomorrow</b>':d===0?'PSAT is <b>today</b>':'PSAT: Oct 7, 2026'})();
 
 /* ===== boot ===== */
-d1();d2();d3();d5();d6();d9();d10();setMode4('45');d7();d8();
-for(let n=1;n<=7;n++)refreshStages(n);
-for(let n=1;n<=7;n++)if(st(n).g){const el=document.querySelector(`.stages[data-lesson="${n}"] [data-status]`);if(el){el.classList.add('win');el.innerHTML='Done. Play with the figure any time.'}}
+d1();d2();d3();d5();d6();d9();d10();setMode4('45');d7();d8();d11();
+for(let n=1;n<=8;n++)refreshStages(n);
+for(let n=1;n<=8;n++)if(st(n).g){const el=document.querySelector(`.stages[data-lesson="${n}"] [data-status]`);if(el){el.classList.add('win');el.innerHTML='Done. Play with the figure any time.'}}
 show((location.hash||'').slice(1)||'start');
 window.addEventListener('hashchange',()=>{const id=(location.hash||'').slice(1);if(id&&!document.getElementById(id)?.hidden===false)show(id)});
 })();

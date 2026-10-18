@@ -263,3 +263,6 @@ The main source is now a 7:38 am scheduled task on Vinu's computer that reads ye
 Today's PSAT prep card ends with "This week's goals" (ticked off live, with Go buttons and a Full plan link). Admin shows a one-line PSAT-today summary and, when a card is open, a "PSAT checklist for today" list. Season plan items can carry `plan.wk[weekStart] = {d20, nb}` to lower one week's targets.
 
 Season plan themes can also carry `lab2` (a second lab, one mission a week alongside). While a theme's `lab` has missions left, that week's Bluebook practice-test goal is held back: lessons first.
+
+### Lab missions 8
+Geometry Lab Mission 8 (Circles: arcs, sectors, radians, circle equations) and Concept Lab Mission 8 (Reading: find the proof before you choose). Both labs now have 8 missions (`LABS.*.n` in app.js). Circles content is SAT-level; the Lab's bonus page keeps its original arc and circle-equation figures.
