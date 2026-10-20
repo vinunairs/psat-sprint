@@ -266,3 +266,6 @@ Season plan themes can also carry `lab2` (a second lab, one mission a week along
 
 ### Lab missions 8
 Geometry Lab Mission 8 (Circles: arcs, sectors, radians, circle equations) and Concept Lab Mission 8 (Reading: find the proof before you choose). Both labs now have 8 missions (`LABS.*.n` in app.js). Circles content is SAT-level; the Lab's bonus page keeps its original arc and circle-equation figures.
+
+### Notebook merge
+Clearing a Mistake notebook item records it in `clr` (key → time). When progress from two devices is combined, an item cleared on either side stays cleared unless it was missed again afterwards (`ats` on the item is when it was added). Older data without `clr` still merges as a union.

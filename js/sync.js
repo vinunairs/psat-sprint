@@ -69,8 +69,13 @@
         const fix = Object.assign({}, b.fix || {}, a.fix || {}); if (Object.keys(fix).length !== Object.keys(a.fix || {}).length) { a.fix = fix; changed = true; }
         a.r = Object.assign({}, b.r || {}, a.r || {}); if (!a.done && b.done) { a.done = b.done; a.focus = b.focus; a.note = b.note; changed = true; }
       }
+      // The notebook: a mistake cleared on either device stays cleared (unless it was missed again afterwards).
+      const clr = R.clr || (R.clr = {});
+      for (const [k, t] of Object.entries(L.clr || {})) if (!(k in clr) || t > clr[k]) { clr[k] = t; changed = true; }
+      const gone = (m) => { const t = clr[m.key || m.uid]; return !!t && t > (m.ats || 0); };
+      if ((R.mistakes || []).some(gone)) { R.mistakes = R.mistakes.filter((m) => !gone(m)); changed = true; }
       const keys = new Set((R.mistakes || []).map((m) => m.key || m.uid));
-      for (const m of L.mistakes || []) if (!keys.has(m.key || m.uid)) { (R.mistakes || (R.mistakes = [])).push(m); changed = true; }
+      for (const m of L.mistakes || []) if (!keys.has(m.key || m.uid) && !gone(m)) { (R.mistakes || (R.mistakes = [])).push(m); changed = true; }
       const ids = new Set((R.tests || []).map((t) => t.id));
       for (const t of L.tests || []) if (!ids.has(t.id)) { (R.tests || (R.tests = [])).push(t); changed = true; }
       if ((L.xp || 0) > (R.xp || 0)) { R.xp = L.xp; changed = true; }

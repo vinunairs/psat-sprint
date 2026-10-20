@@ -381,9 +381,14 @@
       if (!ok) { st2.miss++; st2.last = today(); S.deck[sid] = Object.assign(S.deck[sid] || { added: today() }, { box: 0, due: today() }); }
     }
     const i = S.mistakes.findIndex((m) => m.key === q.key);
-    if (ok && i > -1) { S.mistakes.splice(i, 1); S.fixed++; if (S.fixed >= 5) award("fixer"); }
+    if (ok && i > -1) {
+      S.mistakes.splice(i, 1); S.fixed++; if (S.fixed >= 5) award("fixer");
+      // Remember the clearing so combining progress from another device doesn't bring the item back.
+      const clr = S.clr || (S.clr = {}); clr[q.key] = Date.now();
+      const ks = Object.keys(clr); if (ks.length > 400) ks.sort((x, y) => clr[x] - clr[y]).slice(0, ks.length - 400).forEach((k) => delete clr[k]);
+    }
     if (!ok && i === -1) {
-      const slim = { key: q.key, d: q.d, sk: q.sk, gen: q.gen, p: q.p, q: q.q, o: q.o, a: q.a, type: q.type, spr: q.spr, e: q.e, t: q.t, table: q.table, chart: q.chart, fig: q.fig, efig: q.efig, steps: q.steps, id: q.id, src: q.src, added: today() };
+      const slim = { key: q.key, d: q.d, sk: q.sk, gen: q.gen, p: q.p, q: q.q, o: q.o, a: q.a, type: q.type, spr: q.spr, e: q.e, t: q.t, table: q.table, chart: q.chart, fig: q.fig, efig: q.efig, steps: q.steps, id: q.id, src: q.src, added: today(), ats: Date.now() };
       S.mistakes.unshift(slim); if (S.mistakes.length > 80) S.mistakes.length = 80;
     }
   }
