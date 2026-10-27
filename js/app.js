@@ -1546,7 +1546,17 @@
     const planLine = el("a", { class: "td-plan", href: "#plan", onclick: (e) => { e.preventDefault(); show("plan"); } }, el("span", { text: "This week: " + doneG + " of " + wk.w.goals.length + " goals" + (th ? " · " + th.title : "") }), el("b", { text: "Plan ›" }));
     const evEdit = el("a", { class: "muted td-ev", href: "#plan", onclick: (e) => { e.preventDefault(); show("plan"); setTimeout(() => { const x = document.getElementById("activities"); if (x) x.scrollIntoView({ block: "start" }); }, 50); } }, "+ Add an activity");
     const over = plan.events.filter((e) => e.src === "canvas").map((e) => el("button", { class: "btn small ghost", onclick: () => skipEventToday(e.id) }, e.name + " is over"));
-    return el("div", { class: "td" }, head, why, plan.light && over.length ? el("div", { class: "row" }, over) : null, school, prep, news, habits, el("div", { class: "td-foot" }, planLine, evEdit));
+    // Lessons come before practice: until this week's Lab missions are done, a card at the top says so (practice sets are not lessons).
+    const lessonCard = (() => {
+      if (GUEST || planMode() === "sprint" || planMode() === "after") return null;
+      const lw = currentWeek(), lt = weekTotals(lw.ws), open = lw.w.goals.filter((g) => g.type === "lab" && !goalDone(g, lt));
+      if (!open.length) return null;
+      return el("section", { class: "card td-sec td-lesson" },
+        el("div", { class: "row between" }, el("div", { class: "row", style: "gap:8px" }, tag("lesson", "Lesson first"), el("span", { class: "muted", text: "Not practice. A short walkthrough, then a few steps with hints." }))),
+        open.map((g) => el("div", { class: "row between", style: "gap:10px;margin-top:8px" }, el("b", { text: g.label.replace(/ \(one lesson a week alongside\)/, "") }), el("button", { class: "btn primary small", onclick: goalGo(g) }, "Start the lesson"))),
+        el("p", { class: "muted", style: "font-size:12.5px;margin:8px 0 0", text: "Do this before the practice sets. The 5, 10 and 15 question sets are practice." }));
+    })();
+    return el("div", { class: "td" }, head, why, plan.light && over.length ? el("div", { class: "row" }, over) : null, lessonCard, school, prep, news, habits, el("div", { class: "td-foot" }, planLine, evEdit));
   }
   // Screen time (Plan page): the last 7 days from Qustodio's daily summary, sorted into kinds, with blocked tries
   // during the homework window counted as the distraction signal.
@@ -1962,7 +1972,7 @@
     if (GUEST && (S.samples.practice || 0) >= SAMPLE_LIMIT) return guestGate(p, "sample practice sets");
     const pr = S.prefs, top3 = focusList().slice(0, 3).map((d) => d.id);
     if (!pr.sel.length) pr.sel = [top3[0]];
-    p.append(el("div", {}, GUEST ? el("h2", { text: "Sample practice set" }) : null, el("p", { class: "muted lede", text: GUEST ? "Try 5 questions on any skill, with the answer and a full explanation after each one." : "Pick skills, how many questions, and the difficulty." })));
+    p.append(el("div", {}, GUEST ? el("h2", { text: "Sample practice set" }) : null, el("p", { class: "muted lede", text: GUEST ? "Try 5 questions on any skill, with the answer and a full explanation after each one." : "Practice only: pick skills, how many questions, and the difficulty. The lessons are the Lab missions (Today, \"Lesson first\")." })));
     const grid = (sec) => {
       const g = el("div", { class: "skills" });
       DOMAINS.filter((d) => d.sec === sec).forEach((d) => {

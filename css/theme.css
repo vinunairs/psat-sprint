@@ -603,3 +603,7 @@ body[data-tab="news"] footer.foot{display:none}
 .psat-list li.done>span:nth-child(2){text-decoration:line-through;color:var(--graphite)}
 .psat-list .tdk{font-weight:800}
 .psat-list li.done .tdk{color:var(--good)}
+
+.td-lesson{border-left:4px solid #d9480f}
+.td-lesson .btn{white-space:nowrap}
+.tag.lesson{color:#9a3412;background:#ffedd5}
