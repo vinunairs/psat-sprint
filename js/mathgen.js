@@ -381,6 +381,8 @@
 
   /* ============ GEOMETRY & TRIGONOMETRY ============ */
   const TRIPLES = [[3, 4, 5], [5, 12, 13], [8, 15, 17], [7, 24, 25]];
+  // Trig also draws on these, in either orientation, so the ratios vary more.
+  const TRIG_TRIPLES = TRIPLES.concat([[20, 21, 29], [9, 40, 41], [12, 35, 37], [11, 60, 61]]);
   G.geo_pyth = (r, L) => {
     const [p, q, h] = r.pick(TRIPLES), k = r.int(1, L === 1 ? 2 : 4), A = p * k, B = q * k, H = h * k;
     const askLeg = L > 1 && r.f() < 0.5;
@@ -395,7 +397,8 @@
   };
 
   G.geo_trig = (r, L) => {
-    const [p, q, h] = r.pick(TRIPLES), fn = r.pick(["sin", "cos", "tan"]);
+    let [p, q, h] = r.pick(TRIG_TRIPLES); const fn = r.pick(["sin", "cos", "tan"]);
+    if (r.f() < 0.5) [p, q] = [q, p];
     if (L === 3) {
       const other = fn === "sin" ? "cos" : "sin", val = frac(p, h);
       const { o, a } = mc(r, val, [frac(q, h), frac(p, q), frac(h, p)], String);

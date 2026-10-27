@@ -303,7 +303,19 @@
     ["The program has trained dozens of young engineers", "among them", "two who later designed parts for the Mars rover."],
     ["The garden grows plants from every continent", "including", "a cactus that blooms only at night."],
     ["The novel won several major awards", "among them", "the National Book Award for Fiction."],
-    ["The survey reached residents of many neighborhoods", "including", "several that had never been surveyed before."]
+    ["The survey reached residents of many neighborhoods", "including", "several that had never been surveyed before."],
+    ["The orchestra's tour visited cities across Europe", "including", "Prague, Vienna, and Budapest."],
+    ["The science fair drew projects from students in several grades", "among them", "a seventh grader who built a working water filter."],
+    ["The botanist cataloged hundreds of plants along the trail", "such as", "ferns, mosses, and several rare orchids."],
+    ["The bakery's menu changes with the seasons", "including", "a pumpkin loaf that sells out each October."],
+    ["The documentary features interviews with several divers", "among them", "a woman who helped map the wreck."],
+    ["The harbor is home to many kinds of seabirds", "such as", "gulls, terns, and cormorants."],
+    ["The festival's workshops cover a range of crafts", "including", "weaving, pottery, and glassblowing."],
+    ["The archive holds letters from many famous writers", "among them", "a note Langston Hughes sent to a young poet."],
+    ["The new curriculum adds several practical skills", "including", "budgeting and basic home repair."],
+    ["The observatory's collection includes instruments from different centuries", "among them", "a brass telescope made in 1780."],
+    ["The valley is known for its fruit orchards", "such as", "apple, pear, and cherry groves."],
+    ["The club's members come from many walks of life", "including", "nurses, welders, and retired teachers."]
   ];
   function sec_semiphrase(r) {
     const [main, lead, rest] = r.pick(SEMI);

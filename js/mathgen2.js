@@ -204,7 +204,32 @@
 
   /* ---------- Special right triangles ---------- */
   G.geo_special = (r, L) => {
-    const s = r.int(2, 9);
+    const s = r.int(2, 9), mode = r.f();
+    if (mode < 0.2) {
+      // 45-45-90 with the hypotenuse given: find a leg.
+      const { o, a } = mc(r, fmtN(s), [s + "√2", fmtN(2 * s), s + "√3"], String);
+      return { d: "geo", sk: "Right triangles", q: `The hypotenuse of an isosceles right triangle has length ${s}√2. What is the length of each leg?`, o, a, spr: s,
+        e: `A 45°-45°-90° triangle has sides x, x, and x√2. The hypotenuse x√2 = ${s}√2, so each leg x = ${s}.`, t: "45-45-90: x, x, x√2. Divide the hypotenuse by √2 to get a leg.", key: `sp3:${s}`,
+        fig: { type: "rtri", adj: 1, opp: 1, angA: "45°", angB: "45°", lab: { o: "?", a: "?", h: s + "√2" } },
+        steps: ["Isosceles right triangle = 45°-45°-90°. The legs are equal.", "The sides are x, x, and x√2, with x√2 the hypotenuse.", `x√2 = ${s}√2, so x = ${s}.`] };
+    }
+    if (mode < 0.4) {
+      // 30-60-90 with the short leg given: find the hypotenuse or the long leg.
+      const askHyp = r.f() < 0.5, right = askHyp ? fmtN(2 * s) : s + "√3";
+      const { o, a } = mc(r, right, askHyp ? [fmtN(s), s + "√3", s + "√2"] : [fmtN(2 * s), fmtN(s), s + "√2"], String);
+      return { d: "geo", sk: "Right triangles", q: `In a 30°-60°-90° triangle, the side opposite the 30° angle has length ${s}. What is the length of the ${askHyp ? "hypotenuse" : "side opposite the 60° angle"}?`, o, a, spr: askHyp ? 2 * s : undefined,
+        e: `The sides of a 30°-60°-90° triangle are x, x√3, and 2x, with x the side opposite 30°. Here x = ${s}, so the ${askHyp ? "hypotenuse 2x = " + 2 * s : "side opposite 60° is x√3 = " + s + "√3"}.`, t: "30-60-90: x, x√3, 2x. Start from the short leg.", key: `sp4:${s}:${askHyp}`,
+        fig: { type: "rtri", adj: Math.sqrt(3), opp: 1, angA: "30°", angB: "60°", lab: askHyp ? { o: s, h: "?" } : { o: s, a: "?" } },
+        steps: ["The sides are x, x√3, and 2x.", `The side across from 30° is the short leg, x = ${s}.`, askHyp ? `The hypotenuse is 2x = ${2 * s}.` : `The side across from 60° is x√3 = ${s}√3.`] };
+    }
+    if (mode < 0.6) {
+      // 30-60-90 with the long leg given: find the short leg.
+      const { o, a } = mc(r, fmtN(s), [s + "√3", fmtN(2 * s), s + "√2"], String);
+      return { d: "geo", sk: "Right triangles", q: `In a 30°-60°-90° triangle, the side opposite the 60° angle has length ${s}√3. What is the length of the side opposite the 30° angle?`, o, a, spr: s,
+        e: `The sides are x, x√3, and 2x. The side opposite 60° is x√3 = ${s}√3, so x = ${s}, and that is the side opposite 30°.`, t: "In 30-60-90, divide the long leg by √3 to get the short leg.", key: `sp5:${s}`,
+        fig: { type: "rtri", adj: Math.sqrt(3), opp: 1, angA: "30°", angB: "60°", lab: { o: "?", a: s + "√3" } },
+        steps: ["The sides are x, x√3, and 2x.", `The side across from 60° is x√3 = ${s}√3, so x = ${s}.`, `x is across from 30°, so that side is ${s}.`] };
+    }
     if (r.f() < 0.5) {
       const ask = L === 1 ? "short" : "long";
       const right = ask === "short" ? fmtN(s) : s + "√3";
