@@ -1263,13 +1263,17 @@
     results.filter((r) => !r.ok).forEach((r) => { const id = STRAT.strategyFor(r.q); miss[id] = (miss[id] || 0) + 1; });
     const top = Object.entries(miss).sort((a, b) => b[1] - a[1]).slice(0, 3);
     if (!top.length) return null;
+    // One of the student's own misses for each strategy, worked out in full, so the rule comes with an example.
+    const sample = (id) => results.find((r) => !r.ok && !r.skipped && STRAT.strategyFor(r.q) === id);
     return el("div", { class: "card takeaways" },
       el("div", { class: "eyebrow", text: title || "3 things to remember" }),
       el("div", { class: "tk-list" }, top.map(([id, n], i) => {
         const c = STRAT.cards[id];
         return el("div", { class: "tk" }, el("span", { class: "tk-n num", text: String(i + 1) }),
           el("div", {}, el("strong", { text: c.name }), el("span", { class: "muted", style: "font-size:13px", text: " · missed " + n + (n === 1 ? " time" : " times") }),
-            el("p", { text: c.rule }), el("p", { class: "muted", style: "font-size:13px" }, el("b", { text: "Trap: " }), c.trap)));
+            el("p", { text: c.rule }), el("p", { class: "muted", style: "font-size:13px" }, el("b", { text: "Trap: " }), c.trap),
+            (() => { const x = sample(id); return x ? el("details", { class: "tk-ex" }, el("summary", { text: "See a worked example" + (x.label ? " (" + x.label + ")" : "") }),
+              el("div", { class: "qcard", style: "margin-top:10px" }, stem(x.q), answerArea(x.q, { picked: x.pick, reveal: true }), explainBox(x.q, x.pick))) : null; })()));
       })),
       GUEST ? null : el("div", { class: "row" }, el("button", { class: "btn small primary", onclick: () => show("review") }, "Flip through your flashcards"), el("span", { class: "muted", style: "font-size:13px", text: "These strategies were added to your deck." })));
   }
@@ -1902,7 +1906,7 @@
       const order = [];
       for (let i = 0; i < count; i++) order.push(doms[i % doms.length]);
       rng.shuffle(order).forEach((d) => {
-        const lv = diff === "easier" ? rng.pick([1, 1, 2]) : diff === "harder" ? rng.pick([2, 3, 3]) : autoLevel(d);
+        const lv = diff === "easier" ? rng.pick([1, 1, 2]) : diff === "harder" ? rng.pick([2, 3, 3]) : diff === "hardest" ? 3 : autoLevel(d);
         qs.push(nextQuestion(d, lv, used, 0.3));
       });
       save();
@@ -2002,7 +2006,7 @@
     }
     p.append(el("div", { class: "row", style: "gap:22px;align-items:end" },
       seg("Questions", "count", [[5, "5"], [10, "10"], [20, "20"], [30, "30"]]),
-      seg("Difficulty", "diff", [["auto", "Match my level"], ["easier", "Easier"], ["harder", "Harder"]]),
+      seg("Difficulty", "diff", [["auto", "Match my level"], ["easier", "Easier"], ["harder", "Harder"], ["hardest", "Test-day hard"]]),
       seg("Pace timer", "timed", [[true, "On"], [false, "Off"]])));
     p.append(el("div", { class: "row" },
       el("button", { class: "btn primary", disabled: !pr.sel.length, onclick: () => startPractice(pr.sel, pr.count, pr.diff) }, pr.sel.length ? "Start " + pr.count + " questions" : "Pick at least one skill")));
@@ -2074,6 +2078,7 @@
       takeaways(P.results),
       el("div", { class: "row" },
         el("button", { class: "btn primary", onclick: () => (P.notebook ? startPractice([], 0, "auto", true) : startPractice(P.doms, P.count, P.diff)) }, "Another set"),
+        !P.notebook && !P.focus && c / n >= 0.8 && P.diff !== "hardest" ? el("button", { class: "btn", onclick: () => { const nx = P.diff === "harder" ? "hardest" : "harder"; S.prefs.diff = nx; save(); startPractice(P.doms, P.count, nx); } }, P.diff === "harder" ? "Next set: test-day hard" : "Next set: harder") : null,
         el("button", { class: "btn", onclick: () => { P = null; renderPractice(); } }, "Change skills")));
   }
 
@@ -2343,7 +2348,7 @@
     p.append(el("div", { class: "card", style: "padding:6px 8px" }, el("div", { class: "tablewrap" }, el("table", { class: "mx" }, el("thead", {}, el("tr", {}, ["Skill", "Correct", "Accuracy", "Status"].map((h) => el("th", { text: h })))), tb))));
     const items = [];
     M.modules.forEach((m, mi) => m.qs.forEach((q, i) => items.push({ q, a: m.ans[i], flag: m.flag[i], label: MOD[m.sec].name + " · Module " + ((mi % 2) + 1) + " · Q" + (i + 1) })));
-    const tk = takeaways(items.map((x) => ({ q: x.q, ok: isRight(x.q, x.a) })), "3 things to remember from this test");
+    const tk = takeaways(items.map((x) => ({ q: x.q, ok: isRight(x.q, x.a), pick: x.a, label: x.label })), "3 things to remember from this test");
     if (tk) p.append(tk);
     const shown = items.filter((x) => reviewFilter === "all" || (reviewFilter === "wrong" ? !isRight(x.q, x.a) : x.flag));
     const fseg = el("div", { class: "seg" }, [["all", "All"], ["wrong", "Incorrect (" + items.filter((x) => !isRight(x.q, x.a)).length + ")"], ["flag", "Flagged"]].map(([v, t]) => el("button", { "aria-pressed": String(reviewFilter === v), onclick: () => { reviewFilter = v; renderMock(); } }, t)));

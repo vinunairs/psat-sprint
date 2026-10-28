@@ -607,3 +607,5 @@ body[data-tab="news"] footer.foot{display:none}
 .td-lesson{border-left:4px solid #d9480f}
 .td-lesson .btn{white-space:nowrap}
 .tag.lesson{color:#9a3412;background:#ffedd5}
+
+.tk-ex{margin-top:8px}.tk-ex>summary{cursor:pointer;font-size:13.5px;color:#4a2fc9;font-weight:600}
