@@ -3114,6 +3114,9 @@
       Object.assign(names, F.s || {});
       return { x, n, r, pct: n ? r / n : 0 };
     });
+    // Types that got new questions are counted again from zero: [served, repeats] at the time of the refresh is subtracted.
+    const REFRESHED = { "bank:ii": [57, 21], sec_semiphrase: [13, 6], geo_trig: [12, 4], geo_special: [23, 6] }; // refreshed 2026-10-28
+    for (const [tpl, b] of Object.entries(REFRESHED)) if (agg[tpl]) agg[tpl] = [Math.max(0, agg[tpl][0] - b[0]), Math.max(0, agg[tpl][1] - b[1])];
     const hot = Object.entries(agg).filter(([, v]) => v[0] >= 12 && v[1] / v[0] >= 0.15).map(([tpl, v]) => ({ tpl, n: v[0], pct: v[1] / v[0] })).sort((a, b) => b.pct - a.pct).slice(0, 8);
     const bank = window.RWBank || [], cov = ["cs", "ii", "eoi", "sec"].map((d) => {
       const ids = bank.filter((q) => q.d === d).map((q) => q.id), tot = ids.length;
